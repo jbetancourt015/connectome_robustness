@@ -20,7 +20,9 @@ import network_functions
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, LogNorm
+from matplotlib.ticker import LogLocator, LogFormatter
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numba import njit
 from tqdm import tqdm
 
@@ -178,26 +180,76 @@ mean = np.array(mean)
 m2 = np.array(m2)
 
 # Get variance range
-min_m2, max_m2 = min(m2), max(m2)
 min_mean, max_mean = min(mean), max(mean)
+min_m2, max_m2 = min(m2), max(m2)
 
 n_plot = 100
 mean_vals = np.linspace(min_mean, max_mean, n_plot)
+m2_vals = np.linspace(min_m2, max_m2, n_plot)
 
-# Separate high and low variance values
-high_mask = (m2 > np.median(m2))
-low_mask = (m2 <= np.median(m2))
+# FIGURE: LOSS VS MEAN
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
 
-# Compare with model predictions
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-# ax.scatter(mean[high_mask], loss[high_mask], color=con_colors[1], rasterized=True)
-# ax.scatter(mean[low_mask], loss[low_mask], color=con_colors[0], rasterized=True)
-ax.scatter(mean, loss, c=m2, cmap=cmap)
-ax.plot(mean_vals, np.arccos((1+(eps**2)*(mean_vals/max_m2))**(-1/2))/np.pi, c=con_colors[1])
-ax.plot(mean_vals, np.arccos((1+(eps**2)*(mean_vals/min_m2))**(-1/2))/np.pi, c=con_colors[0])
-ax.set_xscale('log')
-ax.set_yscale('log')
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(mean, loss, c=m2, cmap='viridis', norm=LogNorm())
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+# Pick values of the second moment for analytical curves
+n_curves = 3
+m2_curves = np.logspace(np.log10(min_m2), np.log10(max_m2), n_curves)
+cmap = sc.get_cmap()
+norm = sc.norm
+
+for x in m2_curves:
+    ax_scatter.plot(mean_vals, np.arccos((1+(eps**2)*(mean_vals/x))**(-1/2))/np.pi, c=cmap(norm(x)))
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+ax_scatter.set_xscale('log')
+ax_scatter.set_yscale('log')
 plt.savefig(f"../../raw_figures/simulations/loss_vs_mean_eta_{int(eta)}.pdf", dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Average strength')
+ax_scatter.set_ylabel('Expected loss')
+cbar.set_label('Average squared strength')
+
+plt.savefig(f"../../figures/simulations/loss_vs_mean_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
+
+
+# FIGURE: LOSS VS SECOND MOMENT
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(m2, loss, c=mean, cmap='viridis', norm=LogNorm())
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+# Pick values of the second moment for analytical curves
+n_curves = 3
+mean_curves = np.logspace(np.log10(min_mean), np.log10(max_mean), n_curves)
+cmap = sc.get_cmap()
+norm = sc.norm
+
+for x in mean_curves:
+    ax_scatter.plot(m2_vals, np.arccos((1+(eps**2)*(x/m2_vals))**(-1/2))/np.pi, c=cmap(norm(x)))
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+ax_scatter.set_xscale('log')
+ax_scatter.set_yscale('log')
+plt.savefig(f"../../raw_figures/simulations/loss_vs_m2_eta_{int(eta)}.pdf", dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Average squared strength')
+ax_scatter.set_ylabel('Expected loss')
+cbar.set_label('Average strength')
+
+plt.savefig(f"../../figures/simulations/loss_vs_m2_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
 plt.show()
 
 
