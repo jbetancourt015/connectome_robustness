@@ -155,125 +155,19 @@ plt.show()
 #------------------------------------------------------------------------------
 # LOSS VS NEURON STATISTICS
 #------------------------------------------------------------------------------
-# # Initialize loss and parameter vectors
-# loss = []
-# mean = []
-# m2 = []
-
-# # Perturbation parameters
-# eta = 1.
-# eps = 1.
-
-# for i, w in enumerate(tqdm(incoming_weights)):
-#     # Get number of inputs
-#     n_inputs = len(w)
-#     Q = sensitivity(w,eta)
-        
-#     # Draw perturbations
-#     w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
-#     w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
-    
-#     # Draw inputs
-#     x = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
-    
-#     # Save loss and vector statistics
-#     loss.append(average_error(x,w,w_hat,1.))
-#     mean.append(np.mean(w))
-#     m2.append(np.mean(w**2))
-
-# # Convert to numpy arrays
-# loss = np.array(loss)
-# mean = np.array(mean)
-# m2 = np.array(m2)
-
-# # Get variance range
-# min_mean, max_mean = min(mean), max(mean)
-# min_m2, max_m2 = min(m2), max(m2)
-
-# n_plot = 100
-# mean_vals = np.linspace(min_mean, max_mean, n_plot)
-# m2_vals = np.linspace(min_m2, max_m2, n_plot)
-
-# # FIGURE: LOSS VS MEAN
-# # Set up figure
-# fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
-# divider = make_axes_locatable(ax_scatter)
-# ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
-
-# # Compare model prediction with simulated loss
-# sc = ax_scatter.scatter(mean, loss, c=m2, cmap='viridis', norm=LogNorm())
-# cbar = fig.colorbar(sc, cax=ax_cbar)
-
-# # Pick values of the second moment for analytical curves
-# n_curves = 3
-# m2_curves = np.logspace(np.log10(min_m2), np.log10(max_m2), n_curves)
-# cmap = sc.get_cmap()
-# norm = sc.norm
-
-# for x in m2_curves:
-#     ax_scatter.plot(mean_vals, np.arccos((1+(eps**2)*(mean_vals/x))**(-1/2))/np.pi, c=cmap(norm(x)))
-
-# cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
-# ax_scatter.set_xscale('log')
-# ax_scatter.set_yscale('log')
-# plt.savefig(f"../../raw_figures/simulations/loss_vs_mean_eta_{int(eta)}.pdf", dpi=600)
-
-# # Add labels
-# ax_scatter.set_xlabel('Average strength')
-# ax_scatter.set_ylabel('Expected loss')
-# cbar.set_label('Average squared strength')
-
-# plt.savefig(f"../../figures/simulations/loss_vs_mean_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
-# plt.show()
-
-
-# # FIGURE: LOSS VS SECOND MOMENT
-# # Set up figure
-# fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
-# divider = make_axes_locatable(ax_scatter)
-# ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
-
-# # Compare model prediction with simulated loss
-# sc = ax_scatter.scatter(m2, loss, c=mean, cmap='viridis', norm=LogNorm())
-# cbar = fig.colorbar(sc, cax=ax_cbar)
-
-# # Pick values of the second moment for analytical curves
-# n_curves = 3
-# mean_curves = np.logspace(np.log10(min_mean), np.log10(max_mean), n_curves)
-# cmap = sc.get_cmap()
-# norm = sc.norm
-
-# for x in mean_curves:
-#     ax_scatter.plot(m2_vals, np.arccos((1+(eps**2)*(x/m2_vals))**(-1/2))/np.pi, c=cmap(norm(x)))
-
-# cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
-# ax_scatter.set_xscale('log')
-# ax_scatter.set_yscale('log')
-# plt.savefig(f"../../raw_figures/simulations/loss_vs_m2_eta_{int(eta)}.pdf", dpi=600)
-
-# # Add labels
-# ax_scatter.set_xlabel('Average squared strength')
-# ax_scatter.set_ylabel('Expected loss')
-# cbar.set_label('Average strength')
-
-# plt.savefig(f"../../figures/simulations/loss_vs_m2_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
-# plt.show()
-
-#------------------------------------------------------------------------------
-# PREDICTED VS SIMULATED LOSS
-#------------------------------------------------------------------------------
 # Initialize loss and parameter vectors
-sim_loss = []
-pred_loss = []
-baseline_loss = []
+loss = []
+mean = []
+m2 = []
 
 # Perturbation parameters
 eta = 1.
-eps_vals = [.5,1.,2.]
+eps = 1.
 
 for i, w in enumerate(tqdm(incoming_weights)):
     # Get number of inputs
     n_inputs = len(w)
+    Q = sensitivity(w,eta)
         
     # Draw perturbations
     w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
@@ -282,56 +176,162 @@ for i, w in enumerate(tqdm(incoming_weights)):
     # Draw inputs
     x = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
     
-    # Save loss for different values of perturbation strenght
-    sim_loss_vals = []
-    pred_loss_vals = []
-    
-    for eps in eps_vals:
-        sim_loss_vals.append(average_error(x,w,w_hat,eps))
-        pred_loss_vals.append(predicted_loss(w,eta,eps))
-    
     # Save loss and vector statistics
-    sim_loss.append(sim_loss_vals)
-    pred_loss.append(pred_loss_vals)
-    baseline_loss.append(predicted_loss(w,eta,1.))
+    loss.append(average_error(x,w,w_hat,1.))
+    mean.append(np.mean(w))
+    m2.append(np.mean(w**2))
 
 # Convert to numpy arrays
-sim_loss = np.array(sim_loss)
-pred_loss = np.array(pred_loss)
-baseline_loss = np.array(baseline_loss)
+loss = np.array(loss)
+mean = np.array(mean)
+m2 = np.array(m2)
 
-# Plot prediction vs simuated loss for different epsilon values
-for i, eps in enumerate(eps_vals):
-    # Get variance range
-    min_loss, max_loss = min(pred_loss[:,i]), max(pred_loss[:,i])
+# Get variance range
+min_mean, max_mean = min(mean), max(mean)
+min_m2, max_m2 = min(m2), max(m2)
+
+n_plot = 100
+mean_vals = np.linspace(min_mean, max_mean, n_plot)
+m2_vals = np.linspace(min_m2, max_m2, n_plot)
+
+# FIGURE: LOSS VS MEAN
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(mean, loss, c=m2, cmap='viridis', norm=LogNorm())
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+# Pick values of the second moment for analytical curves
+n_curves = 3
+m2_curves = np.logspace(np.log10(min_m2), np.log10(max_m2), n_curves)
+cmap = sc.get_cmap()
+norm = sc.norm
+
+for x in m2_curves:
+    ax_scatter.plot(mean_vals, np.arccos((1+(eps**2)*(mean_vals/x))**(-1/2))/np.pi, c=cmap(norm(x)))
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+ax_scatter.set_xscale('log')
+ax_scatter.set_yscale('log')
+plt.savefig(f"../../raw_figures/simulations/loss_vs_mean_eta_{int(eta)}.pdf", dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Average strength')
+ax_scatter.set_ylabel('Expected loss')
+cbar.set_label('Average squared strength')
+
+plt.savefig(f"../../figures/simulations/loss_vs_mean_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
+
+
+# FIGURE: LOSS VS SECOND MOMENT
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(m2, loss, c=mean, cmap='viridis', norm=LogNorm())
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+# Pick values of the second moment for analytical curves
+n_curves = 3
+mean_curves = np.logspace(np.log10(min_mean), np.log10(max_mean), n_curves)
+cmap = sc.get_cmap()
+norm = sc.norm
+
+for x in mean_curves:
+    ax_scatter.plot(m2_vals, np.arccos((1+(eps**2)*(x/m2_vals))**(-1/2))/np.pi, c=cmap(norm(x)))
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+ax_scatter.set_xscale('log')
+ax_scatter.set_yscale('log')
+plt.savefig(f"../../raw_figures/simulations/loss_vs_m2_eta_{int(eta)}.pdf", dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Average squared strength')
+ax_scatter.set_ylabel('Expected loss')
+cbar.set_label('Average strength')
+
+plt.savefig(f"../../figures/simulations/loss_vs_m2_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
+
+#------------------------------------------------------------------------------
+# PREDICTED VS SIMULATED LOSS
+#------------------------------------------------------------------------------
+# # Initialize loss and parameter vectors
+# sim_loss = []
+# pred_loss = []
+# baseline_loss = []
+
+# # Perturbation parameters
+# eta = 1.
+# eps_vals = [.5,1.,2.]
+
+# for i, w in enumerate(tqdm(incoming_weights)):
+#     # Get number of inputs
+#     n_inputs = len(w)
+        
+#     # Draw perturbations
+#     w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
+#     w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
     
-    # FIGURE: PREDICTED VS SIMULATED LOSS
-    # Set up figure
-    fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
-    divider = make_axes_locatable(ax_scatter)
-    ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+#     # Draw inputs
+#     x = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
     
-    # Compare model prediction with simulated loss
-    sc = ax_scatter.scatter(pred_loss[:,i], sim_loss[:,i], c=baseline_loss, cmap='viridis', norm=LogNorm())
-    cbar = fig.colorbar(sc, cax=ax_cbar)
+#     # Save loss for different values of perturbation strenght
+#     sim_loss_vals = []
+#     pred_loss_vals = []
     
-    # Plot y=x line
-    ax_scatter.plot([min_loss,max_loss], [min_loss,max_loss], c='k', ls='--', lw=1)
+#     for eps in eps_vals:
+#         sim_loss_vals.append(average_error(x,w,w_hat,eps))
+#         pred_loss_vals.append(predicted_loss(w,eta,eps))
     
-    cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
-    ax_scatter.set_xscale('log')
-    ax_scatter.set_yscale('log')
-    plt.savefig(f"../../raw_figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600)
+#     # Save loss and vector statistics
+#     sim_loss.append(sim_loss_vals)
+#     pred_loss.append(pred_loss_vals)
+#     baseline_loss.append(predicted_loss(w,eta,1.))
+
+# # Convert to numpy arrays
+# sim_loss = np.array(sim_loss)
+# pred_loss = np.array(pred_loss)
+# baseline_loss = np.array(baseline_loss)
+
+# # Plot prediction vs simuated loss for different epsilon values
+# for i, eps in enumerate(eps_vals):
+#     # Get variance range
+#     min_loss, max_loss = min(pred_loss[:,i]), max(pred_loss[:,i])
     
-    # Add labels
-    ax_scatter.set_xlabel('Predicted loss')
-    ax_scatter.set_ylabel('Simulated loss')
-    cbar.set_label('Baseline loss')
-    ax_scatter.text(max_loss/(max_loss/min_loss)**0.05, min_loss*(max_loss/min_loss)**0.05,
-                    f"$\epsilon$={eps}", ha="right", va="bottom")
+#     # FIGURE: PREDICTED VS SIMULATED LOSS
+#     # Set up figure
+#     fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+#     divider = make_axes_locatable(ax_scatter)
+#     ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
     
-    plt.savefig(f"../../figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600, bbox_inches='tight')
-    plt.show()
+#     # Compare model prediction with simulated loss
+#     sc = ax_scatter.scatter(pred_loss[:,i], sim_loss[:,i], c=baseline_loss, cmap='viridis', norm=LogNorm())
+#     cbar = fig.colorbar(sc, cax=ax_cbar)
+    
+#     # Plot y=x line
+#     ax_scatter.plot([min_loss,max_loss], [min_loss,max_loss], c='k', ls='--', lw=1)
+    
+#     cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+#     ax_scatter.set_xscale('log')
+#     ax_scatter.set_yscale('log')
+#     plt.savefig(f"../../raw_figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600)
+    
+#     # Add labels
+#     ax_scatter.set_xlabel('Predicted loss')
+#     ax_scatter.set_ylabel('Simulated loss')
+#     cbar.set_label('Baseline loss')
+#     ax_scatter.text(max_loss/(max_loss/min_loss)**0.05, min_loss*(max_loss/min_loss)**0.05,
+#                     f"$\epsilon$={eps}", ha="right", va="bottom")
+    
+#     plt.savefig(f"../../figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600, bbox_inches='tight')
+#     plt.show()
     
 
 #------------------------------------------------------------------------------
