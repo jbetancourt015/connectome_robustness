@@ -5,7 +5,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Mon 8 Aug 2025
+    Tue 2 Sep 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ height = 3.2
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
-data_idx = 0
+data_idx = 5
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
@@ -204,7 +204,7 @@ def plot_sensitivity_hist(eta, null_net, normalized=False, labels=True):
 # COMPARE SENSITIVITIES
 #------------------------------------------------------------------------------
 # Plot sensitivities
-plot_sensitivities(1, 'rand_weight', normalized=True)
+plot_sensitivities(1., 'rand_weight', normalized=True)
 
 
 

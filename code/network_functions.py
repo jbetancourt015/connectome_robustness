@@ -6,7 +6,7 @@ created on:
     Tue 28 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 2 Sept 2025
+    Tue 2 Sep 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -36,21 +36,32 @@ def load_connectome(data_idx):
 #------------------------------------------------------------------------------
 # SENSITIVITY CALCULATION
 #------------------------------------------------------------------------------
-def compute_sensitivity(A, eta=1, normalized=True):
+def compute_sensitivity(A, eta=1., normalized=True):
     # Compute 0th moment
     k = A.getnnz(axis=0)
     # Get higher moments
     mask = k > 1
-    s = [k[mask]]
-    An = A
-    for n in range(1,3):
-        s.append(np.array(An.sum(axis=0)).ravel()[mask])
-        An = An.multiply(A)
+    
+    # Get moments of columns
+    def col_moment(p, mask):
+        if p == 1:
+            return np.asarray(A.sum(axis=0)).ravel()[mask]
+        else:
+            B = A.copy()
+            B.data = np.power(B.data, p)
+            return np.asarray(B.sum(axis=0)).ravel()[mask]
+        
+    # Compute moments
+    s_0 = k[mask]
+    s_1 = col_moment(1., mask)
+    s_2 = col_moment(2., mask)
+    s_eta = col_moment(eta, mask)
+    
     # Compute sensitivities
-    Q = s[eta]/s[2]
+    Q = s_eta/s_2
     if normalized:
-        Q *= (s[1]/s[0])**(2-eta)
-    return np.array(Q)
+        Q *= (s_1/s_0)**(2-eta)
+    return Q
 
 #------------------------------------------------------------------------------
 # NULL NETWORK GENERATION
