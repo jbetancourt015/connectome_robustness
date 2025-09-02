@@ -6,7 +6,7 @@ created on:
     Tue 28 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Mon 12 May 2025
+    Tue 2 Sept 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -18,7 +18,6 @@ contributors:
 """
 import numpy as np
 import networkx as nx
-import matplotlib.pyplot as plt
 from scipy.sparse import load_npz, csc_matrix
 from numba import njit
 
@@ -37,25 +36,20 @@ def load_connectome(data_idx):
 #------------------------------------------------------------------------------
 # SENSITIVITY CALCULATION
 #------------------------------------------------------------------------------
-def compute_sensitivity(A, scheme='constant', normalized=True):
+def compute_sensitivity(A, eta=1, normalized=True):
     # Compute 0th moment
     k = A.getnnz(axis=0)
     # Get higher moments
     mask = k > 1
     s = [k[mask]]
     An = A
-    for n in range(1,4):
+    for n in range(1,3):
         s.append(np.array(An.sum(axis=0)).ravel()[mask])
         An = An.multiply(A)
     # Compute sensitivities
-    if scheme == 'constant':
-        Q = 0.5*(s[0] - 1)/s[2]
-        if normalized:
-            Q /= (0.5*s[0]*(s[0]-1)/s[1]**2)
-    else:  # proportional
-        Q = -0.5*(s[3] - s[1]*s[2])/(s[2]**2)
-        if normalized:
-            Q /= (0.5*(s[0]-1)/s[1])
+    Q = s[eta]/s[2]
+    if normalized:
+        Q *= (s[1]/s[0])**(2-eta)
     return np.array(Q)
 
 #------------------------------------------------------------------------------
