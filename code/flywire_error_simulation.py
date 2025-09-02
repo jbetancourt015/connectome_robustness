@@ -185,16 +185,20 @@ for i, w in enumerate(tqdm(incoming_weights)):
 loss = np.array(loss)
 mean = np.array(mean)
 m2 = np.array(m2)
+fano = (m2/mean)-mean
 
 # Get variance range
 min_mean, max_mean = min(mean), max(mean)
 min_m2, max_m2 = min(m2), max(m2)
+min_fano, max_fano = min(fano[fano>0]), max(fano)
 
 n_plot = 100
 mean_vals = np.linspace(min_mean, max_mean, n_plot)
 m2_vals = np.linspace(min_m2, max_m2, n_plot)
+fano_vals = np.linspace(min_fano, max_fano, n_plot)
 
-# FIGURE: LOSS VS MEAN
+
+# FIGURE: LOSS VS MEAN---------------------------------------------------------
 # Set up figure
 fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
 divider = make_axes_locatable(ax_scatter)
@@ -227,7 +231,7 @@ plt.savefig(f"../../figures/simulations/loss_vs_mean_eta_{int(eta)}.pdf", dpi=60
 plt.show()
 
 
-# FIGURE: LOSS VS SECOND MOMENT
+# FIGURE: LOSS VS SECOND MOMENT------------------------------------------------
 # Set up figure
 fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
 divider = make_axes_locatable(ax_scatter)
@@ -257,6 +261,72 @@ ax_scatter.set_ylabel('Expected loss')
 cbar.set_label('Average strength')
 
 plt.savefig(f"../../figures/simulations/loss_vs_m2_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
+
+
+# FIGURE: LOSS VS MEAN (BY FANO FACTOR)----------------------------------------
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(mean, loss, c=fano, cmap='viridis', norm=LogNorm())
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+# Pick values of the second moment for analytical curves
+n_curves = 3
+fano_curves = np.logspace(np.log10(min_fano), np.log10(max_fano), n_curves)
+cmap = sc.get_cmap()
+norm = sc.norm
+
+for x in fano_curves:
+    ax_scatter.plot(mean_vals, np.arccos((1+(eps**2)*(1./(x+mean_vals)))**(-1/2))/np.pi, c=cmap(norm(x)))
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+ax_scatter.set_xscale('log')
+ax_scatter.set_yscale('log')
+plt.savefig(f"../../raw_figures/simulations/loss_vs_mean_fano_eta_{int(eta)}.pdf", dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Average strength')
+ax_scatter.set_ylabel('Expected loss')
+cbar.set_label('Fano factor')
+
+plt.savefig(f"../../figures/simulations/loss_vs_mean_fano_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
+
+
+# FIGURE: LOSS VS FANO FACTOR--------------------------------------------------
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(fano, loss, c=mean, cmap='viridis', norm=LogNorm())
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+# Pick values of the second moment for analytical curves
+n_curves = 3
+mean_curves = np.logspace(np.log10(min_mean), np.log10(max_mean), n_curves)
+cmap = sc.get_cmap()
+norm = sc.norm
+
+for x in mean_curves:
+    ax_scatter.plot(fano_vals, np.arccos((1+(eps**2)*(1./(fano_vals+x)))**(-1/2))/np.pi, c=cmap(norm(x)))
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+ax_scatter.set_xscale('log')
+ax_scatter.set_yscale('log')
+plt.savefig(f"../../raw_figures/simulations/loss_vs_fano_eta_{int(eta)}.pdf", dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Fano factor')
+ax_scatter.set_ylabel('Expected loss')
+cbar.set_label('Average strength')
+
+plt.savefig(f"../../figures/simulations/loss_vs_fano_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
 plt.show()
 
 #------------------------------------------------------------------------------

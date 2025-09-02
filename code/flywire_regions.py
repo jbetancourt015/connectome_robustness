@@ -17,6 +17,7 @@ contributors:
 """
 import pickle
 
+# Map of brain regions
 region_map = {
     # Optic Lobe
     **dict.fromkeys(
@@ -94,5 +95,21 @@ region_map = {
     'UNASGD': 'Other Regions',
 }
 
-with open('../processed_data/region_map.pkl', 'wb') as f:
+with open('../processed_data/brain_region_map.pkl', 'wb') as f:
     pickle.dump(region_map, f)
+    
+    
+# Map of optic lobe regions
+optic_lobe_map = {
+    # Lamina
+    **dict.fromkeys(['LA_L', 'LA_R'], 'Lamina'),
+    
+    # Medula
+    **dict.fromkeys(['ME_L', 'ME_R'], 'Medulla'),
+    
+    # Lobula complex
+    **dict.fromkeys(['LO_L', 'LO_R', 'LOP_L', 'LOP_R'], 'Lobula Complex')
+    }
+
+with open('../processed_data/optic_lobe_region_map.pkl', 'wb') as f:
+    pickle.dump(optic_lobe_map, f)
