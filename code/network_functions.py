@@ -29,8 +29,11 @@ processed_dir = '../processed_data/'
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
-def load_connectome(data_idx):
-    A = load_npz('%s%s.npz'%(processed_dir, connectomes[data_idx]))
+def load_connectome(data_idx, thresholded=False):
+    if not thresholded:
+        A = load_npz(f"{processed_dir}{connectomes[data_idx]}.npz")
+    else:
+        A = load_npz(f"{processed_dir}{connectomes[data_idx]}_thresholded.npz")
     return A
 
 #------------------------------------------------------------------------------

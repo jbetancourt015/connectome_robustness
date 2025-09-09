@@ -26,7 +26,7 @@ from tqdm import tqdm
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
 #------------------------------------------------------------------------------
-data_dir = '../raw_data/'
+data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
@@ -64,25 +64,29 @@ for data_idx in range(5):
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE
 #------------------------------------------------------------------------------
+file_name = 'flywire_connections.csv.gz'
 data_idx = 5
 
 # Load dataset into pandas DataFrame
-df = pd.read_csv(
-    data_dir + file_names[data_idx],
-    usecols=['pre_root_id','post_root_id','syn_count'],
-    dtype={'pre_root_id':np.int32,'post_root_id':np.int32,'syn_count':np.float32},
-    compression='gzip'
+df = pd.read_csv(data_dir+file_name, compression='gzip')
+
+# Sum over neuropils
+weights = (
+    df
+    .groupby(['pre_root_id','post_root_id'])['syn_count']
+    .sum()
+    .reset_index()
 )
 
 # Get unique node IDs
-all_nodes = pd.unique(df[['pre_root_id','post_root_id']].values.ravel())
+all_nodes = pd.unique(weights[['pre_root_id','post_root_id']].values.ravel())
 N = len(all_nodes)
 node_to_idx = {node: i for i, node in enumerate(all_nodes)}
 
 # Apply mapping to row/col arrays
-rows = df['pre_root_id'].map(node_to_idx).values
-cols = df['post_root_id'].map(node_to_idx).values
-data = df['syn_count'].values
+rows = weights['pre_root_id'].map(node_to_idx).values
+cols = weights['post_root_id'].map(node_to_idx).values
+data = weights['syn_count'].values
 
 # Create sparse matrix using SciPy
 A_coo = coo_matrix((data, (rows, cols)), shape=(N, N))
@@ -90,3 +94,36 @@ A_csc = A_coo.tocsc()
 
 # Save it to disk
 save_npz(processed_dir + '%s.npz'%(connectomes[data_idx]), A_csc)
+
+#------------------------------------------------------------------------------
+# PROCESSING FLYWIRE - THRESHOLDED
+#------------------------------------------------------------------------------
+file_name = 'flywire_connections_thresholded.csv.gz'
+
+# Load dataset into pandas DataFrame
+df = pd.read_csv(data_dir+file_name, compression='gzip')
+
+# Sum over neuropils
+weights = (
+    df
+    .groupby(['pre_root_id','post_root_id'])['syn_count']
+    .sum()
+    .reset_index()
+)
+
+# Get unique node IDs
+all_nodes = pd.unique(weights[['pre_root_id','post_root_id']].values.ravel())
+N = len(all_nodes)
+node_to_idx = {node: i for i, node in enumerate(all_nodes)}
+
+# Apply mapping to row/col arrays
+rows = weights['pre_root_id'].map(node_to_idx).values
+cols = weights['post_root_id'].map(node_to_idx).values
+data = weights['syn_count'].values
+
+# Create sparse matrix using SciPy
+A_coo = coo_matrix((data, (rows, cols)), shape=(N, N))
+A_csc = A_coo.tocsc()
+
+# Save it to disk
+save_npz(processed_dir + f"{connectomes[data_idx]}_thresholded.npz", A_csc)

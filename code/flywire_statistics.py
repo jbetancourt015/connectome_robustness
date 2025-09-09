@@ -21,14 +21,21 @@ import pandas as pd
 import network_functions
 import matplotlib.pyplot as plt
 import pickle
+import logging
 
 plt.rcParams.update({
-    "text.usetex": True,
-    "font.family": "serif",
-    "font.size": 15,
-    "font.serif": ["Garamond"],
-    "text.latex.preamble": r'\usepackage{amsfonts}'
+    'font.family': 'Helvetica',
+    'axes.labelsize': 9,
+    'xtick.labelsize': 8,
+    'ytick.labelsize': 8,
+    'legend.fontsize': 8,
+    'axes.linewidth': 0.5,   # thin axis lines for publication
+    'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
+    'ps.fonttype': 42,       # same for PostScript
 })
+
+logging.getLogger("fontTools").setLevel(logging.ERROR)
+logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
 processed_dir = '../processed_data/'
 
@@ -43,7 +50,7 @@ data_idx = 5
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
 #------------------------------------------------------------------------------
-data_dir = '../raw_data/'
+data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
@@ -78,7 +85,7 @@ def empirical_hist(data):
 df = pd.read_csv(data_dir + file_names[data_idx], compression='gzip')
 
 # Load brain region map
-with open('../processed_data/region_map.pkl', 'rb') as f:
+with open('../processed_data/brain_region_map.pkl', 'rb') as f:
     region_map = pickle.load(f)
     
 # Get brain region statistics
@@ -117,7 +124,7 @@ ax.set_xticks(range(n_regions))
 ax.set_xticklabels(region_order, rotation=45, ha='right')
 ax.set_ylabel('Connection strength')
 plt.tight_layout()
-plt.savefig('../figures/flywire/conn_strength_region.pdf', dpi=600, bbox_inches='tight')
+plt.savefig('../../figures/flywire/conn_strength_region.pdf', dpi=600, bbox_inches='tight')
 plt.show()
 
 fig, ax = plt.subplots(figsize=(10, 6))
@@ -127,11 +134,11 @@ ax.set_xticklabels(region_order, rotation=45, ha='right')
 ax.set_ylabel('Number of connections')
 ax.set_yscale('log')
 plt.tight_layout()
-plt.savefig('../figures/flywire/neuron_counts_region.pdf', dpi=600, bbox_inches='tight')
+plt.savefig('../../figures/flywire/neuron_counts_region.pdf', dpi=600, bbox_inches='tight')
 plt.show()
 
 #------------------------------------------------------------------------------
-# MOST AND LEAST SENSITIVE NEUROPILS
+# CONNECTION STRENGTH DISTRIBUTION BY BRAIN REGION
 #------------------------------------------------------------------------------
 cmap = plt.get_cmap('viridis', len(region_order))
 region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
@@ -153,7 +160,7 @@ plt.xlabel('Connection strength')
 plt.ylabel('Probability')
 plt.xscale('log')
 plt.yscale('log')
-plt.savefig('../figures/flywire/brain_region_weight_dist.pdf', dpi=600, bbox_inches='tight')
+plt.savefig('../../figures/flywire_statistics/brain_region_weight_dist.pdf', dpi=600, bbox_inches='tight')
 plt.show()
 
 # Make the same plot in reverse
@@ -174,11 +181,59 @@ plt.xlabel('Connection strength')
 plt.ylabel('Probability')
 plt.xscale('log')
 plt.yscale('log')
-plt.savefig('../figures/flywire/brain_region_weight_dist_reversed.pdf', dpi=600, bbox_inches='tight')
+plt.savefig('../../figures/flywire_statistics/brain_region_weight_dist_reversed.pdf', dpi=600, bbox_inches='tight')
 plt.show()
 
+#------------------------------------------------------------------------------
+# CONNECTION STRENGTH DISTRIBUTION BY BRAIN REGION (BY ASSIGNED NEURONS)
+#------------------------------------------------------------------------------
+# Assign a neuropil to each neuron
+neuropil_df = (
+    df
+    .groupby(['post_root_id','neuropil'])['syn_count']
+    .sum()
+    .reset_index()
+    .sort_values(['post_root_id','syn_count'], ascending=[True, False])
+    .drop_duplicates('post_root_id')
+    .loc[:, ['post_root_id','neuropil']]
+)
 
+categorized_df =(
+    df[['pre_root_id', 'post_root_id', 'syn_count']].merge(neuropil_df, on='post_root_id')
+)
 
+# Add brain regions of post neuron
+categorized_df['brain_region'] = categorized_df['neuropil'].map(region_map)
+
+# Get statistics by brain region
+counts = [len(categorized_df[categorized_df['brain_region']==region]) for region in region_order]
+means = [categorized_df[categorized_df['brain_region']==region]['syn_count'].mean() for region in region_order]
+stds = [categorized_df[categorized_df['brain_region']==region]['syn_count'].std() for region in region_order]
+
+# Generate a sub-dataframe for each brain region
+groups = {
+    region: categorized_df[categorized_df['brain_region'] == region] for region in region_order
+}
+
+for region in region_order:
+    # Get weights in brain region
+    weights = (
+        categorized_df[categorized_df['brain_region']==region]
+        .groupby(['pre_root_id','post_root_id'])['syn_count']
+        .sum()
+        .values
+    )
+    # Get histograms
+    s, P = empirical_hist(weights)
+    # Plot histogram
+    plt.scatter(s, P, color=region_colors[region], rasterized=True)
+
+plt.xlabel('Connection strength')
+plt.ylabel('Probability')
+plt.xscale('log')
+plt.yscale('log')
+plt.savefig('../../figures/flywire_statistics/target_neuron_brain_region_weight_dist.pdf', dpi=600, bbox_inches='tight')
+plt.show()
 
 
 

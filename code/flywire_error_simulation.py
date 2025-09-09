@@ -6,7 +6,7 @@ created on:
     Tue 3 Jun 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 3 Jun 2025
+    Tue 9 Sep 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -49,6 +49,7 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
 data_idx = 5
+thresholded = True
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
@@ -62,7 +63,7 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
 cmap=fade_to_color_cmap(con_colors[0], alpha_min=0.2, name="fade_to_color")
 
 # Get connectome
-A = network_functions.load_connectome(data_idx)
+A = network_functions.load_connectome(data_idx, thresholded=thresholded)
 N = A.shape[0]
 
 #------------------------------------------------------------------------------
@@ -167,19 +168,20 @@ eps = 1.
 for i, w in enumerate(tqdm(incoming_weights)):
     # Get number of inputs
     n_inputs = len(w)
-    Q = sensitivity(w,eta)
+    if n_inputs > 0:
+        Q = sensitivity(w,eta)
+            
+        # Draw perturbations
+        w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
+        w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
         
-    # Draw perturbations
-    w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
-    w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
-    
-    # Draw inputs
-    x = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
-    
-    # Save loss and vector statistics
-    loss.append(average_error(x,w,w_hat,1.))
-    mean.append(np.mean(w))
-    m2.append(np.mean(w**2))
+        # Draw inputs
+        x = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
+        
+        # Save loss and vector statistics
+        loss.append(average_error(x,w,w_hat,1.))
+        mean.append(np.mean(w))
+        m2.append(np.mean(w**2))
 
 # Convert to numpy arrays
 loss = np.array(loss)
@@ -332,160 +334,162 @@ plt.show()
 #------------------------------------------------------------------------------
 # PREDICTED VS SIMULATED LOSS
 #------------------------------------------------------------------------------
-# # Initialize loss and parameter vectors
-# sim_loss = []
-# pred_loss = []
-# baseline_loss = []
+# Initialize loss and parameter vectors
+sim_loss = []
+pred_loss = []
+baseline_loss = []
 
-# # Perturbation parameters
-# eta = 1.
-# eps_vals = [.5,1.,2.]
+# Perturbation parameters
+eta = 1.
+eps_vals = [.5,1.,2.]
 
-# for i, w in enumerate(tqdm(incoming_weights)):
-#     # Get number of inputs
-#     n_inputs = len(w)
+for i, w in enumerate(tqdm(incoming_weights)):
+    # Get number of inputs
+    n_inputs = len(w)
+    if n_inputs > 0:
         
-#     # Draw perturbations
-#     w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
-#     w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
-    
-#     # Draw inputs
-#     x = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
-    
-#     # Save loss for different values of perturbation strenght
-#     sim_loss_vals = []
-#     pred_loss_vals = []
-    
-#     for eps in eps_vals:
-#         sim_loss_vals.append(average_error(x,w,w_hat,eps))
-#         pred_loss_vals.append(predicted_loss(w,eta,eps))
-    
-#     # Save loss and vector statistics
-#     sim_loss.append(sim_loss_vals)
-#     pred_loss.append(pred_loss_vals)
-#     baseline_loss.append(predicted_loss(w,eta,1.))
+        # Draw perturbations
+        w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
+        w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
+        
+        # Draw inputs
+        x = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
+        
+        # Save loss for different values of perturbation strenght
+        sim_loss_vals = []
+        pred_loss_vals = []
+        
+        for eps in eps_vals:
+            sim_loss_vals.append(average_error(x,w,w_hat,eps))
+            pred_loss_vals.append(predicted_loss(w,eta,eps))
+        
+        # Save loss and vector statistics
+        sim_loss.append(sim_loss_vals)
+        pred_loss.append(pred_loss_vals)
+        baseline_loss.append(predicted_loss(w,eta,1.))
 
-# # Convert to numpy arrays
-# sim_loss = np.array(sim_loss)
-# pred_loss = np.array(pred_loss)
-# baseline_loss = np.array(baseline_loss)
+# Convert to numpy arrays
+sim_loss = np.array(sim_loss)
+pred_loss = np.array(pred_loss)
+baseline_loss = np.array(baseline_loss)
 
-# # Plot prediction vs simuated loss for different epsilon values
-# for i, eps in enumerate(eps_vals):
-#     # Get variance range
-#     min_loss, max_loss = min(pred_loss[:,i]), max(pred_loss[:,i])
+# Plot prediction vs simuated loss for different epsilon values
+for i, eps in enumerate(eps_vals):
+    # Get variance range
+    min_loss, max_loss = min(pred_loss[:,i]), max(pred_loss[:,i])
     
-#     # FIGURE: PREDICTED VS SIMULATED LOSS
-#     # Set up figure
-#     fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
-#     divider = make_axes_locatable(ax_scatter)
-#     ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+    # FIGURE: PREDICTED VS SIMULATED LOSS
+    # Set up figure
+    fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+    divider = make_axes_locatable(ax_scatter)
+    ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
     
-#     # Compare model prediction with simulated loss
-#     sc = ax_scatter.scatter(pred_loss[:,i], sim_loss[:,i], c=baseline_loss, cmap='viridis', norm=LogNorm())
-#     cbar = fig.colorbar(sc, cax=ax_cbar)
+    # Compare model prediction with simulated loss
+    sc = ax_scatter.scatter(pred_loss[:,i], sim_loss[:,i], c=baseline_loss, cmap='viridis', norm=LogNorm())
+    cbar = fig.colorbar(sc, cax=ax_cbar)
     
-#     # Plot y=x line
-#     ax_scatter.plot([min_loss,max_loss], [min_loss,max_loss], c='k', ls='--', lw=1)
+    # Plot y=x line
+    ax_scatter.plot([min_loss,max_loss], [min_loss,max_loss], c='k', ls='--', lw=1)
     
-#     cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
-#     ax_scatter.set_xscale('log')
-#     ax_scatter.set_yscale('log')
-#     plt.savefig(f"../../raw_figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600)
+    cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+    ax_scatter.set_xscale('log')
+    ax_scatter.set_yscale('log')
+    plt.savefig(f"../../raw_figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600)
     
-#     # Add labels
-#     ax_scatter.set_xlabel('Predicted loss')
-#     ax_scatter.set_ylabel('Simulated loss')
-#     cbar.set_label('Baseline loss')
-#     ax_scatter.text(max_loss/(max_loss/min_loss)**0.05, min_loss*(max_loss/min_loss)**0.05,
-#                     f"$\epsilon$={eps}", ha="right", va="bottom")
+    # Add labels
+    ax_scatter.set_xlabel('Predicted loss')
+    ax_scatter.set_ylabel('Simulated loss')
+    cbar.set_label('Baseline loss')
+    ax_scatter.text(max_loss/(max_loss/min_loss)**0.05, min_loss*(max_loss/min_loss)**0.05,
+                    f"$\epsilon$={eps}", ha="right", va="bottom")
     
-#     plt.savefig(f"../../figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600, bbox_inches='tight')
-#     plt.show()
+    plt.savefig(f"../../figures/simulations/pred_vs_sim_loss_eta_{int(eta)}_eps_{i}.pdf", dpi=600, bbox_inches='tight')
+    plt.show()
     
 
 #------------------------------------------------------------------------------
 # SIMULATION
 #------------------------------------------------------------------------------
-# gaussian_loss = []
-# binary_loss = []
-# eta = 2.
+gaussian_loss = []
+binary_loss = []
+eta = 2.
 
-# for i, w in enumerate(tqdm(incoming_weights)):
-#     # Get number of inputs
-#     n_inputs = len(w)
-#     Q = compute_sensitivity(w,eta)
+for i, w in enumerate(tqdm(incoming_weights)):
+    # Get number of inputs
+    n_inputs = len(w)
+    if n_inputs > 0:
+        Q = sensitivity(w,eta)
+            
+        # Draw perturbations
+        w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
+        w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
         
-#     # Draw perturbations
-#     w_hat = np.random.normal(0.,size=(n_inputs,n_perturb))
-#     w_hat = w_hat*(w**(eta/2))[:,np.newaxis]
-    
-#     # Draw inputs
-#     x_gaussian = np.random.normal(0.,size=(n_inputs,n_draws))
-#     x_binary = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
-    
-#     # Loop over epsilons
-#     gaussian_loss_eps = []
-#     binary_loss_eps = []
-#     for eps in eps_vals:
-#         gaussian_loss_eps.append(average_error(x_gaussian,w,w_hat,eps/(Q**(1/2))))
-#         binary_loss_eps.append(average_error(x_binary,w,w_hat,eps/(Q**(1/2))))
+        # Draw inputs
+        x_gaussian = np.random.normal(0.,size=(n_inputs,n_draws))
+        x_binary = np.random.choice([-1.,1.],size=(n_inputs,n_draws))
         
-#     gaussian_loss.append(gaussian_loss_eps)
-#     binary_loss.append(binary_loss_eps)
+        # Loop over epsilons
+        gaussian_loss_eps = []
+        binary_loss_eps = []
+        for eps in eps_vals:
+            gaussian_loss_eps.append(average_error(x_gaussian,w,w_hat,eps/(Q**(1/2))))
+            binary_loss_eps.append(average_error(x_binary,w,w_hat,eps/(Q**(1/2))))
+            
+        gaussian_loss.append(gaussian_loss_eps)
+        binary_loss.append(binary_loss_eps)
 
-# # Get error statistics
-# gaussian_loss = np.array(gaussian_loss)
-# binary_loss = np.array(binary_loss)
+# Get error statistics
+gaussian_loss = np.array(gaussian_loss)
+binary_loss = np.array(binary_loss)
 
-# median_gaussian = np.median(gaussian_loss, axis=0)
-# lower95_gaussian   = np.percentile(gaussian_loss, 2.5, axis=0)
-# upper95_gaussian   = np.percentile(gaussian_loss, 97.5, axis=0)
+median_gaussian = np.median(gaussian_loss, axis=0)
+lower95_gaussian   = np.percentile(gaussian_loss, 2.5, axis=0)
+upper95_gaussian   = np.percentile(gaussian_loss, 97.5, axis=0)
 
-# median_binary = np.median(binary_loss, axis=0)
-# lower95_binary   = np.percentile(binary_loss, 2.5, axis=0)
-# upper95_binary   = np.percentile(binary_loss, 97.5, axis=0)
+median_binary = np.median(binary_loss, axis=0)
+lower95_binary   = np.percentile(binary_loss, 2.5, axis=0)
+upper95_binary   = np.percentile(binary_loss, 97.5, axis=0)
 
-# # Plot loss curves
-# plt.plot(eps_vals, median_gaussian, c=con_colors[0], label='Median')
-# plt.fill_between(eps_vals, lower95_gaussian, upper95_gaussian, color=con_colors[0], alpha=0.3, label='95\% range')
-# plt.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7, label='Prediction')
-# plt.legend()
-# plt.xlabel('Perturbation strength $\epsilon Q_{%s}^{1/2}$'%(int(eta)))
-# plt.ylabel('Average loss ${\cal E}({\\bf w})$')
-# plt.xscale('log')
-# plt.yscale('log')
-# plt.savefig(f"../figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
-# plt.show()
+# Plot loss curves
+plt.plot(eps_vals, median_gaussian, c=con_colors[0], label='Median')
+plt.fill_between(eps_vals, lower95_gaussian, upper95_gaussian, color=con_colors[0], alpha=0.3, label='95\% range')
+plt.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7, label='Prediction')
+plt.legend()
+plt.xlabel('Perturbation strength $\epsilon Q_{%s}^{1/2}$'%(int(eta)))
+plt.ylabel('Average loss ${\cal E}({\\bf w})$')
+plt.xscale('log')
+plt.yscale('log')
+plt.savefig(f"../figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
 
-# plt.plot(eps_vals, median_binary, c=con_colors[0], label='Median')
-# plt.fill_between(eps_vals, lower95_binary, upper95_binary, color=con_colors[0], alpha=0.3, label='95\% range')
-# plt.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7, label='Prediction')
-# plt.legend()
-# plt.xlabel('Perturbation strength $\epsilon Q_{%s}^{1/2}$'%(int(eta)))
-# plt.ylabel('Average loss ${\cal E}({\\bf w})$')
-# plt.xscale('log')
-# plt.yscale('log')
-# plt.savefig(f"../figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
-# plt.show()
+plt.plot(eps_vals, median_binary, c=con_colors[0], label='Median')
+plt.fill_between(eps_vals, lower95_binary, upper95_binary, color=con_colors[0], alpha=0.3, label='95\% range')
+plt.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7, label='Prediction')
+plt.legend()
+plt.xlabel('Perturbation strength $\epsilon Q_{%s}^{1/2}$'%(int(eta)))
+plt.ylabel('Average loss ${\cal E}({\\bf w})$')
+plt.xscale('log')
+plt.yscale('log')
+plt.savefig(f"../figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
 
-# # Plot raw plots
-# fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+# Plot raw plots
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-# ax.plot(eps_vals, median_gaussian, c=con_colors[0])
-# ax.fill_between(eps_vals, lower95_gaussian, upper95_gaussian, color=con_colors[0], alpha=0.3)
-# ax.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7)
-# ax.set_xscale('log')
-# ax.set_yscale('log')
-# plt.savefig(f"../raw_figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600)
-# plt.show()
+ax.plot(eps_vals, median_gaussian, c=con_colors[0])
+ax.fill_between(eps_vals, lower95_gaussian, upper95_gaussian, color=con_colors[0], alpha=0.3)
+ax.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7)
+ax.set_xscale('log')
+ax.set_yscale('log')
+plt.savefig(f"../raw_figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600)
+plt.show()
 
-# fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-# ax.plot(eps_vals, median_binary, c=con_colors[0])
-# ax.fill_between(eps_vals, lower95_binary, upper95_binary, color=con_colors[0], alpha=0.3)
-# ax.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7)
-# ax.set_xscale('log')
-# ax.set_yscale('log')
-# plt.savefig(f"../raw_figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600)
-# plt.show()
+ax.plot(eps_vals, median_binary, c=con_colors[0])
+ax.fill_between(eps_vals, lower95_binary, upper95_binary, color=con_colors[0], alpha=0.3)
+ax.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7)
+ax.set_xscale('log')
+ax.set_yscale('log')
+plt.savefig(f"../raw_figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600)
+plt.show()

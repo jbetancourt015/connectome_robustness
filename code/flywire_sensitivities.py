@@ -6,7 +6,7 @@ created on:
     Tue 3 Jun 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 2 Sep 2025
+    Tue 9 Sep 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -51,9 +51,6 @@ con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0],
 
 data_idx = 5
 
-# Load connectome
-A = network_functions.load_connectome(data_idx)
-
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
 #------------------------------------------------------------------------------
@@ -70,9 +67,12 @@ file_names = ['Drosophila_central_brain.csv','Drosophila_optic_medulla.csv','Cel
 # PROCESSING FLYWIRE
 #------------------------------------------------------------------------------
 data_idx = 5
+thresholded = True
+
+suffix = '_thresholded' if thresholded else ''
 
 # Load dataset into pandas DataFrame
-df = pd.read_csv(data_dir + file_names[data_idx], compression='gzip')
+df = pd.read_csv(data_dir+'flywire_connections'+suffix+'.csv.gz', compression='gzip')
 
 # Aggregate weights over different neuropils
 weights = (
