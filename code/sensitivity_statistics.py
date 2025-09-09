@@ -51,6 +51,7 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
 data_idx = 5
+thresholded = True
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
@@ -63,13 +64,13 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
 
 # Get connectome
 start = time()
-A = network_functions.load_connectome(data_idx)
+A = network_functions.load_connectome(data_idx, thresholded=thresholded)
 print('Loaded connectome, time:', time()-start)
 N = A.shape[0]
 
 # Get null networks
 start = time()
-A_rand = network_functions.null_network(A, scheme='rand_weight', conn_type='cont' if data_idx==4 else 'disc')
+A_rand = network_functions.null_network(A, scheme='rand_weight', conn_type='cont' if data_idx==4 else 'disc', thresholded=thresholded if data_idx==5 else False)
 print('Random weight network generated, time:', time()-start)
 
 start = time()
@@ -127,8 +128,8 @@ def plot_sensitivity_hist(eta, null_net, normalized=False, labels=True):
     folder = 'figures' if labels else 'raw_figures'
     
     # Get sensitivity of connectomes
-    Q1 = network_functions.compute_sensitivity(A, scheme, normalized)
-    Q2 = network_functions.compute_sensitivity(A_rand if null_net=='rand_weight' else A_poisson, scheme, normalized)
+    Q1 = network_functions.compute_sensitivity(A, eta, normalized)
+    Q2 = network_functions.compute_sensitivity(A_rand if null_net=='rand_weight' else A_poisson, eta, normalized)
     frac_lower = np.mean(Q1 > Q2)
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
 
@@ -176,17 +177,11 @@ def plot_sensitivity_hist(eta, null_net, normalized=False, labels=True):
     
     # Add labels if necessary
     if labels:
-        ax_scatter.set_xlabel("Connectome sensitivity")
-        ax_scatter.set_ylabel(
-            "Random weight sensitivity" if null_net=="rand_weight"
-            else "Poisson sensitivity"
-        )
-        lbl = ("Constant" if scheme=="constant" else "Proportional") + " noise"
-        ax_scatter.text(Q_max-0.05*(Q_max-Q_min), Q_min+0.05*(Q_max-Q_min),
-                        lbl, ha="right", va="bottom")
-        ax_scatter.text(Q_max-0.05*(Q_max-Q_min), Q_min+0.15*(Q_max-Q_min),
-                        f"Frac. lower: {frac_lower:.3f}",
-                        ha="right", va="bottom")
+        ax_scatter.set_xlabel('Connectome sensitivity')
+        ax_scatter.set_ylabel('Random weight sensitivity' if null_net=='rand_weight' else 'Poisson sensitivity')
+        scheme_label = f"$\eta = {eta}$"
+        ax_scatter.text(Q_max, Q_min+0.1*(Q_max-Q_min), scheme_label, ha='right', va='bottom')
+        ax_scatter.text(Q_max, Q_min, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)), ha='right', va='bottom')
         
         cb.set_label("Density")
     
@@ -194,7 +189,7 @@ def plot_sensitivity_hist(eta, null_net, normalized=False, labels=True):
     for ax in (ax_kde_x, ax_kde_y):
         ax.tick_params(left=False, bottom=False)
     plt.savefig(
-        f"../{folder}/sensitivity_hists/{scheme}_{null_net}_sensitivity_{connectomes[data_idx]}.pdf",
+        f"../../{folder}/sensitivity_hists/{null_net}_sensitivity_{connectomes[data_idx]}.pdf",
         dpi=600
     )
     plt.show()
@@ -205,6 +200,7 @@ def plot_sensitivity_hist(eta, null_net, normalized=False, labels=True):
 #------------------------------------------------------------------------------
 # Plot sensitivities
 plot_sensitivities(1., 'rand_weight', normalized=True)
+plot_sensitivity_hist(1., 'rand_weight', normalized=True)
 
 
 

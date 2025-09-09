@@ -84,7 +84,6 @@ incoming_weights = [
 #------------------------------------------------------------------------------
 n_draws = int(1e3)          # number of input draws
 n_perturb = int(1e3)        # number of weight perturbation draws
-eps_vals = np.exp(np.log(10)*np.linspace(-2,2,20))      # normalized perturbation strength
 
 #------------------------------------------------------------------------------
 # AUXILIARY FUNCTIONS
@@ -413,6 +412,7 @@ for i, eps in enumerate(eps_vals):
 gaussian_loss = []
 binary_loss = []
 eta = 2.
+eps_vals = np.exp(np.log(10)*np.linspace(-2,2,20))      # normalized perturbation strength
 
 for i, w in enumerate(tqdm(incoming_weights)):
     # Get number of inputs
@@ -459,7 +459,7 @@ plt.xlabel('Perturbation strength $\epsilon Q_{%s}^{1/2}$'%(int(eta)))
 plt.ylabel('Average loss ${\cal E}({\\bf w})$')
 plt.xscale('log')
 plt.yscale('log')
-plt.savefig(f"../figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.savefig(f"../../figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
 plt.show()
 
 plt.plot(eps_vals, median_binary, c=con_colors[0], label='Median')
@@ -470,7 +470,7 @@ plt.xlabel('Perturbation strength $\epsilon Q_{%s}^{1/2}$'%(int(eta)))
 plt.ylabel('Average loss ${\cal E}({\\bf w})$')
 plt.xscale('log')
 plt.yscale('log')
-plt.savefig(f"../figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
+plt.savefig(f"../../figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600, bbox_inches='tight')
 plt.show()
 
 # Plot raw plots
@@ -481,7 +481,7 @@ ax.fill_between(eps_vals, lower95_gaussian, upper95_gaussian, color=con_colors[0
 ax.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7)
 ax.set_xscale('log')
 ax.set_yscale('log')
-plt.savefig(f"../raw_figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600)
+plt.savefig(f"../../raw_figures/simulations/connectome_gaussian_eta_{int(eta)}.pdf", dpi=600)
 plt.show()
 
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
@@ -491,5 +491,5 @@ ax.fill_between(eps_vals, lower95_binary, upper95_binary, color=con_colors[0], a
 ax.plot(eps_vals, np.arccos((1+(eps_vals**2))**(-1/2))/np.pi, c='k', ls='--', alpha=0.7)
 ax.set_xscale('log')
 ax.set_yscale('log')
-plt.savefig(f"../raw_figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600)
+plt.savefig(f"../../raw_figures/simulations/connectome_binary_eta_{int(eta)}.pdf", dpi=600)
 plt.show()

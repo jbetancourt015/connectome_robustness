@@ -70,9 +70,11 @@ def compute_sensitivity(A, eta=1., normalized=True):
 # NULL NETWORK GENERATION
 #------------------------------------------------------------------------------
 # @njit
-def null_network(A, scheme='rand_weight', conn_type='disc'):
+def null_network(A, scheme='rand_weight', conn_type='disc', thresholded=False):
     indptr, indices, data = A.indptr, A.indices, A.data
     n = A.shape[0]
+    # Set up how many synapses to keep
+    n_threshold = 1 if not thresholded else 5
     # Create new data array
     M_data = np.empty_like(data)
     # Loop over neurons
@@ -97,10 +99,10 @@ def null_network(A, scheme='rand_weight', conn_type='disc'):
                 wts = np.diff(wts_ext)*strength
             else:
                 # Sample weight distribution uniformly
-                rand_ints = np.random.randint(0, int(strength-k) + 1, size=int(k)-1)
-                rand_ints = np.append(rand_ints, [0, int(strength-k)])
+                rand_ints = np.random.randint(0, int(strength-n_threshold*k) + 1, size=int(k)-1)
+                rand_ints = np.append(rand_ints, [0, int(strength-n_threshold*k)])
                 rand_ints.sort()
-                wts = 1.+np.diff(rand_ints)
+                wts = n_threshold+np.diff(rand_ints)
         else:
             if conn_type == 'cont': # Still no clear analogue of Poisson for continuous weights
                 # Sample form the L-dimensional simplex
