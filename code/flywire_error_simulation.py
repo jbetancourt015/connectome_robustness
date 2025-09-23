@@ -173,6 +173,7 @@ stats = {
 stat_vals = {x: [] for x in stats}
 loss = []
 pred_loss = []
+num_inputs = []
 
 # Perturbation params
 plotting_eps = [.01,.1,1.]
@@ -183,6 +184,7 @@ for i, w in enumerate(tqdm(incoming_weights)):
     # Get number of inputs
     n_inputs = len(w)
     if n_inputs > 0:
+        num_inputs.append(n_inputs)
         Q = sensitivity(w,eta)
             
         # Draw perturbations
@@ -210,6 +212,7 @@ for i, w in enumerate(tqdm(incoming_weights)):
 # Turn into numpy arrays
 loss = np.array(loss)
 pred_loss = np.array(pred_loss)
+num_inputs = np.array(num_inputs)
 
 for stat in stat_vals:
     stat_vals[stat] = np.array(stat_vals[stat])
@@ -418,6 +421,35 @@ cbar.set_label(stats['mean']['label'])
 plt.savefig("../../figures/candidate_figures/fig_4.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
+
+#------------------------------------------------------------------------------
+# RELATIVE ERROR VS NUMBER OF INCOMING CONNECTIONS
+#------------------------------------------------------------------------------
+# Get relative error
+rel_error = np.abs(loss[:,2]/pred_loss[:,2] - 1)
+min_loss, max_loss = min(pred_loss[:,2]), max(pred_loss[:,2])
+
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(num_inputs, rel_error, c=stat_vals['mean'], cmap='viridis')
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+
+ax_scatter.set_xscale('log')
+ax_scatter.set_yscale('log')
+
+# Add labels
+ax_scatter.set_xlabel('Number of inputs')
+ax_scatter.set_ylabel('Relative error')
+cbar.set_label(stats['mean']['label'])
+
+plt.show()
+
 
 
 # #------------------------------------------------------------------------------
