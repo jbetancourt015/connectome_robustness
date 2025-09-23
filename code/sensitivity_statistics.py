@@ -5,7 +5,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 2 Sep 2025
+    Tue 23 Sep 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -68,9 +68,13 @@ A = network_functions.load_connectome(data_idx, thresholded=thresholded)
 print('Loaded connectome, time:', time()-start)
 N = A.shape[0]
 
+# Implement thresholding manually
+A.data = A.data - 4
+
 # Get null networks
 start = time()
-A_rand = network_functions.null_network(A, scheme='rand_weight', conn_type='cont' if data_idx==4 else 'disc', thresholded=thresholded if data_idx==5 else False)
+# A_rand = network_functions.null_network(A, scheme='rand_weight', conn_type='cont' if data_idx==4 else 'disc', thresholded=thresholded if data_idx==5 else False)
+A_rand = network_functions.null_network(A, scheme='rand_weight', conn_type='cont' if data_idx==4 else 'disc', thresholded=False)
 print('Random weight network generated, time:', time()-start)
 
 start = time()
