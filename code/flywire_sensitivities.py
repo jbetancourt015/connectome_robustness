@@ -83,6 +83,10 @@ weights = (
     .reset_index()
 )
 
+if thresholded:
+    # weights['weight'] = 5*(weights['weight']//5)
+    weights['weight'] = weights['weight']-4
+
 # Compute Q values
 Q_df = (
     weights
