@@ -250,6 +250,13 @@ for i, eps in enumerate(plotting_eps):
                                             ha='left',
                                             va='bottom',
                                             transform=ax_scatter.transAxes)
+                            
+                            if (eps==1) and (stat1=='mean') and (stat2=='var') and (not log_x) and (not log_y) and log_c:
+                                plt.savefig("../../figures/candidate_figures/fig_1.pdf", dpi=600, bbox_inches='tight')
+                                
+                            if (eps==1) and (stat1=='var') and (stat2=='mean') and log_x and (not log_y) and (not log_c):
+                                plt.savefig("../../figures/candidate_figures/fig_2.pdf", dpi=600, bbox_inches='tight')
+                            
                             plt.show()
 
 #------------------------------------------------------------------------------
@@ -333,6 +340,7 @@ for i, eps in enumerate(plotting_eps):
                                     ha='left',
                                     va='bottom',
                                     transform=ax.transAxes)
+                    
                     plt.show()
 
 #------------------------------------------------------------------------------
@@ -373,8 +381,44 @@ for i, eps in enumerate(plotting_eps):
                                 ha='left',
                                 va='bottom',
                                 transform=ax_scatter.transAxes)
+                
+                
+                if (eps==1) and (stat=='mean') and (not log_x) and (not log_y) and (not log_c):
+                    plt.savefig("../../figures/candidate_figures/fig_3.pdf", dpi=600, bbox_inches='tight')
             
                 plt.show()
+
+#------------------------------------------------------------------------------
+# LOSS VS ROBUSTNESS
+#------------------------------------------------------------------------------
+# Get variance range
+min_loss, max_loss = min(pred_loss[:,2]), max(pred_loss[:,2])
+
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+divider = make_axes_locatable(ax_scatter)
+ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
+# Compare model prediction with simulated loss
+robustness = ((stat_vals['var']+stat_vals['mean']**2)/stat_vals['mean'])**0.5
+sc = ax_scatter.scatter(robustness, loss[:,2], c=stat_vals['mean'], cmap='viridis')
+cbar = fig.colorbar(sc, cax=ax_cbar)
+
+# Plot y=x line
+r_vals = np.linspace(min(robustness), max(robustness), 100)
+ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1)
+
+cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
+
+# Add labels
+ax_scatter.set_xlabel('Robustness')
+ax_scatter.set_ylabel('Loss')
+cbar.set_label(stats['mean']['label'])
+
+plt.savefig("../../figures/candidate_figures/fig_4.pdf", dpi=600, bbox_inches='tight')
+
+plt.show()
+
 
 # #------------------------------------------------------------------------------
 # # LOSS VS NEURON STATISTICS
