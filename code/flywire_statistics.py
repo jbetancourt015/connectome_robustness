@@ -165,9 +165,9 @@ simple_stats = get_simple_statistics(df, normalize=True)
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
 ax.scatter(simple_stats['out_degree_dist'].index, simple_stats['out_degree_dist'], color='blue', label='Out-degree', rasterized=True)
-ax.scatter(simple_stats['out_degree_dist'].index, simple_stats['in_degree_dist'], color='red', label='In-degree', rasterized=True)
+ax.scatter(simple_stats['in_degree_dist'].index, simple_stats['in_degree_dist'], color='red', label='In-degree', rasterized=True)
 ax.legend()
-ax.set_xlabel('Connection strength')
+ax.set_xlabel('Degree')
 ax.set_ylabel('Probability')
 ax.set_xscale('log')
 ax.set_yscale('log')
@@ -181,16 +181,16 @@ plt.show()
 # Set up figure
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-ax.scatter(simple_stats['out_degree_dist'].index, simple_stats['out_strength_dist'], color='blue', label='Out-strength', rasterized=True)
-ax.scatter(simple_stats['out_degree_dist'].index, simple_stats['in_strength_dist'], color='red', label='In-strength', rasterized=True)
+ax.scatter(simple_stats['out_strength_dist'].index, simple_stats['out_strength_dist'], color='blue', label='Out-strength', rasterized=True)
+ax.scatter(simple_stats['in_strength_dist'].index, simple_stats['in_strength_dist'], color='red', label='In-strength', rasterized=True)
 ax.legend()
-ax.set_xlabel('Connection strength')
+ax.set_xlabel('Strength')
 ax.set_ylabel('Probability')
 ax.set_xscale('log')
 ax.set_yscale('log')
 
 # Add labels
-plt.savefig('../../figures/flywire_statistics/degree_distribution.pdf', dpi=600, bbox_inches='tight')
+plt.savefig('../../figures/flywire_statistics/strength_distribution.pdf', dpi=600, bbox_inches='tight')
 
 plt.show()
 
