@@ -26,6 +26,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numba import njit
 from tqdm import tqdm
 from matplotlib.collections import LineCollection
+from scipy import sparse
 
 plt.rcParams.update({
     'font.family': 'Helvetica',
@@ -50,7 +51,7 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
 data_idx = 5
-thresholded = True
+thresholded = False
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
@@ -70,10 +71,18 @@ N = A.shape[0]
 #------------------------------------------------------------------------------
 # OBTAIN SUBSET OF NEURONS
 #------------------------------------------------------------------------------
-np.random.seed(52)
-
+rng = np.random.default_rng(52)
 n_samples = 100
-sample_nodes = np.random.choice(N, size=n_samples, replace=False)
+
+# Vectorized in-degree: nnz per column
+in_degree = np.diff(A.indptr)          # shape (N,)
+
+k_min = 10
+eligible = np.flatnonzero(in_degree >= k_min)
+
+# Sample from the eligible set
+take = min(n_samples, eligible.size)
+sample_nodes = rng.choice(eligible, size=take, replace=False)
 
 incoming_weights = [
     A.data[A.indptr[j] : A.indptr[j+1]]
@@ -143,20 +152,18 @@ def empirical_hist(data):
 weights = np.concatenate(incoming_weights)
 s_weights, P_weights = empirical_hist(weights)
 
-plt.scatter(s_weights, P_weights, color=con_colors[0], rasterized=True)
-plt.xlabel('Connection strength')
-plt.ylabel('Probability')
-plt.xscale('log')
-plt.yscale('log')
-plt.savefig('../../figures/simulations/sampled_weight_dist.pdf', dpi=600, bbox_inches='tight')
-plt.show()
-
 # Generate raw plot
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
 ax.scatter(s_weights, P_weights, color=con_colors[0], rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
+plt.savefig('../../figures/simulations/sampled_weight_dist.pdf', dpi=600, bbox_inches='tight')
+
+# Add labels
+ax.set_xlabel('Connection strength')
+ax.set_ylabel('Probability')
+
 plt.savefig('../../raw_figures/simulations/sampled_weight_dist.pdf', dpi=600)
 plt.show()
 
