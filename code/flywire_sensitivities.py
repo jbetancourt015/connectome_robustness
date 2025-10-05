@@ -260,6 +260,54 @@ plt.savefig('../../figures/flywire/norm_sensitivity_bars_region.pdf', dpi=600, b
 
 plt.show()
 
+# Code for violin plot
+
+# Group Q values per region following the chosen order
+violin_data = [collapsed.loc[collapsed["brain_region"] == r, "Q"].to_numpy(dtype=float) for r in region_order]
+
+# FIGURE: SENSITIVITY VIOLINS BY BRAIN REGION----------------------------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+parts = ax.violinplot(
+    violin_data,
+    showmeans=False,
+    showmedians=False,
+    showextrema=False,
+    widths=0.9
+)
+
+# Color each violin body to match points
+for i, body in enumerate(parts['bodies']):
+    region = region_order[i]
+    color = region_colors[region]
+    body.set_facecolor(color)
+    body.set_edgecolor("black")
+    body.set_alpha(0.6)
+
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color([region_colors[region] for region in parts['bodies']])
+
+for i, vals in enumerate(violin_data, start=1):
+    region = region_order[i-1]
+    color = region_colors[region]
+
+    # Custom median line (colored like the points)
+    med = float(np.median(vals))
+    ax.hlines(med, i-0.35, i+0.35, linewidth=2.8, color=color, alpha=0.95)
+    
+# Labels/ticks
+ax.set_ylabel("Normalized sensitivity")
+ax.set_xticks(range(1, len(region_order) + 1))
+ax.set_xticklabels(region_order, rotation=35, ha="right")
+ax.set_ylim(0, 1)
+
+# Add labels
+plt.savefig('../../figures/flywire_sensitivities/sensitivity_violins_by_region.pdf', dpi=600, bbox_inches='tight')
+plt.show()
+
 #------------------------------------------------------------------------------
 # ANALYSIS BY NEUROPIL - COLORED BY BRAIN REGION
 #------------------------------------------------------------------------------
