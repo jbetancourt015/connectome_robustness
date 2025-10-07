@@ -298,7 +298,7 @@ cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
 # Add labels
 ax_scatter.set_xlabel('Predicted loss')
 ax_scatter.set_ylabel('Simulated loss')
-cbar.set_label(stats[stat]['label'])
+cbar.set_label(stats['mean']['label'])
 
 plt.savefig(f"../../figures/candidate_figures/fig_3{suffix}.pdf", dpi=600, bbox_inches='tight')
 

@@ -64,6 +64,7 @@ fname_thresh = 'flywire_connections_thresholded.csv.gz'
 # PROCESSING FLYWIRE
 #------------------------------------------------------------------------------
 thresholded = True
+k_min = 100
 
 suffix = '_thresholded' if thresholded else ''
 
@@ -79,10 +80,6 @@ weights = (
     .reset_index()
 )
 
-if thresholded:
-    # weights['weight'] = 5*(weights['weight']//5)
-    weights['weight'] = weights['weight']-4
-
 # Compute Q values
 Q_df = (
     weights
@@ -93,9 +90,9 @@ Q_df = (
         sum_w2 = ('weight', lambda s: (s**2).sum())
     )
     .assign(
-        Q = lambda d: d['sum_w']**2 / (d['in_deg'] * d['sum_w2'])
+        Q = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['sum_w']**2)
     )
-    .reset_index()[['post_root_id','Q']]
+    .reset_index()
 )
 
 # Assign a neuropil to each neuron
@@ -109,89 +106,12 @@ neuropil_df = (
     .loc[:, ['post_root_id','neuropil']]
 )
 
-# Merge neuropil and sensitivity into a single dataframe
+# Merge neuropil and robustness into a single dataframe
 collapsed = (
-    Q_df
+    Q_df.loc[Q_df['in_deg'] >= k_min, ['post_root_id','Q']]
     .merge(neuropil_df, on='post_root_id')
     .loc[:, ['post_root_id','neuropil','Q']]
 )
-
-#------------------------------------------------------------------------------
-# ANALYSIS BY NEUROPIL
-#------------------------------------------------------------------------------
-neuropil_df = (
-    collapsed
-    .groupby(['neuropil'])
-    .agg(
-        Q_mean = ('Q','mean'),
-        Q_std = ('Q', 'std'),
-        n_neurons  = ('post_root_id', 'nunique')
-        )
-    .reset_index()
-)
-
-plt.scatter(neuropil_df['Q_mean'], neuropil_df['Q_std'], color=con_colors[0], rasterized=True)
-plt.xlabel('Average sensitivity')
-plt.ylabel('Sensitivity std. dev.')
-# plt.gca().set_aspect('equal')
-plt.savefig('../../figures/flywire/sensitivity_by_neuropil.pdf', dpi=600, bbox_inches='tight')
-plt.show()
-
-#------------------------------------------------------------------------------
-# ASYMMETRY IN THE NEUROPIL
-#------------------------------------------------------------------------------
-# Retreive the neuropils that are located on the left or right
-asym_df = neuropil_df[(neuropil_df['neuropil'].str.endswith(('_L','_R')))].copy()
-
-# Split columns into left and right
-asym_df['structure'] = asym_df['neuropil'].str.rsplit('_', n=1).str[0]
-asym_df['side']      = asym_df['neuropil'].str.rsplit('_', n=1).str[1]
-
-# Make new df that has one observation per structure
-asym_df = (
-    asym_df
-    .pivot(index='structure', columns='side', values=['Q_mean','Q_std','n_neurons'])
-)
-
-# Flatten columns
-asym_df.columns = [f"{stat.lower()}_{side.lower()}" 
-                   for stat,side in asym_df.columns]
-asym_df = asym_df.reset_index().rename(columns={'structure':'neuropil_region'})
-
-#------------------------------------------------------------------------------
-# PLOT LEFT VS RIGHT SENSITIVITY VALUES
-#------------------------------------------------------------------------------
-plt.scatter(asym_df['q_mean_r'], asym_df['q_mean_l'], color=con_colors[0], rasterized=True)
-# Plot the y=x line
-q_min, q_max = asym_df[['q_mean_r','q_mean_l']].min().min(), asym_df[['q_mean_r','q_mean_l']].max().max()
-plt.plot([q_min,q_max], [q_min,q_max], lw=2, ls='--', c='k', alpha=.5, zorder=-1)
-plt.xlabel('Average sensitivity (right)')
-plt.ylabel('Average sensitivity (left)')
-plt.gca().set_aspect('equal')
-plt.savefig('../../figures/flywire/average_left_vs_right_neuropil.pdf', dpi=600, bbox_inches='tight')
-plt.show()
-
-plt.scatter(asym_df['q_std_r'], asym_df['q_std_l'], color=con_colors[0], rasterized=True)
-# Plot the y=x line
-std_min, std_max = asym_df[['q_std_r','q_std_l']].min().min(), asym_df[['q_std_r','q_std_l']].max().max()
-plt.plot([std_min,std_max], [std_min,std_max], lw=2, ls='--', c='k', alpha=.5, zorder=-1)
-plt.xlabel('Sensitivity std. dev. (right)')
-plt.ylabel('Sensitivity std. dev. (left)')
-plt.gca().set_aspect('equal')
-plt.savefig('../../figures/flywire/std_left_vs_right_neuropil.pdf', dpi=600, bbox_inches='tight')
-plt.show()
-
-plt.scatter(asym_df['n_neurons_r'], asym_df['n_neurons_l'], color=con_colors[0], rasterized=True)
-# Plot the y=x line
-n_min, n_max = asym_df[['n_neurons_r','n_neurons_l']].min().min(), asym_df[['n_neurons_r','n_neurons_l']].max().max()
-plt.plot([n_min,n_max], [n_min,n_max], lw=2, ls='--', c='k', alpha=.5, zorder=-1)
-plt.xlabel('Number of neurons (right)')
-plt.ylabel('Number of neurons (left)')
-plt.gca().set_aspect('equal')
-plt.gca().set_xscale('log')
-plt.gca().set_yscale('log')
-plt.savefig('../../figures/flywire/number_left_vs_right_neuropil.pdf', dpi=600, bbox_inches='tight')
-plt.show()
 
 #------------------------------------------------------------------------------
 # ANALYSIS BY BRAIN REGION
@@ -217,7 +137,7 @@ region_df = (
     .reset_index()
 )
 
-# Sort regions by average sensitivity
+# Sort regions by average robustness
 region_sorted = region_df.sort_values('Q_mean')
 
 n_regions = region_df['brain_region'].nunique()
@@ -240,35 +160,17 @@ labels = region_sorted['brain_region']
 means  = region_sorted['Q_mean']
 stds   = region_sorted['Q_std']
 
-
-# FIGURE: SENSITIVITY OF BRAIN REGIONS-----------------------------------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-ax.bar(range(n_regions), means, yerr=stds, capsize=5, color=region_colors.values())
-ax.set_xticks(range(n_regions))
-ax.set_xticklabels(labels, rotation=45, ha='right')
-plt.savefig('../../raw_figures/flywire/norm_sensitivity_bars_region.pdf', dpi=600)
-
-# Add labels
-ax.set_ylabel('Normalized sensitivity')
-plt.savefig('../../figures/flywire/norm_sensitivity_bars_region.pdf', dpi=600, bbox_inches='tight')
-
-plt.show()
-
-# Code for violin plot
-
 # Group Q values per region following the chosen order
 violin_data = [collapsed.loc[collapsed["brain_region"] == r, "Q"].to_numpy(dtype=float) for r in region_order]
 
-# FIGURE: SENSITIVITY VIOLINS BY BRAIN REGION----------------------------------
+# FIGURE: ROBUSTNESS VIOLINS BY BRAIN REGION----------------------------------
 # Set up figure
 fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
 
 parts = ax.violinplot(
     violin_data,
     showmeans=False,
-    showmedians=False,
+    showmedians=True,
     showextrema=False,
     widths=0.9
 )
@@ -284,164 +186,233 @@ for i, body in enumerate(parts['bodies']):
 # Style median line
 if 'cmedians' in parts and parts['cmedians'] is not None:
     parts['cmedians'].set_linewidth(2.5)
-    parts['cmedians'].set_color([region_colors[region] for region in parts['bodies']])
-
-for i, vals in enumerate(violin_data, start=1):
-    region = region_order[i-1]
-    color = region_colors[region]
-
-    # Custom median line (colored like the points)
-    med = float(np.median(vals))
-    ax.hlines(med, i-0.35, i+0.35, linewidth=2.8, color=color, alpha=0.95)
+    parts['cmedians'].set_color('black')
     
 # Labels/ticks
-ax.set_ylabel("Normalized sensitivity")
+ax.set_ylabel("Normalized robustness")
 ax.set_xticks(range(1, len(region_order) + 1))
 ax.set_xticklabels(region_order, rotation=35, ha="right")
-ax.set_ylim(0, 1)
+ax.set_ylim(.9,2.1)
 
 # Add labels
-plt.savefig('../../figures/flywire_sensitivities/sensitivity_violins_by_region.pdf', dpi=600, bbox_inches='tight')
+plt.savefig(f"../../figures/flywire_robustness/robustness_violins_by_region{suffix}.pdf", dpi=600, bbox_inches='tight')
 plt.show()
 
-#------------------------------------------------------------------------------
-# ANALYSIS BY NEUROPIL - COLORED BY BRAIN REGION
-#------------------------------------------------------------------------------
-# Expand neuropil df to include brain_region
-neuropil_df['brain_region'] = neuropil_df['neuropil'].map(region_map)
-neuropil_df = neuropil_df[neuropil_df['brain_region']!='Other Regions']
+# #------------------------------------------------------------------------------
+# # ANALYSIS BY NEUROPIL
+# #------------------------------------------------------------------------------
+# neuropil_df = (
+#     collapsed
+#     .groupby(['neuropil'])
+#     .agg(
+#         Q_mean = ('Q','mean'),
+#         Q_std = ('Q', 'std'),
+#         n_neurons  = ('post_root_id', 'nunique')
+#         )
+#     .reset_index()
+# )
 
-# Sort by neuropil Q values
-neuropil_sorted = neuropil_df.sort_values('Q_mean').reset_index(drop=True)
-neuropil_colors = neuropil_sorted['brain_region'].map(region_colors)
+# plt.scatter(neuropil_df['Q_mean'], neuropil_df['Q_std'], color=con_colors[0], rasterized=True)
+# plt.xlabel('Average robustness')
+# plt.ylabel('Robustness std. dev.')
+# # plt.gca().set_aspect('equal')
+# plt.savefig('../../figures/flywire/robustness_by_neuropil.pdf', dpi=600, bbox_inches='tight')
+# plt.show()
 
-# FIGURE: SENSITIVITY OF NEUROPILS---------------------------------------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(12,6))
-ax.bar(
-    range(len(neuropil_sorted)),
-    neuropil_sorted['Q_mean'],
-    yerr=neuropil_sorted['Q_std'],
-    capsize=3,
-    color=neuropil_colors
-)
-ax.set_xticks([])                    # no x‐labels (too cluttered)
+# #------------------------------------------------------------------------------
+# # ASYMMETRY IN THE NEUROPIL
+# #------------------------------------------------------------------------------
+# # Retreive the neuropils that are located on the left or right
+# asym_df = neuropil_df[(neuropil_df['neuropil'].str.endswith(('_L','_R')))].copy()
 
-# Add labels
-ax.set_ylabel('Normalized sensitivity')
-ax.set_xlabel('Neuropils')
-plt.savefig('../../figures/flywire/norm_sensitivity_bars_neuropil.pdf', dpi=600, bbox_inches='tight')
+# # Split columns into left and right
+# asym_df['structure'] = asym_df['neuropil'].str.rsplit('_', n=1).str[0]
+# asym_df['side']      = asym_df['neuropil'].str.rsplit('_', n=1).str[1]
 
-plt.show()
+# # Make new df that has one observation per structure
+# asym_df = (
+#     asym_df
+#     .pivot(index='structure', columns='side', values=['Q_mean','Q_std','n_neurons'])
+# )
 
-#------------------------------------------------------------------------------
-# ANALYSIS BY NEUROPIL - COLORED BY BRAIN REGION
-#------------------------------------------------------------------------------
-# Generate a sub-dataframe for each brain region
-groups = {
-    region: neuropil_df[neuropil_df['brain_region'] == region]
-               .sort_values('Q_mean')
-    for region in region_order
-}
+# # Flatten columns
+# asym_df.columns = [f"{stat.lower()}_{side.lower()}" 
+#                    for stat,side in asym_df.columns]
+# asym_df = asym_df.reset_index().rename(columns={'structure':'neuropil_region'})
 
-# Compute neuropils per region
-counts  = [len(groups[reg]) for reg in region_order]
-group_space = 2
+# #------------------------------------------------------------------------------
+# # PLOT LEFT VS RIGHT ROBUSTNESS VALUES
+# #------------------------------------------------------------------------------
+# plt.scatter(asym_df['q_mean_r'], asym_df['q_mean_l'], color=con_colors[0], rasterized=True)
+# # Plot the y=x line
+# q_min, q_max = asym_df[['q_mean_r','q_mean_l']].min().min(), asym_df[['q_mean_r','q_mean_l']].max().max()
+# plt.plot([q_min,q_max], [q_min,q_max], lw=2, ls='--', c='k', alpha=.5, zorder=-1)
+# plt.xlabel('Average robustness (right)')
+# plt.ylabel('Average robustness (left)')
+# plt.gca().set_aspect('equal')
+# plt.savefig('../../figures/flywire/average_left_vs_right_neuropil.pdf', dpi=600, bbox_inches='tight')
+# plt.show()
 
-# Compute offsets
-offsets = np.array([
-    sum(counts[:i]) + i*group_space
-    for i in range(len(counts))
-])
+# plt.scatter(asym_df['q_std_r'], asym_df['q_std_l'], color=con_colors[0], rasterized=True)
+# # Plot the y=x line
+# std_min, std_max = asym_df[['q_std_r','q_std_l']].min().min(), asym_df[['q_std_r','q_std_l']].max().max()
+# plt.plot([std_min,std_max], [std_min,std_max], lw=2, ls='--', c='k', alpha=.5, zorder=-1)
+# plt.xlabel('Robustness std. dev. (right)')
+# plt.ylabel('Robustness std. dev. (left)')
+# plt.gca().set_aspect('equal')
+# plt.savefig('../../figures/flywire/std_left_vs_right_neuropil.pdf', dpi=600, bbox_inches='tight')
+# plt.show()
 
-# FIGURE: SENSITIVITY OF NEUROPILS, GROUPED BY REGION--------------------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(12, 6))
-bar_width = 0.8
+# plt.scatter(asym_df['n_neurons_r'], asym_df['n_neurons_l'], color=con_colors[0], rasterized=True)
+# # Plot the y=x line
+# n_min, n_max = asym_df[['n_neurons_r','n_neurons_l']].min().min(), asym_df[['n_neurons_r','n_neurons_l']].max().max()
+# plt.plot([n_min,n_max], [n_min,n_max], lw=2, ls='--', c='k', alpha=.5, zorder=-1)
+# plt.xlabel('Number of neurons (right)')
+# plt.ylabel('Number of neurons (left)')
+# plt.gca().set_aspect('equal')
+# plt.gca().set_xscale('log')
+# plt.gca().set_yscale('log')
+# plt.savefig('../../figures/flywire/number_left_vs_right_neuropil.pdf', dpi=600, bbox_inches='tight')
+# plt.show()
 
-for i, region in enumerate(region_order):
-    df_reg = groups[region]
-    x = offsets[i] + np.arange(len(df_reg))
-    ax.bar(
-        x,
-        df_reg['Q_mean'],
-        yerr=df_reg['Q_std'],
-        width=bar_width,
-        capsize=3,
-        color=region_colors[region]
-    )
+# #------------------------------------------------------------------------------
+# # ANALYSIS BY NEUROPIL - COLORED BY BRAIN REGION
+# #------------------------------------------------------------------------------
+# # Expand neuropil df to include brain_region
+# neuropil_df['brain_region'] = neuropil_df['neuropil'].map(region_map)
+# neuropil_df = neuropil_df[neuropil_df['brain_region']!='Other Regions']
 
-# 4) Label one tick per region, at the center of its group
-centers = offsets + (np.array(counts) - 1) / 2
-ax.set_xticks(centers)
-ax.set_xticklabels(region_order, rotation=45, ha='right')
+# # Sort by neuropil Q values
+# neuropil_sorted = neuropil_df.sort_values('Q_mean').reset_index(drop=True)
+# neuropil_colors = neuropil_sorted['brain_region'].map(region_colors)
 
-# Add labels
-ax.set_ylabel('Normalized sensitivity')
-plt.savefig('../../figures/flywire/norm_sensitivity_bars_neuropil_region.pdf', dpi=600, bbox_inches='tight')
+# # FIGURE: SENSITIVITY OF NEUROPILS---------------------------------------------
+# # Set up figure
+# fig, ax = plt.subplots(figsize=(12,6))
+# ax.bar(
+#     range(len(neuropil_sorted)),
+#     neuropil_sorted['Q_mean'],
+#     yerr=neuropil_sorted['Q_std'],
+#     capsize=3,
+#     color=neuropil_colors
+# )
+# ax.set_xticks([])                    # no x‐labels (too cluttered)
 
-plt.show()
+# # Add labels
+# ax.set_ylabel('Normalized sensitivity')
+# ax.set_xlabel('Neuropils')
+# plt.savefig('../../figures/flywire/norm_sensitivity_bars_neuropil.pdf', dpi=600, bbox_inches='tight')
 
-#------------------------------------------------------------------------------
-# ANALYSIS OF THE OPTIC LOBE
-#------------------------------------------------------------------------------
-# Keep only neurons in the optic lobe
-optic_lobe_df = collapsed[collapsed['brain_region']=='Optic Lobe']
-optic_lobe_df = optic_lobe_df[~optic_lobe_df['neuropil'].isin(['AME_L', 'AME_R'])]
+# plt.show()
 
-# Load brain region map
-with open('../processed_data/optic_lobe_region_map.pkl', 'rb') as f:
-    optic_lobe_map = pickle.load(f)
+# #------------------------------------------------------------------------------
+# # ANALYSIS BY NEUROPIL - COLORED BY BRAIN REGION
+# #------------------------------------------------------------------------------
+# # Generate a sub-dataframe for each brain region
+# groups = {
+#     region: neuropil_df[neuropil_df['brain_region'] == region]
+#                .sort_values('Q_mean')
+#     for region in region_order
+# }
 
-# Map neurons to their optic lobe region
-optic_lobe_df['lobe_region'] = optic_lobe_df['neuropil'].map(optic_lobe_map)
+# # Compute neuropils per region
+# counts  = [len(groups[reg]) for reg in region_order]
+# group_space = 2
 
-# Compute sensitivities by region
-lobe_region_sorted = (
-    optic_lobe_df
-    .groupby(['lobe_region'])
-    .agg(
-        Q_mean = ('Q','mean'),
-        Q_std = ('Q', 'std'),
-        n_neurons  = ('post_root_id', 'nunique')
-        )
-    .reset_index()
-)
+# # Compute offsets
+# offsets = np.array([
+#     sum(counts[:i]) + i*group_space
+#     for i in range(len(counts))
+# ])
 
-# Sort regions by average sensitivity
-lobe_region_sorted = lobe_region_sorted.sort_values('Q_mean')
+# # FIGURE: SENSITIVITY OF NEUROPILS, GROUPED BY REGION--------------------------
+# # Set up figure
+# fig, ax = plt.subplots(figsize=(12, 6))
+# bar_width = 0.8
 
-n_regions = lobe_region_sorted['lobe_region'].nunique()
+# for i, region in enumerate(region_order):
+#     df_reg = groups[region]
+#     x = offsets[i] + np.arange(len(df_reg))
+#     ax.bar(
+#         x,
+#         df_reg['Q_mean'],
+#         yerr=df_reg['Q_std'],
+#         width=bar_width,
+#         capsize=3,
+#         color=region_colors[region]
+#     )
 
-lobe_region_order = (
-    optic_lobe_df
-    .groupby('lobe_region')['Q']
-    .mean()               # average Q_mean over neuropils in that region
-    .sort_values()        # sort regions by their overall Q
-    .index
-)
+# # 4) Label one tick per region, at the center of its group
+# centers = offsets + (np.array(counts) - 1) / 2
+# ax.set_xticks(centers)
+# ax.set_xticklabels(region_order, rotation=45, ha='right')
 
-np.save('../processed_data/lobe_region_order', np.array(lobe_region_order))
+# # Add labels
+# ax.set_ylabel('Normalized sensitivity')
+# plt.savefig('../../figures/flywire/norm_sensitivity_bars_neuropil_region.pdf', dpi=600, bbox_inches='tight')
 
-cmap = plt.get_cmap('viridis', len(lobe_region_order))
-region_colors = {r: cmap(i) for i, r in enumerate(lobe_region_order)}
+# plt.show()
 
-# Get data for plots
-labels = lobe_region_sorted['lobe_region']
-means  = lobe_region_sorted['Q_mean']
-stds   = lobe_region_sorted['Q_std']
+# #------------------------------------------------------------------------------
+# # ANALYSIS OF THE OPTIC LOBE
+# #------------------------------------------------------------------------------
+# # Keep only neurons in the optic lobe
+# optic_lobe_df = collapsed[collapsed['brain_region']=='Optic Lobe']
+# optic_lobe_df = optic_lobe_df[~optic_lobe_df['neuropil'].isin(['AME_L', 'AME_R'])]
 
-# FIGURE: SENSITIVITY OF OPTIC LOBE REGIONS------------------------------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+# # Load brain region map
+# with open('../processed_data/optic_lobe_region_map.pkl', 'rb') as f:
+#     optic_lobe_map = pickle.load(f)
 
-ax.bar(range(n_regions), means, yerr=stds, capsize=5, color=region_colors.values())
-ax.set_xticks(range(n_regions))
-ax.set_xticklabels(labels, rotation=45, ha='right')
-plt.savefig('../../raw_figures/flywire/norm_sensitivity_bars_lobe.pdf', dpi=600)
+# # Map neurons to their optic lobe region
+# optic_lobe_df['lobe_region'] = optic_lobe_df['neuropil'].map(optic_lobe_map)
 
-# Add labels
-ax.set_ylabel('Normalized sensitivity')
-plt.savefig('../../figures/flywire/norm_sensitivity_bars_lobe.pdf', dpi=600, bbox_inches='tight')
+# # Compute sensitivities by region
+# lobe_region_sorted = (
+#     optic_lobe_df
+#     .groupby(['lobe_region'])
+#     .agg(
+#         Q_mean = ('Q','mean'),
+#         Q_std = ('Q', 'std'),
+#         n_neurons  = ('post_root_id', 'nunique')
+#         )
+#     .reset_index()
+# )
 
-plt.show()
+# # Sort regions by average sensitivity
+# lobe_region_sorted = lobe_region_sorted.sort_values('Q_mean')
+
+# n_regions = lobe_region_sorted['lobe_region'].nunique()
+
+# lobe_region_order = (
+#     optic_lobe_df
+#     .groupby('lobe_region')['Q']
+#     .mean()               # average Q_mean over neuropils in that region
+#     .sort_values()        # sort regions by their overall Q
+#     .index
+# )
+
+# np.save('../processed_data/lobe_region_order', np.array(lobe_region_order))
+
+# cmap = plt.get_cmap('viridis', len(lobe_region_order))
+# region_colors = {r: cmap(i) for i, r in enumerate(lobe_region_order)}
+
+# # Get data for plots
+# labels = lobe_region_sorted['lobe_region']
+# means  = lobe_region_sorted['Q_mean']
+# stds   = lobe_region_sorted['Q_std']
+
+# # FIGURE: SENSITIVITY OF OPTIC LOBE REGIONS------------------------------------
+# # Set up figure
+# fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+# ax.bar(range(n_regions), means, yerr=stds, capsize=5, color=region_colors.values())
+# ax.set_xticks(range(n_regions))
+# ax.set_xticklabels(labels, rotation=45, ha='right')
+# plt.savefig('../../raw_figures/flywire/norm_sensitivity_bars_lobe.pdf', dpi=600)
+
+# # Add labels
+# ax.set_ylabel('Normalized sensitivity')
+# plt.savefig('../../figures/flywire/norm_sensitivity_bars_lobe.pdf', dpi=600, bbox_inches='tight')
+
+# plt.show()
