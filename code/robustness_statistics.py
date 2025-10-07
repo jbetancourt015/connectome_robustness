@@ -68,9 +68,9 @@ def plot_sensitivities(data_idx, A, A_rand, eta, null_net, normalized=False, lab
     folder = 'figures' if labels else 'raw_figures'
     
     # Get sensitivity of connectomes
-    Q1 = network_functions.compute_sensitivity(A, eta, normalized)
-    Q2 = network_functions.compute_sensitivity(A_rand, eta, normalized)
-    frac_lower = np.mean(Q1 > Q2)
+    Q1 = network_functions.compute_robustness(A, eta, normalized)
+    Q2 = network_functions.compute_robustness(A_rand, eta, normalized)
+    frac_lower = np.mean(Q1 >= Q2)
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
     
     # Set up subfigures
@@ -103,7 +103,7 @@ def plot_sensitivities(data_idx, A, A_rand, eta, null_net, normalized=False, lab
                 alpha=0.6, clip=(Q_min, Q_max))
     ax_kde_y.axis("off")
     
-    plt.savefig(f"../../{folder}/sensitivities/{null_net}_sensitivity_eta_{int(eta)}_{connectomes[data_idx]}.pdf", 
+    plt.savefig(f"../../{folder}/robustness/{null_net}_robustness_eta_{int(eta)}_{connectomes[data_idx]}.pdf", 
                 dpi=600)
     plt.show()
 
@@ -112,9 +112,9 @@ def plot_sensitivity_hist(data_idx, A, A_rand, eta, null_net, normalized=False, 
     folder = 'figures' if labels else 'raw_figures'
     
     # Get sensitivity of connectomes
-    Q1 = network_functions.compute_sensitivity(A, eta, normalized)
-    Q2 = network_functions.compute_sensitivity(A_rand, eta, normalized)
-    frac_lower = np.mean(Q1 > Q2)
+    Q1 = network_functions.compute_robustness(A, eta, normalized)
+    Q2 = network_functions.compute_robustness(A_rand, eta, normalized)
+    frac_lower = np.mean(Q1 >= Q2)
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
 
     fig, ax_scatter = plt.subplots(figsize=(.9*width,.9*height))
@@ -173,7 +173,7 @@ def plot_sensitivity_hist(data_idx, A, A_rand, eta, null_net, normalized=False, 
     for ax in (ax_kde_x, ax_kde_y):
         ax.tick_params(left=False, bottom=False)
     plt.savefig(
-        f"../../{folder}/sensitivity_hists/{null_net}_sensitivity_{connectomes[data_idx]}.pdf",
+        f"../../{folder}/robustness_hists/{null_net}_robustness_{connectomes[data_idx]}.pdf",
         dpi=600
     )
     plt.show()
