@@ -42,8 +42,6 @@ width = 3.5
 height = 3.2
 
 
-processed_dir = '../processed_data/'
-
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
@@ -58,11 +56,8 @@ data_idx = 5
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 
-connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
-
-file_names = ['Drosophila_central_brain.csv','Drosophila_optic_medulla.csv','Celegans.csv',
-              'Platynereis_sensory_motor.csv', 'Mouse_retina.csv', 'flywire_connections.csv.gz']
+fname = 'flywire_connections.csv.gz'
+fname_thresh = 'flywire_connections_thresholded.csv.gz'
 
 #------------------------------------------------------------------------------
 # DISTIRBUTION OF SAMPLED WEIGHTS
@@ -87,7 +82,8 @@ def empirical_hist(data):
 # ASSIGN BRAIN REGION TO EACH CONNECTION
 #------------------------------------------------------------------------------
 # Load dataset into pandas DataFrame
-df = pd.read_csv(data_dir + file_names[data_idx], compression='gzip')
+df = pd.read_csv(data_dir + fname, compression='gzip')
+df_thresh = pd.read_csv(data_dir + fname_thresh, compression='gzip')
 
 # Load brain region map
 with open('../processed_data/brain_region_map.pkl', 'rb') as f:
@@ -96,6 +92,7 @@ with open('../processed_data/brain_region_map.pkl', 'rb') as f:
 # Get brain region statistics
 # NOTE: here I'm not coarse-graining neurons into regions first
 df['brain_region'] = df['neuropil'].map(region_map)
+df_thresh['brain_region'] = df_thresh['neuropil'].map(region_map)
 
 #------------------------------------------------------------------------------
 # GET SIMPLE CONNECTOME NETWORK STATISTICS
@@ -159,13 +156,14 @@ def get_simple_statistics(df, *, normalize=False, include_zero=False, all_nodes=
 
 # Get statistics
 simple_stats = get_simple_statistics(df, normalize=True)
+simple_stats_thresh = get_simple_statistics(df_thresh, normalize=True)
 
 # FIGURE: IN AND OUT DEGREE DISTRIBUTIONS--------------------------------------
 # Set up figure
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-ax.scatter(simple_stats['out_degree_dist'].index, simple_stats['out_degree_dist'], color='blue', label='Out-degree', rasterized=True)
-ax.scatter(simple_stats['in_degree_dist'].index, simple_stats['in_degree_dist'], color='red', label='In-degree', rasterized=True)
+ax.scatter(simple_stats['out_degree_dist'].index, simple_stats['out_degree_dist'], color=con_colors[0], label='Out-degree', rasterized=True)
+ax.scatter(simple_stats['in_degree_dist'].index, simple_stats['in_degree_dist'], color=con_colors[1], label='In-degree', rasterized=True)
 ax.legend()
 ax.set_xlabel('Degree')
 ax.set_ylabel('Probability')
@@ -181,8 +179,8 @@ plt.show()
 # Set up figure
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-ax.scatter(simple_stats['out_strength_dist'].index, simple_stats['out_strength_dist'], color='blue', label='Out-strength', rasterized=True)
-ax.scatter(simple_stats['in_strength_dist'].index, simple_stats['in_strength_dist'], color='red', label='In-strength', rasterized=True)
+ax.scatter(simple_stats['out_strength_dist'].index, simple_stats['out_strength_dist'], color=con_colors[0], label='Out-strength', rasterized=True)
+ax.scatter(simple_stats['in_strength_dist'].index, simple_stats['in_strength_dist'], color=con_colors[1], label='In-strength', rasterized=True)
 ax.legend()
 ax.set_xlabel('Strength')
 ax.set_ylabel('Probability')
@@ -193,6 +191,23 @@ ax.set_yscale('log')
 plt.savefig('../../figures/flywire_statistics/strength_distribution.pdf', dpi=600, bbox_inches='tight')
 
 plt.show()
+
+# FIGURE: 1-CDF OF IN-DEGREE DISTRIBUTION--------------------------------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+ax.scatter(simple_stats['in_degree_dist'].index, 1-np.cumsum(simple_stats['in_degree_dist']), color=con_colors[0], label='Unthresholded', rasterized=True)
+ax.legend()
+ax.set_xlabel('In-degree')
+ax.set_ylabel('Survival Function')
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+# Add labels
+plt.savefig('../../figures/flywire_statistics/strength_distribution.pdf', dpi=600, bbox_inches='tight')
+
+plt.show()
+
 
 # #------------------------------------------------------------------------------
 # # GET STATISTICS FOR BRAIN REGION
