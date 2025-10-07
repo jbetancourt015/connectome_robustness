@@ -197,6 +197,7 @@ plt.show()
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
 ax.scatter(simple_stats['in_degree_dist'].index, 1-np.cumsum(simple_stats['in_degree_dist']), color=con_colors[0], label='Unthresholded', rasterized=True)
+ax.scatter(simple_stats_thresh['in_degree_dist'].index, 1-np.cumsum(simple_stats_thresh['in_degree_dist']), color=con_colors[1], label='Thresholded', rasterized=True)
 ax.legend()
 ax.set_xlabel('In-degree')
 ax.set_ylabel('Survival Function')
@@ -204,7 +205,7 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 
 # Add labels
-plt.savefig('../../figures/flywire_statistics/strength_distribution.pdf', dpi=600, bbox_inches='tight')
+plt.savefig('../../figures/flywire_statistics/in_degree_distribution_thresh.pdf', dpi=600, bbox_inches='tight')
 
 plt.show()
 

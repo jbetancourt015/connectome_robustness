@@ -57,16 +57,12 @@ data_idx = 5
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 
-connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
-
-file_names = ['Drosophila_central_brain.csv','Drosophila_optic_medulla.csv','Celegans.csv',
-              'Platynereis_sensory_motor.csv', 'Mouse_retina.csv', 'flywire_connections.csv.gz']
+fname = 'flywire_connections.csv.gz'
+fname_thresh = 'flywire_connections_thresholded.csv.gz'
 
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE
 #------------------------------------------------------------------------------
-data_idx = 5
 thresholded = True
 
 suffix = '_thresholded' if thresholded else ''
