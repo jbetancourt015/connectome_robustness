@@ -21,11 +21,14 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import matplotlib as mpl
 from matplotlib import gridspec
 from matplotlib.colors import LinearSegmentedColormap
 from time import time
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.stats import gaussian_kde
+from matplotlib.ticker import ScalarFormatter
 import logging
 
 plt.rcParams.update({
@@ -38,6 +41,8 @@ plt.rcParams.update({
     'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
     'ps.fonttype': 42,       # same for PostScript
 })
+
+mpl.rcParams['figure.dpi'] = 300
 
 logging.getLogger("fontTools").setLevel(logging.ERROR)
 logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
@@ -64,7 +69,22 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
 #------------------------------------------------------------------------------
 # SENSITIVITY PLOTTING FUNCTIONS
 #------------------------------------------------------------------------------
-def plot_sensitivities(data_idx, A, A_rand, eta, null_net, normalized=False, labels=True):
+formatter = ScalarFormatter()
+formatter.set_scientific(False)
+formatter.set_useOffset(False)
+formatter.set_powerlimits((0, 0))
+
+def log_kde_to_original(q_vals, n_grid=512, bw=None):
+    u = np.log10(q_vals[q_vals > 0])
+    kde = gaussian_kde(u, bw_method=bw)  # bw=None => Scott’s rule
+    umin, umax = u.min(), u.max()
+    u_grid = np.linspace(umin, umax, n_grid)
+    x_grid = np.power(10.0, u_grid)                  # back to original Q
+    f_u    = kde(u_grid)                             # density in log10-space
+    f_x    = f_u / (x_grid * np.log(10.0))           # change-of-variables
+    return x_grid, f_x
+
+def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, labels=True):
     folder = 'figures' if labels else 'raw_figures'
     
     # Get sensitivity of connectomes
@@ -83,11 +103,16 @@ def plot_sensitivities(data_idx, A, A_rand, eta, null_net, normalized=False, lab
     
     # Add labels if necessary
     if labels:
-        ax_scatter.set_xlabel('Connectome sensitivity')
-        ax_scatter.set_ylabel('Random weight sensitivity' if null_net=='rand_weight' else 'Poisson sensitivity')
-        scheme_label = f"$\eta = {eta}$"
-        ax_scatter.text(Q_max, Q_min+0.1*(Q_max-Q_min), scheme_label, ha='right', va='bottom')
-        ax_scatter.text(Q_max, Q_min, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)), ha='right', va='bottom')
+        ax_scatter.set_xlabel('Connectome robustness')
+        ax_scatter.set_ylabel('Random weight robustness' if null_net=='rand_weight' else 'Poisson sensitivity')
+        ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
+                        ha='left',
+                        va='top',
+                        transform=ax_scatter.transAxes)
+    
+    # Set axis scales
+    ax_scatter.set_xscale('log')
+    ax_scatter.set_yscale('log')
     
     # Use divider to attach KDE axes to the scatter's box
     divider = make_axes_locatable(ax_scatter)
@@ -95,20 +120,44 @@ def plot_sensitivities(data_idx, A, A_rand, eta, null_net, normalized=False, lab
     ax_kde_y = divider.append_axes("right", size='10%', pad=0.1, sharey=ax_scatter)
     
     # Plot marginal densities
-    sns.kdeplot(x=Q1, ax=ax_kde_x, fill=True, color=con_colors[data_idx], 
-                alpha=0.6, clip=(Q_min, Q_max))
+    # sns.kdeplot(x=Q1, ax=ax_kde_x, fill=True, color=con_colors[data_idx], 
+    #             alpha=0.6, clip=(Q_min, Q_max))
+    # sns.kdeplot(y=Q2, ax=ax_kde_y, fill=True, color=con_colors[data_idx], 
+    #             alpha=0.6, clip=(Q_min, Q_max))
+    
+    
+    # X-marginal (top): density vs Q1 on log-x
+    x_grid, f_x = log_kde_to_original(Q1)
+    ax_kde_x.plot(x_grid, f_x, color=con_colors[data_idx], lw=1.5)
+    ax_kde_x.fill_between(x_grid, f_x, alpha=0.6, color=con_colors[data_idx])
+    ax_kde_x.set_xscale('log')
+    ax_kde_x.set_ylim(0, None)
+    ax_kde_x.set_xlim(Q_min, Q_max)
     ax_kde_x.axis("off")
     
-    sns.kdeplot(y=Q2, ax=ax_kde_y, fill=True, color=con_colors[data_idx], 
-                alpha=0.6, clip=(Q_min, Q_max))
+    # Y-marginal (right): density vs Q2 on log-y (plotted horizontally)
+    y_grid, f_y = log_kde_to_original(Q2)
+    ax_kde_y.plot(f_y, y_grid, color=con_colors[data_idx], lw=1.5)
+    ax_kde_y.fill_betweenx(y_grid, 0*y_grid, f_y, alpha=0.6, color=con_colors[data_idx])
+    ax_kde_y.set_yscale('log')
+    ax_kde_y.set_xlim(0, None)
+    ax_kde_y.set_ylim(Q_min, Q_max)
     ax_kde_y.axis("off")
     
-    plt.savefig(f"../../{folder}/robustness/{null_net}_robustness_eta_{int(eta)}_{connectomes[data_idx]}.pdf", 
-                dpi=600)
+    ax_kde_x.axis("off")
+    ax_kde_y.axis("off")
+    
+    # for axis in [ax_scatter.xaxis, ax_scatter.yaxis]:
+    #     axis.set_major_formatter(formatter)
+    #     axis.set_minor_formatter(formatter)
+    #     axis.set_tick_params(which='both', labelsize=10)
+    
+    # plt.savefig(f"../../{folder}/robustness/{null_net}_robustness_eta_{int(eta)}_{connectomes[data_idx]}.pdf", 
+    #             dpi=600)
     plt.show()
 
 
-def plot_sensitivity_hist(data_idx, A, A_rand, eta, null_net, normalized=False, labels=True):
+def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, labels=True):
     folder = 'figures' if labels else 'raw_figures'
     
     # Get sensitivity of connectomes
@@ -120,7 +169,7 @@ def plot_sensitivity_hist(data_idx, A, A_rand, eta, null_net, normalized=False, 
     fig, ax_scatter = plt.subplots(figsize=(.9*width,.9*height))
     
     # Create histogram
-    xbins = np.linspace(Q_min, Q_max, 40)
+    xbins = np.logspace(np.log10(Q_min), np.log10(Q_max), 40)
     ybins = xbins.copy()
     counts, xedges, yedges, im = ax_scatter.hist2d(
         Q1, Q2,
@@ -129,7 +178,21 @@ def plot_sensitivity_hist(data_idx, A, A_rand, eta, null_net, normalized=False, 
         norm=LogNorm(),
         cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=0.2, name="fade_to_color")
     )
+    
+    # xbins = np.linspace(Q_min, Q_max, 40)
+    # ybins = xbins.copy()
+    # counts, xedges, yedges, im = ax_scatter.hist2d(
+    #     Q1, Q2,
+    #     bins=[xbins, ybins],
+    #     density=True,
+    #     norm=LogNorm(),
+    #     cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=0.2, name="fade_to_color")
+    # )
     ax_scatter.set_aspect('equal')
+    
+    # Set axis scales
+    ax_scatter.set_xscale('log')
+    ax_scatter.set_yscale('log')
     
     # Use divider to attach KDE axes to the scatter's box
     divider = make_axes_locatable(ax_scatter)
@@ -137,16 +200,8 @@ def plot_sensitivity_hist(data_idx, A, A_rand, eta, null_net, normalized=False, 
     ax_kde_y = divider.append_axes('right', size='10%', pad=0.1, sharey=ax_scatter)
     ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
     
-    # KDE plots
-    sns.kdeplot(x=Q1, ax=ax_kde_x, fill=True, color=con_colors[data_idx], alpha=0.6,
-                clip=(Q_min, Q_max))
     ax_kde_x.axis("off")
-    
-    sns.kdeplot(y=Q2, ax=ax_kde_y, fill=True, color=con_colors[data_idx], alpha=0.6,
-                clip=(Q_min, Q_max))
     ax_kde_y.axis("off")
-    
-    
     
     # 7) re-enable all four spines on joint
     for loc in ["left","right","top","bottom"]:
@@ -161,21 +216,47 @@ def plot_sensitivity_hist(data_idx, A, A_rand, eta, null_net, normalized=False, 
     
     # Add labels if necessary
     if labels:
-        ax_scatter.set_xlabel('Connectome sensitivity')
-        ax_scatter.set_ylabel('Random weight sensitivity' if null_net=='rand_weight' else 'Poisson sensitivity')
-        scheme_label = f"$\eta = {eta}$"
-        ax_scatter.text(Q_max, Q_min+0.1*(Q_max-Q_min), scheme_label, ha='right', va='bottom')
-        ax_scatter.text(Q_max, Q_min, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)), ha='right', va='bottom')
-        
+        ax_scatter.set_xlabel('Connectome robustness')
+        ax_scatter.set_ylabel('Random weight robustness' if null_net=='rand_weight' else 'Poisson sensitivity')
+        ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
+                        ha='left',
+                        va='top',
+                        transform=ax_scatter.transAxes)
         cb.set_label("Density")
+    
+    # X-marginal (top): density vs Q1 on log-x
+    x_grid, f_x = log_kde_to_original(Q1)
+    ax_kde_x.plot(x_grid, f_x, color=con_colors[data_idx], lw=1.5)
+    ax_kde_x.fill_between(x_grid, f_x, alpha=0.6, color=con_colors[data_idx])
+    ax_kde_x.set_xscale('log')
+    ax_kde_x.set_ylim(0, None)
+    ax_kde_x.set_xlim(Q_min, Q_max)
+    ax_kde_x.axis("off")
+    
+    # Y-marginal (right): density vs Q2 on log-y (plotted horizontally)
+    y_grid, f_y = log_kde_to_original(Q2)
+    ax_kde_y.plot(f_y, y_grid, color=con_colors[data_idx], lw=1.5)
+    ax_kde_y.fill_betweenx(y_grid, 0*y_grid, f_y, alpha=0.6, color=con_colors[data_idx])
+    ax_kde_y.set_yscale('log')
+    ax_kde_y.set_xlim(0, None)
+    ax_kde_y.set_ylim(Q_min, Q_max)
+    ax_kde_y.axis("off")
+    
+    ax_kde_x.axis("off")
+    ax_kde_y.axis("off")
+    
+    # for axis in [ax_scatter.xaxis, ax_scatter.yaxis]:
+    #     axis.set_major_formatter(formatter)
+    #     axis.set_minor_formatter(formatter)
+    #     axis.set_tick_params(which='both', labelsize=10)
     
     # 10) tidy up & show
     for ax in (ax_kde_x, ax_kde_y):
         ax.tick_params(left=False, bottom=False)
-    plt.savefig(
-        f"../../{folder}/robustness_hists/{null_net}_robustness_{connectomes[data_idx]}.pdf",
-        dpi=600
-    )
+    # plt.savefig(
+    #     f"../../{folder}/robustness_hists/{null_net}_robustness_{connectomes[data_idx]}.pdf",
+    #     dpi=600
+    # )
     plt.show()
 
 #------------------------------------------------------------------------------
@@ -192,8 +273,8 @@ for data_idx in range(len(connectomes)):
                                             thresholded=thresholded if data_idx==5 else False)
 
     # Plot sensitivities
-    plot_sensitivities(data_idx, A, A_rand, 1., 'rand_weight', normalized=True)
-    plot_sensitivity_hist(data_idx, A, A_rand, 1., 'rand_weight', normalized=True)
+    plot_robustness(data_idx, A, A_rand, 1., 'rand_weight', normalized=False)
+    plot_robustness_hist(data_idx, A, A_rand, 1., 'rand_weight', normalized=False)
 
 
 
