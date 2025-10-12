@@ -130,20 +130,16 @@ def null_network(A, scheme='rand_weight', conn_type='disc', thresholded=False):
                 rand_ints = np.append(rand_ints, [0, int(strength-n_threshold*k)])
                 rand_ints.sort()
                 wts = n_threshold+np.diff(rand_ints)
+        elif scheme=='poisson':
+            # Sample weight distribution uniformly
+            rand_ints = np.random.poisson(strength/k - 1., size=int(k))
+            wts = 1.+rand_ints
+        elif scheme=='concentrated':
+            # 
+            wts = np.ones(int(k))
+            wts[0] = strength-k+1
         else:
-            if conn_type == 'cont': # Still no clear analogue of Poisson for continuous weights
-                # Sample form the L-dimensional simplex
-                wts_ext = np.zeros(int(k)+1)
-                r = np.random.rand(int(k)-1)
-                r = np.sort(r)
-                wts_ext[1:-1] = r
-                wts_ext[-1] = 1.
-                # Get connection strengths
-                wts = np.diff(wts_ext)*strength
-            else:
-                # Sample weight distribution uniformly
-                rand_ints = np.random.poisson(strength/k - 1., size=int(k))
-                wts = 1.+rand_ints
+            print('Error')
         # Store to data matrix
         M_data[start:end] = wts
     # Build sparse matrix

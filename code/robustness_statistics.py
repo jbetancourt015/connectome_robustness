@@ -55,8 +55,6 @@ height = 3.2
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
-thresholded = True
-
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
                    [120, 0, 150], [0, 168, 157], [203, 41, 123], [0, 0, 0]])/255;
@@ -262,19 +260,24 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
 #------------------------------------------------------------------------------
 # COMPARE SENSITIVITIES
 #------------------------------------------------------------------------------
+thresholded = True
+scheme = 'concentrated'
+norm = False
+
 for data_idx in range(len(connectomes)):
     # Get connectome
     A = network_functions.load_connectome(data_idx, thresholded=thresholded if data_idx==5 else False)
     N = A.shape[0]
 
-    # Get null network
-    A_rand = network_functions.null_network(A, scheme='rand_weight', 
-                                            conn_type='cont' if data_idx==4 else 'disc', 
-                                            thresholded=thresholded if data_idx==5 else False)
-
-    # Plot sensitivities
-    plot_robustness(data_idx, A, A_rand, 1., 'rand_weight', normalized=False)
-    plot_robustness_hist(data_idx, A, A_rand, 1., 'rand_weight', normalized=False)
+    if not((scheme!='rand_weight') and data_idx==4):
+        # Get null network
+        A_rand = network_functions.null_network(A, scheme=scheme, 
+                                                conn_type='cont' if data_idx==4 else 'disc', 
+                                                thresholded=thresholded if data_idx==5 else False)
+    
+        # Plot sensitivities
+        plot_robustness(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm)
+        plot_robustness_hist(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm)
 
 
 
