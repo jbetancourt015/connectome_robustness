@@ -6,7 +6,7 @@ created on:
     Tue 3 Jun 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 9 Sep 2025
+    Mon 13 Oct 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ fname_thresh = 'flywire_connections_thresholded.csv.gz'
 # PROCESSING FLYWIRE
 #------------------------------------------------------------------------------
 thresholded = True
-k_min = 100
+k_min = 10
 
 suffix = '_thresholded' if thresholded else ''
 
@@ -130,7 +130,7 @@ region_df = (
     collapsed
     .groupby(['brain_region'])
     .agg(
-        Q_mean = ('Q','mean'),
+        Q_median = ('Q','median'),
         Q_std = ('Q', 'std'),
         n_neurons  = ('post_root_id', 'nunique')
         )
@@ -138,14 +138,14 @@ region_df = (
 )
 
 # Sort regions by average robustness
-region_sorted = region_df.sort_values('Q_mean')
+region_sorted = region_df.sort_values('Q_median')
 
 n_regions = region_df['brain_region'].nunique()
 
 region_order = (
     collapsed
     .groupby('brain_region')['Q']
-    .mean()               # average Q_mean over neuropils in that region
+    .median()               # average Q_mean over neuropils in that region
     .sort_values()        # sort regions by their overall Q
     .index
 )
@@ -157,7 +157,7 @@ region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
 
 # Get data for plots
 labels = region_sorted['brain_region']
-means  = region_sorted['Q_mean']
+means  = region_sorted['Q_median']
 stds   = region_sorted['Q_std']
 
 # Group Q values per region following the chosen order

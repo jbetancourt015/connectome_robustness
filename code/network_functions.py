@@ -152,146 +152,146 @@ def null_network(A, scheme='rand_weight', conn_type='disc', thresholded=False):
 
 
 
-# OLD FUNCTIONS
+# # OLD FUNCTIONS
 
-def largest_wcc(G):
-    # Find all weakly connected components
-    weakly_connected_components = list(nx.weakly_connected_components(G))
-    # Identify the largest weakly connected component
-    largest_wcc = max(weakly_connected_components, key=len)
-    # Create a subgraph from the largest weakly connected component
-    largest_wcc_subgraph = G.subgraph(largest_wcc).copy()
-    return largest_wcc_subgraph
-
-
-def edge_weight_list(A):
-    # NOTE: this can be optimized with networkx directly
-    N = A.shape[0]
-    # Construct non-symmetrized edgelist and conductance values
-    pairs_asym = []
-    g_vals_asym = []
-    for i in range(N):
-        for j in range(N):
-            if A[i,j] > 0:
-                pairs_asym.append(np.array([i,j]))
-                g_vals_asym.append(A[i,j])
-    # Create edge and weight arrays
-    pairs_asym = np.array(pairs_asym)
-    g_vals_asym = np.array(g_vals_asym)
-    edges_asym = len(pairs_asym)
-    return pairs_asym, g_vals_asym
-
-#------------------------------------------------------------------------------
-# GENERATION OF NULL NETWORKS
-#------------------------------------------------------------------------------
-@njit
-def random_weight(A, data_idx):
-    N = A.shape[0]
-    # Get statistics
-    M = np.copy(A)
-    in_deg = np.sum(A>0, axis=0)
-    in_strength = np.sum(A, axis=0)
-    # Go through each neuron
-    for i in range(N):
-        if in_deg[i] > 0:
-            if data_idx == 4:
-                # Sample form the L-dimensional simplex
-                g_ext = np.zeros(int(in_deg[i])+1)
-                r = np.random.rand(int(in_deg[i])-1)
-                r = np.sort(r)
-                g_ext[1:-1] = r
-                g_ext[-1] = 1.
-                # Get connection strengths
-                g = np.diff(g_ext)*in_strength[i]
-            else:
-                # Sample weight distribution uniformly
-                rand_ints = np.random.randint(0, int(in_strength[i]-in_deg[i]) + 1, size=int(in_deg[i])-1)
-                rand_ints = np.append(rand_ints, [0, int(in_strength[i]-in_deg[i])])
-                rand_ints.sort()
-                g = 1.+np.diff(rand_ints)
-            # Construct matrix
-            idx = 0
-            for j in range(N):
-                if A[j,i] > 0:
-                    M[j,i] = g[idx]
-                    idx += 1
-    return M
+# def largest_wcc(G):
+#     # Find all weakly connected components
+#     weakly_connected_components = list(nx.weakly_connected_components(G))
+#     # Identify the largest weakly connected component
+#     largest_wcc = max(weakly_connected_components, key=len)
+#     # Create a subgraph from the largest weakly connected component
+#     largest_wcc_subgraph = G.subgraph(largest_wcc).copy()
+#     return largest_wcc_subgraph
 
 
-@njit
-def poisson_weight(A, data_idx):
-    N = A.shape[0]
-    # Get statistics
-    M = np.copy(A)
-    in_deg = np.sum(A>0, axis=0)
-    in_strength = np.sum(A, axis=0)
-    # Go through each neuron
-    for i in range(N):
-        if in_deg[i] > 0:
-            if data_idx == 4:
-                # Sample form the L-dimensional simplex
-                g_ext = np.zeros(int(in_deg[i])+1)
-                r = np.random.rand(int(in_deg[i])-1)
-                r = np.sort(r)
-                g_ext[1:-1] = r
-                g_ext[-1] = 1.
-                # Get connection strengths
-                g = np.diff(g_ext)*in_strength[i]
-            else:
-                # Sample weight distribution uniformly
-                rand_ints = np.random.poisson(in_strength[i]/in_deg[i] - 1., size=int(in_deg[i]))
-                g = 1.+rand_ints
-            # Construct matrix
-            idx = 0
-            for j in range(N):
-                if A[j,i] > 0:
-                    M[j,i] = g[idx]
-                    idx += 1
-    return M
+# def edge_weight_list(A):
+#     # NOTE: this can be optimized with networkx directly
+#     N = A.shape[0]
+#     # Construct non-symmetrized edgelist and conductance values
+#     pairs_asym = []
+#     g_vals_asym = []
+#     for i in range(N):
+#         for j in range(N):
+#             if A[i,j] > 0:
+#                 pairs_asym.append(np.array([i,j]))
+#                 g_vals_asym.append(A[i,j])
+#     # Create edge and weight arrays
+#     pairs_asym = np.array(pairs_asym)
+#     g_vals_asym = np.array(g_vals_asym)
+#     edges_asym = len(pairs_asym)
+#     return pairs_asym, g_vals_asym
+
+# #------------------------------------------------------------------------------
+# # GENERATION OF NULL NETWORKS
+# #------------------------------------------------------------------------------
+# @njit
+# def random_weight(A, data_idx):
+#     N = A.shape[0]
+#     # Get statistics
+#     M = np.copy(A)
+#     in_deg = np.sum(A>0, axis=0)
+#     in_strength = np.sum(A, axis=0)
+#     # Go through each neuron
+#     for i in range(N):
+#         if in_deg[i] > 0:
+#             if data_idx == 4:
+#                 # Sample form the L-dimensional simplex
+#                 g_ext = np.zeros(int(in_deg[i])+1)
+#                 r = np.random.rand(int(in_deg[i])-1)
+#                 r = np.sort(r)
+#                 g_ext[1:-1] = r
+#                 g_ext[-1] = 1.
+#                 # Get connection strengths
+#                 g = np.diff(g_ext)*in_strength[i]
+#             else:
+#                 # Sample weight distribution uniformly
+#                 rand_ints = np.random.randint(0, int(in_strength[i]-in_deg[i]) + 1, size=int(in_deg[i])-1)
+#                 rand_ints = np.append(rand_ints, [0, int(in_strength[i]-in_deg[i])])
+#                 rand_ints.sort()
+#                 g = 1.+np.diff(rand_ints)
+#             # Construct matrix
+#             idx = 0
+#             for j in range(N):
+#                 if A[j,i] > 0:
+#                     M[j,i] = g[idx]
+#                     idx += 1
+#     return M
 
 
-@njit
-def random_synapse_placement(A):
-    N = A.shape[0]
-    # Construct adjacency matrix
-    M = np.zeros((N,N))
-    # Place one synapse in each position
-    for l in range(edges_asym):
-        M[pairs_asym[l,0], pairs_asym[l,1]] += 1.
-    # Place each synapse individually
-    for s in range(int(g_tot)-edges_asym):
-        l = np.random.choice(np.arange(edges_asym))
-        M[pairs_asym[l,0], pairs_asym[l,1]] += 1.
-    return M
+# @njit
+# def poisson_weight(A, data_idx):
+#     N = A.shape[0]
+#     # Get statistics
+#     M = np.copy(A)
+#     in_deg = np.sum(A>0, axis=0)
+#     in_strength = np.sum(A, axis=0)
+#     # Go through each neuron
+#     for i in range(N):
+#         if in_deg[i] > 0:
+#             if data_idx == 4:
+#                 # Sample form the L-dimensional simplex
+#                 g_ext = np.zeros(int(in_deg[i])+1)
+#                 r = np.random.rand(int(in_deg[i])-1)
+#                 r = np.sort(r)
+#                 g_ext[1:-1] = r
+#                 g_ext[-1] = 1.
+#                 # Get connection strengths
+#                 g = np.diff(g_ext)*in_strength[i]
+#             else:
+#                 # Sample weight distribution uniformly
+#                 rand_ints = np.random.poisson(in_strength[i]/in_deg[i] - 1., size=int(in_deg[i]))
+#                 g = 1.+rand_ints
+#             # Construct matrix
+#             idx = 0
+#             for j in range(N):
+#                 if A[j,i] > 0:
+#                     M[j,i] = g[idx]
+#                     idx += 1
+#     return M
 
 
-@njit
-def random_topology(A):
-    N = A.shape[0]
-    # Create an NxN matrix of zeros
-    M = np.zeros((N,N))
-    # Get all the positions in the upper triangular part
-    full_range = np.arange(N)
-    positions = [(i,j) for i in range(N) for j in full_range[full_range != i]]
-    indices = np.arange(len(positions))
-    # Shuffle the position
-    np.random.shuffle(indices)
-    selected_positions = [positions[indices[i]] for i in range(edges_asym)]
-    # Assign the values from L to the selected positions
-    for value, (i,j) in zip(g_vals_asym, selected_positions):
-        M[i,j] += value
-    return M
+# @njit
+# def random_synapse_placement(A):
+#     N = A.shape[0]
+#     # Construct adjacency matrix
+#     M = np.zeros((N,N))
+#     # Place one synapse in each position
+#     for l in range(edges_asym):
+#         M[pairs_asym[l,0], pairs_asym[l,1]] += 1.
+#     # Place each synapse individually
+#     for s in range(int(g_tot)-edges_asym):
+#         l = np.random.choice(np.arange(edges_asym))
+#         M[pairs_asym[l,0], pairs_asym[l,1]] += 1.
+#     return M
 
 
-@njit
-def weight_shuffle(A):
-    N = A.shape[0]
-    # Create an NxN matrix of zeros
-    M = np.zeros((N,N))
-    # Shuffle the order of pairs
-    new_pairs = np.copy(pairs_asym)
-    np.random.shuffle(new_pairs)
-    # Assign the values from L to the selected positions
-    for value, (i,j) in zip(g_vals_asym, new_pairs):
-        M[i,j] += value
-    return M
+# @njit
+# def random_topology(A):
+#     N = A.shape[0]
+#     # Create an NxN matrix of zeros
+#     M = np.zeros((N,N))
+#     # Get all the positions in the upper triangular part
+#     full_range = np.arange(N)
+#     positions = [(i,j) for i in range(N) for j in full_range[full_range != i]]
+#     indices = np.arange(len(positions))
+#     # Shuffle the position
+#     np.random.shuffle(indices)
+#     selected_positions = [positions[indices[i]] for i in range(edges_asym)]
+#     # Assign the values from L to the selected positions
+#     for value, (i,j) in zip(g_vals_asym, selected_positions):
+#         M[i,j] += value
+#     return M
+
+
+# @njit
+# def weight_shuffle(A):
+#     N = A.shape[0]
+#     # Create an NxN matrix of zeros
+#     M = np.zeros((N,N))
+#     # Shuffle the order of pairs
+#     new_pairs = np.copy(pairs_asym)
+#     np.random.shuffle(new_pairs)
+#     # Assign the values from L to the selected positions
+#     for value, (i,j) in zip(g_vals_asym, new_pairs):
+#         M[i,j] += value
+#     return M
