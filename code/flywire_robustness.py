@@ -22,6 +22,7 @@ import network_functions
 import matplotlib.pyplot as plt
 import pickle
 import logging
+import matplotlib as mpl
 
 plt.rcParams.update({
     'font.family': 'Helvetica',
@@ -33,6 +34,8 @@ plt.rcParams.update({
     'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
     'ps.fonttype': 42,       # same for PostScript
 })
+
+mpl.rcParams['figure.dpi'] = 300
 
 logging.getLogger("fontTools").setLevel(logging.ERROR)
 logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
@@ -63,107 +66,124 @@ fname_thresh = 'flywire_connections_thresholded.csv.gz'
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE
 #------------------------------------------------------------------------------
-thresholded = True
-k_min = 10
-
-suffix = '_thresholded' if thresholded else ''
-
-# Load dataset into pandas DataFrame
-df = pd.read_csv(data_dir+'flywire_connections'+suffix+'.csv.gz', compression='gzip')
-
-# Aggregate weights over different neuropils
-weights = (
-    df
-    .groupby(['pre_root_id','post_root_id'])['syn_count']
-    .sum()
-    .rename('weight')
-    .reset_index()
-)
-
-# Compute Q values
-Q_df = (
-    weights
-    .groupby('post_root_id')
-    .agg(
-        in_deg = ('pre_root_id', 'nunique'),
-        sum_w  = ('weight', 'sum'),
-        sum_w2 = ('weight', lambda s: (s**2).sum())
+def robustness_by_brain_region(norm, thresholded, k_min, scheme='remove'):
+    suffix = '_thresholded' if thresholded else ''
+    
+    # Load dataset into pandas DataFrame
+    df = pd.read_csv(data_dir+'flywire_connections'+suffix+'.csv.gz', compression='gzip')
+    
+    # Aggregate weights over different neuropils
+    weights = (
+        df
+        .groupby(['pre_root_id','post_root_id'])['syn_count']
+        .sum()
+        .rename('weight')
+        .reset_index()
     )
-    .assign(
-        Q = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['sum_w']**2)
-    )
-    .reset_index()
-)
-
-# Assign a neuropil to each neuron
-neuropil_df = (
-    df
-    .groupby(['post_root_id','neuropil'])['syn_count']
-    .sum()
-    .reset_index()
-    .sort_values(['post_root_id','syn_count'], ascending=[True, False])
-    .drop_duplicates('post_root_id')
-    .loc[:, ['post_root_id','neuropil']]
-)
-
-# Merge neuropil and robustness into a single dataframe
-collapsed = (
-    Q_df.loc[Q_df['in_deg'] >= k_min, ['post_root_id','Q']]
-    .merge(neuropil_df, on='post_root_id')
-    .loc[:, ['post_root_id','neuropil','Q']]
-)
-
-#------------------------------------------------------------------------------
-# ANALYSIS BY BRAIN REGION
-#------------------------------------------------------------------------------
-# Load brain region map
-with open('../processed_data/brain_region_map.pkl', 'rb') as f:
-    region_map = pickle.load(f)
-
-# Expand dataframe with brain region
-collapsed['brain_region'] = collapsed['neuropil'].map(region_map)
-
-collapsed = collapsed[collapsed['brain_region']!='Other Regions']
-
-# Compute sensitivities by region
-region_df = (
-    collapsed
-    .groupby(['brain_region'])
-    .agg(
-        Q_median = ('Q','median'),
-        Q_std = ('Q', 'std'),
-        n_neurons  = ('post_root_id', 'nunique')
+    
+    if thresholded:
+        if scheme == 'remove':
+            weights['weight'] = weights['weight']-4
+        elif scheme == 'clump':
+            weights['weight'] = 5*(weights['weight']//5)
+    
+    # Compute Q values
+    Q_df = (
+        weights
+        .groupby('post_root_id')
+        .agg(
+            in_deg = ('pre_root_id', 'nunique'),
+            sum_w  = ('weight', 'sum'),
+            sum_w2 = ('weight', lambda s: (s**2).sum())
         )
-    .reset_index()
-)
-
-# Sort regions by average robustness
-region_sorted = region_df.sort_values('Q_median')
-
-n_regions = region_df['brain_region'].nunique()
-
-region_order = (
-    collapsed
-    .groupby('brain_region')['Q']
-    .median()               # average Q_mean over neuropils in that region
-    .sort_values()        # sort regions by their overall Q
-    .index
-)
-
-np.save('../processed_data/brain_region_order', np.array(region_order))
-
-cmap = plt.get_cmap('viridis', len(region_order))
-region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
-
-# Get data for plots
-labels = region_sorted['brain_region']
-means  = region_sorted['Q_median']
-stds   = region_sorted['Q_std']
-
-# Group Q values per region following the chosen order
-violin_data = [collapsed.loc[collapsed["brain_region"] == r, "Q"].to_numpy(dtype=float) for r in region_order]
+        .assign(
+            Q = ((lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['sum_w']**2)) 
+                 if norm else 
+                 (lambda d: np.sqrt((d['sum_w2'])/d['sum_w'])))
+        )
+        .reset_index()
+    )
+    
+    # Assign a neuropil to each neuron
+    neuropil_df = (
+        df
+        .groupby(['post_root_id','neuropil'])['syn_count']
+        .sum()
+        .reset_index()
+        .sort_values(['post_root_id','syn_count'], ascending=[True, False])
+        .drop_duplicates('post_root_id')
+        .loc[:, ['post_root_id','neuropil']]
+    )
+    
+    # Merge neuropil and robustness into a single dataframe
+    collapsed = (
+        Q_df.loc[Q_df['in_deg'] >= k_min, ['post_root_id','Q']]
+        .merge(neuropil_df, on='post_root_id')
+        .loc[:, ['post_root_id','neuropil','Q']]
+    )
+    
+    #------------------------------------------------------------------------------
+    # GROUP BY BRAIN REGION
+    #------------------------------------------------------------------------------
+    # Load brain region map
+    with open('../processed_data/brain_region_map.pkl', 'rb') as f:
+        region_map = pickle.load(f)
+    
+    # Expand dataframe with brain region
+    collapsed['brain_region'] = collapsed['neuropil'].map(region_map)
+    
+    collapsed = collapsed[collapsed['brain_region']!='Other Regions']
+    
+    # Compute sensitivities by region
+    region_df = (
+        collapsed
+        .groupby(['brain_region'])
+        .agg(
+            Q_median = ('Q','median'),
+            Q_std = ('Q', 'std'),
+            n_neurons  = ('post_root_id', 'nunique')
+            )
+        .reset_index()
+    )
+    
+    # Sort regions by average robustness
+    region_sorted = region_df.sort_values('Q_median')
+    
+    n_regions = region_df['brain_region'].nunique()
+    
+    region_order = (
+        collapsed
+        .groupby('brain_region')['Q']
+        .median()               # average Q_mean over neuropils in that region
+        .sort_values()        # sort regions by their overall Q
+        .index
+    )
+    
+    np.save('../processed_data/brain_region_order', np.array(region_order))
+    
+    cmap = plt.get_cmap('viridis', len(region_order))
+    region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
+    
+    # Get data for plots
+    labels = region_sorted['brain_region']
+    means  = region_sorted['Q_median']
+    stds   = region_sorted['Q_std']
+    
+    # Group Q values per region following the chosen order
+    violin_data = [collapsed.loc[collapsed["brain_region"] == r, "Q"].to_numpy(dtype=float) for r in region_order]
+    return violin_data, region_order, region_colors
 
 # FIGURE: ROBUSTNESS VIOLINS BY BRAIN REGION----------------------------------
+norm = False
+thresholded = True
+k_min = 10
+scheme = 'remove'
+
+violin_data, region_order, region_colors = robustness_by_brain_region(norm,
+                                                                      thresholded, 
+                                                                      k_min, 
+                                                                      scheme)
+
 # Set up figure
 fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
 
@@ -189,13 +209,13 @@ if 'cmedians' in parts and parts['cmedians'] is not None:
     parts['cmedians'].set_color('black')
     
 # Labels/ticks
-ax.set_ylabel("Normalized robustness")
+ax.set_ylabel("Robustness")
 ax.set_xticks(range(1, len(region_order) + 1))
 ax.set_xticklabels(region_order, rotation=35, ha="right")
 ax.set_ylim(.9,2.1)
 
 # Add labels
-plt.savefig(f"../../figures/flywire_robustness/robustness_violins_by_region{suffix}.pdf", dpi=600, bbox_inches='tight')
+# plt.savefig(f"../../figures/flywire_robustness/robustness_violins_by_region{suffix}.pdf", dpi=600, bbox_inches='tight')
 plt.show()
 
 # #------------------------------------------------------------------------------
