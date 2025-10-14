@@ -66,7 +66,7 @@ fname_thresh = 'flywire_connections_thresholded.csv.gz'
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE
 #------------------------------------------------------------------------------
-def robustness_by_brain_region(norm, thresholded, k_min, scheme='remove'):
+def process_df(norm, thresholded, k_min, scheme='remove'):
     suffix = '_thresholded' if thresholded else ''
     
     # Load dataset into pandas DataFrame
@@ -133,6 +133,10 @@ def robustness_by_brain_region(norm, thresholded, k_min, scheme='remove'):
     collapsed['brain_region'] = collapsed['neuropil'].map(region_map)
     
     collapsed = collapsed[collapsed['brain_region']!='Other Regions']
+    return collapsed
+
+def robustness_by_brain_region(norm, thresholded, k_min, scheme='remove'):
+    collapsed = process_df(norm, thresholded, k_min, scheme='remove')
     
     # Compute sensitivities by region
     region_df = (
@@ -173,22 +177,127 @@ def robustness_by_brain_region(norm, thresholded, k_min, scheme='remove'):
     violin_data = [collapsed.loc[collapsed["brain_region"] == r, "Q"].to_numpy(dtype=float) for r in region_order]
     return violin_data, region_order, region_colors
 
-# FIGURE: ROBUSTNESS VIOLINS BY BRAIN REGION----------------------------------
+# # FIGURE: ROBUSTNESS VIOLINS BY BRAIN REGION----------------------------------
+# norm = False
+# thresholded = True
+# k_min = 10
+# scheme = 'clump'
+
+# bounds = 1, 10
+
+# violin_data, region_order, region_colors = robustness_by_brain_region(norm,
+#                                                                       thresholded, 
+#                                                                       k_min, 
+#                                                                       scheme)
+
+# # Set up figure
+# fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+# parts = ax.violinplot(
+#     violin_data,
+#     showmeans=False,
+#     showmedians=True,
+#     showextrema=False,
+#     widths=0.9
+# )
+
+# # Color each violin body to match points
+# for i, body in enumerate(parts['bodies']):
+#     region = region_order[i]
+#     color = region_colors[region]
+#     body.set_facecolor(color)
+#     body.set_edgecolor("black")
+#     body.set_alpha(0.6)
+
+# # Style median line
+# if 'cmedians' in parts and parts['cmedians'] is not None:
+#     parts['cmedians'].set_linewidth(2.5)
+#     parts['cmedians'].set_color('black')
+    
+# # Labels/ticks
+# ax.set_ylabel("Robustness")
+# ax.set_xticks(range(1, len(region_order) + 1))
+# ax.set_xticklabels(region_order, rotation=35, ha="right")
+# ax.set_ylim(bounds[0]-.1,bounds[1]+.1)
+
+# # Add labels
+# # plt.savefig(f"../../figures/flywire_robustness/robustness_violins_by_region{suffix}.pdf", dpi=600, bbox_inches='tight')
+# plt.show()
+
+#------------------------------------------------------------------------------
+# ANALYSIS OF THE OPTIC LOBE
+#------------------------------------------------------------------------------
+def optic_lobe_robustness(norm, thresholded, k_min, scheme='remove'):
+    collapsed = process_df(norm, thresholded, k_min, scheme)
+
+    # Keep only neurons in the optic lobe
+    optic_lobe_df = collapsed[collapsed['brain_region']=='Optic Lobe']
+    optic_lobe_df = optic_lobe_df[~optic_lobe_df['neuropil'].isin(['AME_L', 'AME_R'])]
+    
+    # Load brain region map
+    with open('../processed_data/optic_lobe_region_map.pkl', 'rb') as f:
+        optic_lobe_map = pickle.load(f)
+    
+    # Map neurons to their optic lobe region
+    optic_lobe_df['lobe_region'] = optic_lobe_df['neuropil'].map(optic_lobe_map)
+    
+    # Compute sensitivities by region
+    lobe_region_sorted = (
+        optic_lobe_df
+        .groupby(['lobe_region'])
+        .agg(
+            Q_median = ('Q','median'),
+            Q_std = ('Q', 'std'),
+            n_neurons  = ('post_root_id', 'nunique')
+            )
+        .reset_index()
+    )
+    
+    # Sort regions by average sensitivity
+    lobe_region_sorted = lobe_region_sorted.sort_values('Q_median')
+    
+    n_regions = lobe_region_sorted['lobe_region'].nunique()
+    
+    
+    lobe_region_order = (
+        optic_lobe_df
+        .groupby('lobe_region')['Q']
+        .median()               # average Q_mean over neuropils in that region
+        .sort_values()        # sort regions by their overall Q
+        .index
+    )
+    
+    np.save('../processed_data/lobe_region_order', np.array(lobe_region_order))
+    
+    cmap = plt.get_cmap('viridis', len(lobe_region_order))
+    lobe_region_colors = {r: cmap(i) for i, r in enumerate(lobe_region_order)}
+    
+    # Get data for plots
+    labels = lobe_region_sorted['lobe_region']
+    means  = lobe_region_sorted['Q_median']
+    stds   = lobe_region_sorted['Q_std']
+    
+    lobe_violin_data = [optic_lobe_df.loc[optic_lobe_df["lobe_region"] == r, "Q"].to_numpy(dtype=float) for r in lobe_region_order]
+    return lobe_violin_data, lobe_region_order, lobe_region_colors
+
+# FIGURE: ROBUSTNESS OF OPTIC LOBE REGIONS------------------------------------
 norm = False
 thresholded = True
 k_min = 10
-scheme = 'remove'
+scheme = 'clump'
 
-violin_data, region_order, region_colors = robustness_by_brain_region(norm,
-                                                                      thresholded, 
-                                                                      k_min, 
-                                                                      scheme)
+bounds = 1, 10
+
+lobe_violin_data, lobe_region_order, lobe_region_colors = optic_lobe_robustness(norm, 
+                                                                                thresholded, 
+                                                                                k_min, 
+                                                                                scheme)
 
 # Set up figure
-fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
 parts = ax.violinplot(
-    violin_data,
+    lobe_violin_data,
     showmeans=False,
     showmedians=True,
     showextrema=False,
@@ -197,8 +306,8 @@ parts = ax.violinplot(
 
 # Color each violin body to match points
 for i, body in enumerate(parts['bodies']):
-    region = region_order[i]
-    color = region_colors[region]
+    region = lobe_region_order[i]
+    color = lobe_region_colors[region]
     body.set_facecolor(color)
     body.set_edgecolor("black")
     body.set_alpha(0.6)
@@ -210,9 +319,9 @@ if 'cmedians' in parts and parts['cmedians'] is not None:
     
 # Labels/ticks
 ax.set_ylabel("Robustness")
-ax.set_xticks(range(1, len(region_order) + 1))
-ax.set_xticklabels(region_order, rotation=35, ha="right")
-ax.set_ylim(.9,2.1)
+ax.set_xticks(range(1, len(lobe_region_order) + 1))
+ax.set_xticklabels(lobe_region_order, rotation=35, ha="right")
+ax.set_ylim(bounds[0]-.1,bounds[1]+.1)
 
 # Add labels
 # plt.savefig(f"../../figures/flywire_robustness/robustness_violins_by_region{suffix}.pdf", dpi=600, bbox_inches='tight')
@@ -370,69 +479,5 @@ plt.show()
 # # Add labels
 # ax.set_ylabel('Normalized sensitivity')
 # plt.savefig('../../figures/flywire/norm_sensitivity_bars_neuropil_region.pdf', dpi=600, bbox_inches='tight')
-
-# plt.show()
-
-# #------------------------------------------------------------------------------
-# # ANALYSIS OF THE OPTIC LOBE
-# #------------------------------------------------------------------------------
-# # Keep only neurons in the optic lobe
-# optic_lobe_df = collapsed[collapsed['brain_region']=='Optic Lobe']
-# optic_lobe_df = optic_lobe_df[~optic_lobe_df['neuropil'].isin(['AME_L', 'AME_R'])]
-
-# # Load brain region map
-# with open('../processed_data/optic_lobe_region_map.pkl', 'rb') as f:
-#     optic_lobe_map = pickle.load(f)
-
-# # Map neurons to their optic lobe region
-# optic_lobe_df['lobe_region'] = optic_lobe_df['neuropil'].map(optic_lobe_map)
-
-# # Compute sensitivities by region
-# lobe_region_sorted = (
-#     optic_lobe_df
-#     .groupby(['lobe_region'])
-#     .agg(
-#         Q_mean = ('Q','mean'),
-#         Q_std = ('Q', 'std'),
-#         n_neurons  = ('post_root_id', 'nunique')
-#         )
-#     .reset_index()
-# )
-
-# # Sort regions by average sensitivity
-# lobe_region_sorted = lobe_region_sorted.sort_values('Q_mean')
-
-# n_regions = lobe_region_sorted['lobe_region'].nunique()
-
-# lobe_region_order = (
-#     optic_lobe_df
-#     .groupby('lobe_region')['Q']
-#     .mean()               # average Q_mean over neuropils in that region
-#     .sort_values()        # sort regions by their overall Q
-#     .index
-# )
-
-# np.save('../processed_data/lobe_region_order', np.array(lobe_region_order))
-
-# cmap = plt.get_cmap('viridis', len(lobe_region_order))
-# region_colors = {r: cmap(i) for i, r in enumerate(lobe_region_order)}
-
-# # Get data for plots
-# labels = lobe_region_sorted['lobe_region']
-# means  = lobe_region_sorted['Q_mean']
-# stds   = lobe_region_sorted['Q_std']
-
-# # FIGURE: SENSITIVITY OF OPTIC LOBE REGIONS------------------------------------
-# # Set up figure
-# fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-# ax.bar(range(n_regions), means, yerr=stds, capsize=5, color=region_colors.values())
-# ax.set_xticks(range(n_regions))
-# ax.set_xticklabels(labels, rotation=45, ha='right')
-# plt.savefig('../../raw_figures/flywire/norm_sensitivity_bars_lobe.pdf', dpi=600)
-
-# # Add labels
-# ax.set_ylabel('Normalized sensitivity')
-# plt.savefig('../../figures/flywire/norm_sensitivity_bars_lobe.pdf', dpi=600, bbox_inches='tight')
 
 # plt.show()
