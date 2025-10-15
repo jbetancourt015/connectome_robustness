@@ -6,7 +6,7 @@ created on:
     Tue 3 Jun 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 9 Sep 2025
+    Tue 14 Oct 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -20,6 +20,7 @@ import network_functions
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+import matplotlib as mpl
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from matplotlib.ticker import LogLocator, LogFormatter
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -39,6 +40,8 @@ plt.rcParams.update({
     'ps.fonttype': 42,       # same for PostScript
 })
 
+mpl.rcParams['figure.dpi'] = 300
+
 logging.getLogger("fontTools").setLevel(logging.ERROR)
 logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
@@ -51,7 +54,8 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
 data_idx = 5
-thresholded = False
+thresholded = True
+scheme = 'remove'
 
 suffix = '_thresholded' if thresholded else ''
 
@@ -67,7 +71,7 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
 cmap='viridis'
 
 # Get connectome
-A = network_functions.load_connectome(data_idx, thresholded=thresholded)
+A = network_functions.load_connectome(data_idx, thresholded=thresholded, scheme=scheme)
 N = A.shape[0]
 
 #------------------------------------------------------------------------------
@@ -160,13 +164,13 @@ fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 ax.scatter(s_weights, P_weights, color=con_colors[0], rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
-plt.savefig('../../figures/simulations/sampled_weight_dist.pdf', dpi=600, bbox_inches='tight')
+# plt.savefig('../../figures/simulations/sampled_weight_dist.pdf', dpi=600, bbox_inches='tight')
 
 # Add labels
 ax.set_xlabel('Connection strength')
 ax.set_ylabel('Probability')
 
-plt.savefig('../../raw_figures/simulations/sampled_weight_dist.pdf', dpi=600)
+# plt.savefig('../../raw_figures/simulations/sampled_weight_dist.pdf', dpi=600)
 plt.show()
 
 #------------------------------------------------------------------------------
@@ -246,7 +250,7 @@ ax_scatter.set_xlabel(stats['mean']['label'])
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['var']['label'])
 
-plt.savefig(f"../../figures/candidate_figures/fig_1{suffix}.pdf", dpi=600, bbox_inches='tight')
+# plt.savefig(f"../../figures/candidate_figures/fig_1{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
 
@@ -271,7 +275,7 @@ ax_scatter.set_xlabel(stats['var']['label'])
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
 
-plt.savefig(f"../../figures/candidate_figures/fig_2{suffix}.pdf", dpi=600, bbox_inches='tight')
+# plt.savefig(f"../../figures/candidate_figures/fig_2{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
 
@@ -300,7 +304,7 @@ ax_scatter.set_xlabel('Predicted loss')
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
 
-plt.savefig(f"../../figures/candidate_figures/fig_3{suffix}.pdf", dpi=600, bbox_inches='tight')
+# plt.savefig(f"../../figures/candidate_figures/fig_3{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
 
@@ -331,12 +335,12 @@ ax_scatter.set_xlabel('Robustness')
 ax_scatter.set_ylabel('Loss')
 cbar.set_label(stats['mean']['label'])
 
-plt.savefig(f"../../figures/candidate_figures/fig_4{suffix}.pdf", dpi=600, bbox_inches='tight')
+# plt.savefig(f"../../figures/candidate_figures/fig_4{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
 
 #------------------------------------------------------------------------------
-# RELATIVE ERROR VS NUMBER OF INCOMING CONNECTIONS
+# RELATIVE ERROR VS NUMBER OF INCOMING CONNECTIONSo
 #------------------------------------------------------------------------------
 # Get relative error
 rel_error = np.abs(loss[:,2]/pred_loss[:,2] - 1)

@@ -29,11 +29,15 @@ processed_dir = '../processed_data/'
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
-def load_connectome(data_idx, thresholded=False):
+def load_connectome(data_idx, thresholded=False, scheme=None):
     if not thresholded:
         A = load_npz(f"{processed_dir}{connectomes[data_idx]}.npz")
     else:
         A = load_npz(f"{processed_dir}{connectomes[data_idx]}_thresholded.npz")
+        if scheme == 'remove':
+            A.data = A.data - 4
+        elif scheme == 'clump':
+            A.data = 5*(A.data//5)
     return A
 
 #------------------------------------------------------------------------------
