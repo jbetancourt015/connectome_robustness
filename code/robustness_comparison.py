@@ -268,41 +268,41 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
 #------------------------------------------------------------------------------
 # COMPARE SENSITIVITIES
 #------------------------------------------------------------------------------
-thresholded = True
+thresholded = False
 scheme = 'rand_weight'
 norm = False
 log_axes = True
 
-# for data_idx in range(len(connectomes)):
-#     # Get connectome
-#     A = network_functions.load_connectome(data_idx, thresholded=thresholded if data_idx==5 else False)
-#     N = A.shape[0]
+for data_idx in range(len(connectomes)):
+    # Get connectome
+    A = network_functions.load_connectome(data_idx, thresholded=thresholded if data_idx==5 else False)
+    N = A.shape[0]
 
-#     if not((scheme!='rand_weight') and data_idx==4):
-#         # Get null network
-#         A_rand = network_functions.null_network(A, scheme=scheme, 
-#                                                 conn_type='cont' if data_idx==4 else 'disc', 
-#                                                 thresholded=thresholded if data_idx==5 else False)
+    if not((scheme!='rand_weight') and data_idx==4):
+        # Get null network
+        A_rand = network_functions.null_network(A, scheme=scheme, 
+                                                conn_type='cont' if data_idx==4 else 'disc', 
+                                                thresholded=thresholded if data_idx==5 else False)
     
-#         # Plot sensitivities
-#         plot_robustness(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
-#         plot_robustness_hist(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
+        # Plot sensitivities
+        plot_robustness(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
+        plot_robustness_hist(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
         
-# Drosophila-specific plots
-weight_scheme = 'clump'
+# # Drosophila-specific plots
+# weight_scheme = 'clump'
 
-# Get connectome
-A = network_functions.load_connectome(5, thresholded=thresholded, scheme=weight_scheme)
-N = A.shape[0]
+# # Get connectome
+# A = network_functions.load_connectome(5, thresholded=thresholded, scheme=weight_scheme)
+# N = A.shape[0]
 
 
-# Get null network
-A_rand = network_functions.null_network(A, scheme=scheme, 
-                                        conn_type='disc', 
-                                        thresholded=thresholded)
+# # Get null network
+# A_rand = network_functions.null_network(A, scheme=scheme, 
+#                                         conn_type='disc', 
+#                                         thresholded=thresholded)
 
-# Plot sensitivities
-plot_robustness_hist(5, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
+# # Plot sensitivities
+# plot_robustness_hist(5, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
 
 
 

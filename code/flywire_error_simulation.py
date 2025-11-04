@@ -54,7 +54,7 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
 
 data_idx = 5
-thresholded = True
+thresholded = False
 scheme = 'remove'
 
 suffix = '_thresholded' if thresholded else ''

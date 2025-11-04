@@ -177,52 +177,52 @@ def robustness_by_brain_region(norm, thresholded, k_min, scheme='remove'):
     violin_data = [collapsed.loc[collapsed["brain_region"] == r, "Q"].to_numpy(dtype=float) for r in region_order]
     return violin_data, region_order, region_colors
 
-# # FIGURE: ROBUSTNESS VIOLINS BY BRAIN REGION----------------------------------
-# norm = False
-# thresholded = True
-# k_min = 10
-# scheme = 'clump'
+# FIGURE: ROBUSTNESS VIOLINS BY BRAIN REGION----------------------------------
+norm = True
+thresholded = False
+k_min = 10
+scheme = 'clump'
 
-# bounds = 1, 10
+bounds = 1, 4
 
-# violin_data, region_order, region_colors = robustness_by_brain_region(norm,
-#                                                                       thresholded, 
-#                                                                       k_min, 
-#                                                                       scheme)
+violin_data, region_order, region_colors = robustness_by_brain_region(norm,
+                                                                      thresholded, 
+                                                                      k_min, 
+                                                                      scheme)
 
-# # Set up figure
-# fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
 
-# parts = ax.violinplot(
-#     violin_data,
-#     showmeans=False,
-#     showmedians=True,
-#     showextrema=False,
-#     widths=0.9
-# )
+parts = ax.violinplot(
+    violin_data,
+    showmeans=False,
+    showmedians=True,
+    showextrema=False,
+    widths=0.9
+)
 
-# # Color each violin body to match points
-# for i, body in enumerate(parts['bodies']):
-#     region = region_order[i]
-#     color = region_colors[region]
-#     body.set_facecolor(color)
-#     body.set_edgecolor("black")
-#     body.set_alpha(0.6)
+# Color each violin body to match points
+for i, body in enumerate(parts['bodies']):
+    region = region_order[i]
+    color = region_colors[region]
+    body.set_facecolor(color)
+    body.set_edgecolor("black")
+    body.set_alpha(0.6)
 
-# # Style median line
-# if 'cmedians' in parts and parts['cmedians'] is not None:
-#     parts['cmedians'].set_linewidth(2.5)
-#     parts['cmedians'].set_color('black')
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color('black')
     
-# # Labels/ticks
-# ax.set_ylabel("Robustness")
-# ax.set_xticks(range(1, len(region_order) + 1))
-# ax.set_xticklabels(region_order, rotation=35, ha="right")
-# ax.set_ylim(bounds[0]-.1,bounds[1]+.1)
+# Labels/ticks
+ax.set_ylabel("Robustness")
+ax.set_xticks(range(1, len(region_order) + 1))
+ax.set_xticklabels(region_order, rotation=35, ha="right")
+ax.set_ylim(bounds[0]-.1,bounds[1]+.1)
 
-# # Add labels
-# # plt.savefig(f"../../figures/flywire_robustness/robustness_violins_by_region{suffix}.pdf", dpi=600, bbox_inches='tight')
-# plt.show()
+# Add labels
+# plt.savefig(f"../../figures/flywire_robustness/robustness_violins_by_region{suffix}.pdf", dpi=600, bbox_inches='tight')
+plt.show()
 
 #------------------------------------------------------------------------------
 # ANALYSIS OF THE OPTIC LOBE
@@ -281,12 +281,12 @@ def optic_lobe_robustness(norm, thresholded, k_min, scheme='remove'):
     return lobe_violin_data, lobe_region_order, lobe_region_colors
 
 # FIGURE: ROBUSTNESS OF OPTIC LOBE REGIONS------------------------------------
-norm = False
-thresholded = True
+norm = True
+thresholded = False
 k_min = 10
 scheme = 'clump'
 
-bounds = 1, 10
+bounds = 1, 4
 
 lobe_violin_data, lobe_region_order, lobe_region_colors = optic_lobe_robustness(norm, 
                                                                                 thresholded, 

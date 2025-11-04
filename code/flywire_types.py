@@ -66,8 +66,8 @@ def empirical_hist(data):
 #------------------------------------------------------------------------------
 # FILES AND DIRECTORIES
 #------------------------------------------------------------------------------
-data_dir = '../raw_data/'
-processed_dir = '../processed_data/'
+data_dir = '../../raw_data/'
+processed_dir = '../../processed_data/'
 
 conn_file = 'flywire_connections.csv.gz'
 types_file = 'flywire_consolidated_cell_types.csv.gz'
