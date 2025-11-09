@@ -326,13 +326,14 @@ cbar = fig.colorbar(sc, cax=ax_cbar)
 
 # Plot y=x line
 r_vals = np.linspace(min(robustness), max(robustness), 100)
-ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1)
+ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1, label='Prediction')
+ax_scatter.legend()
 
 cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
 
 # Add labels
 ax_scatter.set_xlabel('Robustness')
-ax_scatter.set_ylabel('Loss')
+ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
 
 # plt.savefig(f"../../figures/candidate_figures/fig_4{suffix}.pdf", dpi=600, bbox_inches='tight')

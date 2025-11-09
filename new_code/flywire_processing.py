@@ -53,13 +53,41 @@ neuron_df = (
 
 neuron_df = neuron_df.rename(columns={'post_root_id': 'root_id'})
 
+# Compute robustness and normalized robustness
+weights = (
+    conn_df
+    .groupby(['pre_root_id','post_root_id'])['syn_count']
+    .sum()
+    .rename('weight')
+    .reset_index()
+)
+
+# Compute Q values
+robustness_df = (
+    weights
+    .groupby('post_root_id')
+    .agg(
+        in_deg = ('pre_root_id', 'nunique'),
+        in_strength  = ('weight', 'sum'),
+        sum_w2 = ('weight', lambda s: (s**2).sum())
+    )
+    .assign(
+        robustness = lambda d: np.sqrt((d['sum_w2'])/d['in_strength']),
+        norm_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)
+    )
+    .reset_index()
+)
+
+robustness_df = robustness_df.rename(columns={'post_root_id': 'root_id'})
+
 # Append brain region
 with open('../processed_data/brain_region_map.pkl', 'rb') as f:
     region_map = pickle.load(f)
 
 neuron_df['brain_region'] = neuron_df['neuropil'].map(region_map)
 
-# Append neuron primary type
+# Append neuron robustness and primary type
+neuron_df = neuron_df.merge(robustness_df, on='root_id')
 neuron_df = neuron_df.merge(types_df, on='root_id').drop('additional_type(s)',axis=1)
 
 # Save dataset as parquet
