@@ -23,9 +23,15 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import seaborn as sns
 import logging
 
 plt.rcParams.update({
+    'text.usetex': False,  # keep LaTeX off globally
+    'mathtext.fontset': 'cm',   # or 'stixsans' for sans-serif
+    'mathtext.rm': 'Helvetica',
+    'mathtext.it': 'Helvetica:italic',
+    'mathtext.bf': 'Helvetica:bold',
     'font.family': 'Helvetica',
     'axes.labelsize': 9,
     'xtick.labelsize': 8,
@@ -35,7 +41,6 @@ plt.rcParams.update({
     'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
     'ps.fonttype': 42,       # same for PostScript
 })
-
 mpl.rcParams['figure.dpi'] = 300
 
 logging.getLogger("fontTools").setLevel(logging.ERROR)
@@ -57,6 +62,7 @@ processed_dir = '../processed_data/'
 # Import neuron and connections data
 neuron_df = pd.read_parquet(data_dir+'neuron_data.parquet')
 conn_df = pd.read_parquet(data_dir+'connections_data.parquet')
+peri_df = pd.read_parquet(data_dir+'periphery_data.parquet')
 
 #------------------------------------------------------------------------------
 # STATISTICS - HOW TO DEFINE THE PERIPHERY?
@@ -126,16 +132,133 @@ ax.step(cdf.index[mask], cdf.values[mask], where='post', lw=2, color=con_colors[
 ax.set_xlabel('In-degree')
 ax.set_ylabel('CDF')
 
-# ax.set_yscale('log')
-# ax.set_xscale('log')
+plt.show()
+
+#------------------------------------------------------------------------------
+# DISTRIBUTION OF DISTANCE TO THE PERIPHERY
+#------------------------------------------------------------------------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+sns.kdeplot(peri_df['distance_5'], ax=ax, color=con_colors[0], label='$k_{\\text{thresh}}=5$')
+sns.kdeplot(peri_df['distance_10'], ax=ax, color=con_colors[1], label='$k_{\\text{thresh}}=10$')
+sns.kdeplot(peri_df['distance_20'], ax=ax, color=con_colors[2], label='$k_{\\text{thresh}}=20$')
+
+ax.legend()
+
+ax.set_xlabel('Distance to the periphery')
+ax.set_ylabel('Density')
 
 plt.show()
 
+#------------------------------------------------------------------------------
+# COMPARE ROBUSTNESS TO PERIPHERALITY
+#------------------------------------------------------------------------------
+def percentile_band_df(
+    df,
+    x_col="distance",
+    y_col="robustness",
+    bins=30,
+    percentiles=(0.05, 0.5, 0.95),
+    min_count=5
+):
+    """
+    Return a tidy dataframe with equal-width bins of x_col and percentiles of y_col.
+    Columns: bin, x_left, x_right, x_center, n, q05, q50, q95
+    """
+    d = df[[x_col, y_col]].dropna()
 
+    # Build equal-width edges
+    x_min, x_max = d[x_col].min(), d[x_col].max()
+    edges = np.linspace(x_min, x_max, bins + 1)
 
+    # Assign bins [0..bins-1]
+    bin_idx = pd.cut(d[x_col], bins=edges, include_lowest=True, labels=False)
+    d = d.assign(_bin=bin_idx).dropna(subset=["_bin"])
+    d["_bin"] = d["_bin"].astype(int)
 
+    # Quantiles per bin → unstack to columns
+    q = (
+        d.groupby("_bin", observed=True)[y_col]
+        .quantile(percentiles)
+        .unstack(level=-1)              # columns are the quantiles
+    )
 
+    # Rename columns to q05, q50, q95 (keeps arbitrary percentiles too)
+    q.columns = [f"q{int(p*100):02d}" for p in q.columns]
 
+    # Counts per bin
+    n = d.groupby("_bin", observed=True)[y_col].size().rename("n")
+
+    # Geometry
+    centers = (edges[:-1] + edges[1:]) / 2
+    out = (
+        q.join(n)
+         .reset_index()
+         .rename(columns={"_bin": "bin"})
+    )
+    out["x_left"] = out["bin"].map(lambda i: edges[i])
+    out["x_right"] = out["bin"].map(lambda i: edges[i+1])
+    out["x_center"] = out["bin"].map(lambda i: centers[i])
+
+    # Drop sparse bins (avoid flaky extreme quantiles)
+    out = out[out["n"] >= min_count].sort_values("x_center").reset_index(drop=True)
+
+    # Ensure expected columns exist even if some percentiles weren’t requested
+    for p in (0.05, 0.5, 0.95):
+        col = f"q{int(p*100):02d}"
+        if col not in out.columns:
+            out[col] = np.nan
+
+    return out
+
+# Append peripherality to neuron characteristics
+neuron_df = neuron_df.merge(peri_df, on=("root_id"))
+
+for k_thresh in [5,10,20]:
+    # Get dataframe of summary statistics
+    summary = percentile_band_df(neuron_df, x_col=f"distance_{k_thresh}", y_col='norm_robustness')
+    
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    
+    ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[0], label='90% range')
+    ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
+    ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[0])
+    ax.legend()
+    
+    ax.fill_between(summary['x_center'], 
+                    summary['q05'], 
+                    summary['q95'], 
+                    color=con_colors[0], alpha=0.25, linewidth=0)
+    
+    ax.set_xlabel('Distance to the periphery')
+    ax.set_ylabel('Normalized robustness')
+    
+    plt.show()
+
+# Repeat plots for big neurons only
+for k_thresh in [5,10,20]:
+    # Get dataframe of summary statistics
+    summary = percentile_band_df(neuron_df[neuron_df['in_deg']>=10], x_col=f"distance_{k_thresh}", y_col='norm_robustness')
+    
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    
+    ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[1], label='90% range')
+    ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
+    ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[1])
+    ax.legend()
+    
+    ax.fill_between(summary['x_center'], 
+                    summary['q05'], 
+                    summary['q95'], 
+                    color=con_colors[1], alpha=0.25, linewidth=0)
+    
+    ax.set_xlabel('Distance to the periphery')
+    ax.set_ylabel('Normalized robustness')
+    
+    plt.show()
 
 
 
