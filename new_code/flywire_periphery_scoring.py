@@ -21,6 +21,7 @@ contributors:
 """
 import numpy as np
 import network_functions
+from numba import njit
 # from scipy.sparse import 
 
 data_idx = 5
@@ -107,4 +108,6 @@ def information_flow(A, seed, total_weights_in, repeats=1):
 # RUN SIMULATION
 #------------------------------------------------------------------------------
 total_weights_in = np.array(A.astype(np.float32).sum(axis=0)).flatten() 
-pool = information_flow(A.astype(np.float32), seed_idx, total_weights_in)
+pool_1 = information_flow(A.astype(np.float32), seed_idx, total_weights_in)
+
+pool_ar = [pool_1[i] for i in range(A.shape[0])]
