@@ -6,7 +6,7 @@ created on:
     Mon 10 Nov 2025
 -------------------------------------------------------------------------------
 last change:
-    Mon 10 Nov 2025
+    Mon 11 Nov 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -20,7 +20,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import pickle
 import logging
+from tqdm import tqdm
 
 plt.rcParams.update({
     'font.family': 'Helvetica',
@@ -67,66 +69,129 @@ nt_to_class = {
 
 conn_df['nt_class'] = conn_df['nt_type'].map(nt_to_class)
 
-# Determine connection type by a majority rule
-grouped = (
-    conn_df.groupby(['pre_root_id', 'post_root_id'])
-    .apply(lambda g: pd.Series({
-        # total number of synapses for that connection
-        'total_syn_count': g['syn_count'].sum(),
-        # majority neurotransmitter class
-        'nt_class_majority': g['nt_class'].mode().iloc[0]
-    }))
-    .reset_index()
+def compute_subnetwork_robustness(mask):
+    # Get constrained dataframe
+    const_df = conn_df[mask]
+    # Compute weights
+    weights = (
+        const_df
+        .groupby(['pre_root_id','post_root_id'])['syn_count']
+        .sum()
+        .rename('weight')
+        .reset_index()
+    )
+    # Compute normalized robustness
+    robustness_df = (
+        weights
+        .groupby('post_root_id')
+        .agg(
+            in_deg = ('pre_root_id', 'nunique'),
+            in_strength  = ('weight', 'sum'),
+            sum_w2 = ('weight', lambda s: (s**2).sum())
+        )
+        .assign(
+            norm_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)
+        )
+        .reset_index()
+    )
+    return robustness_df['norm_robustness'].to_numpy(dtype=float)
+
+#------------------------------------------------------------------------------
+# PLOT SUBNETWORK ROBUSTNESS BY NT TYPE
+#------------------------------------------------------------------------------
+violin_data = []
+
+for nt in tqdm(nt_to_class):
+    norm_robustness = compute_subnetwork_robustness(conn_df['nt_type']==nt)
+    violin_data.append(norm_robustness)
+    
+# Make violin plot
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+cmap = plt.get_cmap('viridis', len(nt_to_class))
+
+parts = ax.violinplot(
+    violin_data,
+    showmeans=False,
+    showmedians=True,
+    showextrema=False,
+    widths=0.9
 )
 
-# Compute excitatory and inhibitory robustness
-def compute_robustness(syn_counts, nt_classes):
-    """
-    Example placeholder — replace with your real function.
-    Should return a tuple: (exc_robust, inh_robust)
-    """
-    # Compute moments
-    exc_sum = syn_counts[nt_classes == 'exc'].sum()
-    exc_sq_sum = (syn_counts[nt_classes == 'exc']**2).sum()
-    inh_sum = syn_counts[nt_classes == 'inh'].sum()
-    inh_sq_sum = (syn_counts[nt_classes == 'inh']**2).sum()
-    # Compute normalized and unnormalized robustness
-    if exc_sum > 0:
-        exc_rob = np.sqrt((inh_sq_sum/exc_sum) + (exc_sq_sum/exc_sum))
-        exc_uni_rob = np.sqrt((inh_sq_sum/exc_sum) + exc_sum/len(syn_counts[nt_classes == 'exc']))
-        exc_norm_rob = exc_rob/exc_uni_rob
-    else:
-        exc_norm_rob = 0
-    if inh_sum > 0:
-        inh_rob = np.sqrt((exc_sq_sum/inh_sum) + (inh_sq_sum/inh_sum))
-        inh_uni_rob = np.sqrt((exc_sq_sum/inh_sum) + inh_sum/len(syn_counts[nt_classes == 'inh']))
-        inh_norm_rob = inh_rob/inh_uni_rob
-    else:
-        inh_norm_rob = 0
-    return exc_norm_rob, inh_norm_rob
+# Color each violin body to match points
+for i, body in enumerate(parts['bodies']):
+    color = cmap(i)
+    body.set_facecolor(color)
+    body.set_edgecolor("black")
+    body.set_alpha(0.6)
+
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color('black')
+    
+# Labels/ticks
+ax.set_ylabel("Normalized robustness")
+ax.set_xticks(range(1, len(nt_to_class) + 1))
+ax.set_xticklabels(nt_to_class.keys(), rotation=35, ha="right")
+ax.set_ylim(None, 4.1)
+
+plt.show()
 
 #------------------------------------------------------------------------------
-# PLOT ROBUSTNESS SIDE BY SIDE
+# PLOT SUBNETWORK ROBUSTNESS BY BRAIN REGION
 #------------------------------------------------------------------------------
-# # Reshape to long:
-# df_long = (
-#     df
-#     .melt(id_vars=['class'],
-#           value_vars=['robustness_exc', 'robustness_inh'],
-#           var_name='nt_kind', value_name='robustness')
-# )
-# df_long['nt_kind'] = df_long['nt_kind'].map({
-#     'robustness_exc': 'Excitatory',
-#     'robustness_inh': 'Inhibitory'
-# })
+# Load brain region map
+with open('../processed_data/brain_region_map.pkl', 'rb') as f:
+    region_map = pickle.load(f)
 
-# plt.figure(figsize=(10,5))
-# ax = sns.violinplot(
-#     data=df_long, x='class', y='robustness',
-#     hue='nt_kind', split=True, cut=0, inner='quartile', linewidth=1
-# )
-# ax.legend(title='')
-# ax.set_xlabel('Neuron class')
-# ax.set_ylabel('Robustness')
-# plt.tight_layout()
-# plt.show()
+# Add brain region to connections
+conn_df['brain_region'] = conn_df['neuropil'].map(region_map)
+region_order = np.load('../processed_data/brain_region_order.npy', allow_pickle=True)
+
+# Obtain data for subnetworks
+violin_data = []
+
+for region in tqdm(region_order):
+    norm_robustness = compute_subnetwork_robustness(conn_df['brain_region']==region)
+    violin_data.append(norm_robustness)
+
+# Make violin plot
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+cmap = plt.get_cmap('viridis', len(region_order))
+
+parts = ax.violinplot(
+    violin_data,
+    showmeans=False,
+    showmedians=True,
+    showextrema=False,
+    widths=0.9
+)
+
+# Color each violin body to match points
+for i, body in enumerate(parts['bodies']):
+    color = cmap(i)
+    body.set_facecolor(color)
+    body.set_edgecolor("black")
+    body.set_alpha(0.6)
+
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color('black')
+    
+# Labels/ticks
+ax.set_ylabel("Normalized robustness")
+ax.set_xticks(range(1, len(region_order) + 1))
+ax.set_xticklabels(region_order, rotation=35, ha="right")
+ax.set_ylim(.9, 2.6)
+
+plt.show()
+
+
+
+
+
+
+

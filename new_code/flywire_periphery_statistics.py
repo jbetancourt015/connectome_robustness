@@ -215,50 +215,100 @@ def percentile_band_df(
 # Append peripherality to neuron characteristics
 neuron_df = neuron_df.merge(peri_df, on=("root_id"))
 
+# for k_thresh in [5,10,20]:
+#     # Get dataframe of summary statistics
+#     summary = percentile_band_df(neuron_df, x_col=f"distance_{k_thresh}", y_col='norm_robustness')
+    
+#     # Set up figure
+#     fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    
+#     ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[0], label='90% range')
+#     ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
+#     ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[0])
+#     ax.legend()
+    
+#     ax.fill_between(summary['x_center'], 
+#                     summary['q05'], 
+#                     summary['q95'], 
+#                     color=con_colors[0], alpha=0.25, linewidth=0)
+    
+#     ax.set_xlabel('Distance to the periphery')
+#     ax.set_ylabel('Normalized robustness')
+    
+#     plt.show()
+
+# # Repeat plots for big neurons only
+# for k_thresh in [5,10,20]:
+#     # Get dataframe of summary statistics
+#     summary = percentile_band_df(neuron_df[neuron_df['in_deg']>=10], x_col=f"distance_{k_thresh}", y_col='norm_robustness')
+    
+#     # Set up figure
+#     fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    
+#     ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[1], label='90% range')
+#     ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
+#     ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[1])
+#     ax.legend()
+    
+#     ax.fill_between(summary['x_center'], 
+#                     summary['q05'], 
+#                     summary['q95'], 
+#                     color=con_colors[1], alpha=0.25, linewidth=0)
+    
+#     ax.set_xlabel('Distance to the periphery')
+#     ax.set_ylabel('Normalized robustness')
+    
+#     plt.show()
+
+#------------------------------------------------------------------------------
+# PLOT CDF OF ROBUSTNESS BY PERIPHERALITY
+#------------------------------------------------------------------------------
+n_bands = 5
+bands = [[i,i+1] for i in range(n_bands)]
+
+cmap = plt.get_cmap('viridis', n_bands)
+
 for k_thresh in [5,10,20]:
-    # Get dataframe of summary statistics
-    summary = percentile_band_df(neuron_df, x_col=f"distance_{k_thresh}", y_col='norm_robustness')
-    
     # Set up figure
-    fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
     
-    ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[0], label='90% range')
-    ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
-    ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[0])
+    # Compute CDF of robustness for each band
+    for i, b in enumerate(bands):
+        mask = (neuron_df['distance_5'] >= b[0]) & (neuron_df[f"distance_{k_thresh}"] < b[1])
+        counts = neuron_df[mask]['norm_robustness'].value_counts().sort_index()
+        cum_counts = counts.cumsum()
+        cdf = cum_counts / cum_counts.iloc[-1]
+        
+        # Plot CDF
+        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Dist.$\in$({b[0]},{b[1]})")
+    
     ax.legend()
     
-    ax.fill_between(summary['x_center'], 
-                    summary['q05'], 
-                    summary['q95'], 
-                    color=con_colors[0], alpha=0.25, linewidth=0)
-    
-    ax.set_xlabel('Distance to the periphery')
-    ax.set_ylabel('Normalized robustness')
-    
-    plt.show()
+    # Format figure
+    ax.set_xlabel('Normalized robustness')
+    ax.set_ylabel('CDF')
 
-# Repeat plots for big neurons only
+# Look at big neurons only
+n_bands = 4
+bands = [[i+1,i+2] for i in range(n_bands)]
+
 for k_thresh in [5,10,20]:
-    # Get dataframe of summary statistics
-    summary = percentile_band_df(neuron_df[neuron_df['in_deg']>=10], x_col=f"distance_{k_thresh}", y_col='norm_robustness')
-    
     # Set up figure
-    fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
     
-    ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[1], label='90% range')
-    ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
-    ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[1])
+    # Compute CDF of robustness for each band
+    for i, b in enumerate(bands):
+        mask = (neuron_df['distance_5'] >= b[0]) & (neuron_df[f"distance_{k_thresh}"] < b[1]) & (neuron_df['in_deg']>=10)
+        counts = neuron_df[mask]['norm_robustness'].value_counts().sort_index()
+        cum_counts = counts.cumsum()
+        cdf = cum_counts / cum_counts.iloc[-1]
+        
+        # Plot CDF
+        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Dist.$\in$({b[0]},{b[1]})")
+    
     ax.legend()
     
-    ax.fill_between(summary['x_center'], 
-                    summary['q05'], 
-                    summary['q95'], 
-                    color=con_colors[1], alpha=0.25, linewidth=0)
-    
-    ax.set_xlabel('Distance to the periphery')
-    ax.set_ylabel('Normalized robustness')
-    
-    plt.show()
-
-
+    # Format figure
+    ax.set_xlabel('Normalized robustness')
+    ax.set_ylabel('CDF')
 
