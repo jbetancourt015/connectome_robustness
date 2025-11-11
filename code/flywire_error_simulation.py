@@ -6,7 +6,7 @@ created on:
     Tue 3 Jun 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 14 Oct 2025
+    Tue 11 Nov 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -250,6 +250,9 @@ ax_scatter.set_xlabel(stats['mean']['label'])
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['var']['label'])
 
+ax_scatter.set_xlim(0.,None)
+ax_scatter.set_ylim(0.,None)
+
 # plt.savefig(f"../../figures/candidate_figures/fig_1{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
@@ -275,6 +278,8 @@ ax_scatter.set_xlabel(stats['var']['label'])
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
 
+ax_scatter.set_ylim(0.,None)
+
 # plt.savefig(f"../../figures/candidate_figures/fig_2{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
@@ -295,7 +300,7 @@ sc = ax_scatter.scatter(pred_loss[:,2], loss[:,2], c=stat_vals['mean'], cmap='vi
 cbar = fig.colorbar(sc, cax=ax_cbar)
 
 # Plot y=x line
-ax_scatter.plot([min_loss,max_loss], [min_loss,max_loss], c='k', ls='--', lw=1)
+ax_scatter.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1)
 
 cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
 
@@ -303,6 +308,9 @@ cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
 ax_scatter.set_xlabel('Predicted loss')
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
+
+ax_scatter.set_xlim(0.,None)
+ax_scatter.set_ylim(0.,None)
 
 # plt.savefig(f"../../figures/candidate_figures/fig_3{suffix}.pdf", dpi=600, bbox_inches='tight')
 
@@ -335,6 +343,9 @@ cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
 ax_scatter.set_xlabel('Robustness')
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
+
+ax_scatter.set_xlim(0.,None)
+ax_scatter.set_ylim(0.,None)
 
 # plt.savefig(f"../../figures/candidate_figures/fig_4{suffix}.pdf", dpi=600, bbox_inches='tight')
 
