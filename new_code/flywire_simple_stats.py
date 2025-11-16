@@ -5,7 +5,7 @@ created on:
     Tue 11 Nov 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 11 Nov 2025
+    Fri 14 Nov 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -78,5 +78,7 @@ reciprocal_df['ratio'] = reciprocal_df['w_max']/reciprocal_df['w_min']
 print('Mean ratio:', reciprocal_df['ratio'].mean())
 print('Std dev ratio:', reciprocal_df['ratio'].std())
 
-
-
+#------------------------------------------------------------------------------
+# RECURRENCE
+#------------------------------------------------------------------------------
+# Quantify the overlap between incoming and outgoing connections

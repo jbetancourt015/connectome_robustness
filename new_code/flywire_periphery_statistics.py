@@ -140,9 +140,9 @@ plt.show()
 # Set up figure
 fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
 
-sns.kdeplot(peri_df['distance_5'], ax=ax, color=con_colors[0], label='$k_{\\text{thresh}}=5$')
-sns.kdeplot(peri_df['distance_10'], ax=ax, color=con_colors[1], label='$k_{\\text{thresh}}=10$')
-sns.kdeplot(peri_df['distance_20'], ax=ax, color=con_colors[2], label='$k_{\\text{thresh}}=20$')
+sns.kdeplot(peri_df['distance_optic'], ax=ax, color=con_colors[0], label='Optic')
+sns.kdeplot(peri_df['distance_olfactory'], ax=ax, color=con_colors[1], label='Olfactory')
+sns.kdeplot(peri_df['distance_joint'], ax=ax, color=con_colors[2], label='Joint')
 
 ax.legend()
 
@@ -215,27 +215,29 @@ def percentile_band_df(
 # Append peripherality to neuron characteristics
 neuron_df = neuron_df.merge(peri_df, on=("root_id"))
 
-# for k_thresh in [5,10,20]:
-#     # Get dataframe of summary statistics
-#     summary = percentile_band_df(neuron_df, x_col=f"distance_{k_thresh}", y_col='norm_robustness')
+seeds =['optic', 'olfactory', 'joint']
+
+for seed in seeds:
+    # Get dataframe of summary statistics
+    summary = percentile_band_df(neuron_df, x_col=f"distance_{seed}", y_col='norm_robustness')
     
-#     # Set up figure
-#     fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
     
-#     ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[0], label='90% range')
-#     ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
-#     ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[0])
-#     ax.legend()
+    ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[0], label='90% range')
+    ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
+    ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[0])
+    ax.legend()
     
-#     ax.fill_between(summary['x_center'], 
-#                     summary['q05'], 
-#                     summary['q95'], 
-#                     color=con_colors[0], alpha=0.25, linewidth=0)
+    ax.fill_between(summary['x_center'], 
+                    summary['q05'], 
+                    summary['q95'], 
+                    color=con_colors[0], alpha=0.25, linewidth=0)
     
-#     ax.set_xlabel('Distance to the periphery')
-#     ax.set_ylabel('Normalized robustness')
+    ax.set_xlabel('Distance to the periphery')
+    ax.set_ylabel('Normalized robustness')
     
-#     plt.show()
+    plt.show()
 
 # # Repeat plots for big neurons only
 # for k_thresh in [5,10,20]:
@@ -268,13 +270,15 @@ bands = [[i,i+1] for i in range(n_bands)]
 
 cmap = plt.get_cmap('viridis', n_bands)
 
-for k_thresh in [5,10,20]:
+labels = ['Optic', 'Olfactory', 'Joint']
+
+for seed in seeds:
     # Set up figure
     fig, ax = plt.subplots(figsize=(.9*width, .9*height))
     
     # Compute CDF of robustness for each band
     for i, b in enumerate(bands):
-        mask = (neuron_df['distance_5'] >= b[0]) & (neuron_df[f"distance_{k_thresh}"] < b[1])
+        mask = (neuron_df[f"distance_{seed}"] >= b[0]) & (neuron_df[f"distance_{seed}"] < b[1])
         counts = neuron_df[mask]['norm_robustness'].value_counts().sort_index()
         cum_counts = counts.cumsum()
         cdf = cum_counts / cum_counts.iloc[-1]
@@ -292,13 +296,13 @@ for k_thresh in [5,10,20]:
 n_bands = 4
 bands = [[i+1,i+2] for i in range(n_bands)]
 
-for k_thresh in [5,10,20]:
+for seed in seeds:
     # Set up figure
     fig, ax = plt.subplots(figsize=(.9*width, .9*height))
     
     # Compute CDF of robustness for each band
     for i, b in enumerate(bands):
-        mask = (neuron_df['distance_5'] >= b[0]) & (neuron_df[f"distance_{k_thresh}"] < b[1]) & (neuron_df['in_deg']>=10)
+        mask = (neuron_df[f"distance_{seed}"] >= b[0]) & (neuron_df[f"distance_{seed}"] < b[1])
         counts = neuron_df[mask]['norm_robustness'].value_counts().sort_index()
         cum_counts = counts.cumsum()
         cdf = cum_counts / cum_counts.iloc[-1]

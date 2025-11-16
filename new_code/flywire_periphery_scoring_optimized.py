@@ -6,7 +6,7 @@ created on:
     Sun 9 Nov 2025
 -------------------------------------------------------------------------------
 last change:
-    Sun 9 Nov 2025
+    Fri 14 Nov 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -21,9 +21,8 @@ contributors:
 """
 import numpy as np
 import pandas as pd
-import network_functions
+import re
 from scipy.sparse import coo_matrix
-from time import time
 from tqdm import tqdm
 
 #------------------------------------------------------------------------------
@@ -33,6 +32,7 @@ from tqdm import tqdm
 data_dir = '../../raw_data/'
 
 conn_df = pd.read_parquet(data_dir+'connections_data.parquet')
+neuron_df = pd.read_parquet(data_dir+'neuron_data.parquet')
 
 # Get set of nodes
 nodes_index = pd.Index(
@@ -94,7 +94,6 @@ def simulate_propagation(A, pool, threshold=0.3, repeats=3, seed=None, max_steps
     in_pool = np.zeros(n, dtype=bool)
     time_added[pool] = 0
     in_pool[pool] = True
-    frontier = np.unique(pool)
 
     rng = np.random.default_rng(seed)
     step = 1
@@ -194,26 +193,43 @@ def average_propagation(A, pool, n_sim=100, threshold=0.3, repeats=3, seed=None,
     return avg_time, frac_reached
 
 #------------------------------------------------------------------------------
+# SELECT SEED SET
+#------------------------------------------------------------------------------
+# List of substrings that correspond to sensory neurons
+optic_list = ['R1-6', 'R7', 'R8']
+olfactory_list = ['ORN']
+
+# Get pattern from substrings with regex
+optic_re = "|".join(map(re.escape, optic_list))
+olfactory_re = "|".join(map(re.escape, olfactory_list))
+
+# Get masks from the list of substrings
+optic_mask = neuron_df['primary_type'].str.contains(optic_re)
+olfactory_mask = neuron_df['primary_type'].str.contains(olfactory_re)
+joint_mask = optic_mask | olfactory_mask
+
+masks = [optic_mask, olfactory_mask, joint_mask]
+labels =['optic', 'olfactory', 'joint']
+
+#------------------------------------------------------------------------------
 # RUN SIMULATION
 #------------------------------------------------------------------------------
 n_sim = 100
 rng_seed = 1764
-k_vals = [5,10,20]
 
 # Build output DataFrame
 sim_df = pd.DataFrame({'root_id': idx_to_id})
 
-for k_threshold in k_vals:
+for i, mask in enumerate(masks):
     # Define set of seed neurons
-    mask = np.array(A.sum(axis=0) < k_threshold).flatten()
-    
-    seed_set = [i for i,val in enumerate(mask) if val]
+    selected_ids = neuron_df.loc[mask, "root_id"].values
+    seed_set = np.array([id_to_idx[i] for i in selected_ids])
     
     # Run simulation
     avg_dist, frac_reached = average_propagation(A, seed_set, n_sim, seed=rng_seed)
     
     # Store in DataFrame
-    sim_df[f"distance_{k_threshold}"] = avg_dist
+    sim_df[f"distance_{labels[i]}"] = avg_dist
     
 # Save dataset as parquet
 sim_df.to_parquet(data_dir+'periphery_data.parquet')
