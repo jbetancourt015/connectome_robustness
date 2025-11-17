@@ -53,7 +53,7 @@ neuron_df = (
 
 neuron_df = neuron_df.rename(columns={'post_root_id': 'root_id'})
 
-# Compute robustness and normalized robustness
+# Compute aggregate weights
 weights = (
     conn_df
     .groupby(['pre_root_id','post_root_id'])['syn_count']
@@ -62,8 +62,8 @@ weights = (
     .reset_index()
 )
 
-# Compute Q values
-robustness_df = (
+# Compute statistics of incoming connections
+in_stats = (
     weights
     .groupby('post_root_id')
     .agg(
@@ -76,9 +76,61 @@ robustness_df = (
         norm_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)
     )
     .reset_index()
+    .rename(columns={'post_root_id': 'root_id'})
 )
 
-robustness_df = robustness_df.rename(columns={'post_root_id': 'root_id'})
+# Compute statistics of outgoing connections
+out_stats = (
+    weights
+    .groupby('pre_root_id')
+    .agg(
+        out_deg      = ('post_root_id', 'nunique'),
+        out_strength = ('weight', 'sum')
+    )
+    .reset_index()
+    .rename(columns={'pre_root_id': 'root_id'})
+)
+
+# Compute reciprocity of neurons
+in_neighbors = (
+    weights
+    .groupby('post_root_id')['pre_root_id']
+    .agg(lambda x: set(x))
+    .reset_index()
+    .rename(columns={'post_root_id': 'root_id', 'pre_root_id': 'in_neighbors'})
+)
+
+out_neighbors = (
+    weights
+    .groupby('pre_root_id')['post_root_id']
+    .agg(lambda x: set(x))
+    .reset_index()
+    .rename(columns={'pre_root_id': 'root_id', 'post_root_id': 'out_neighbors'})
+)
+
+recip = in_neighbors.merge(out_neighbors, on='root_id', how='outer')
+
+recip['in_neighbors'] = recip['in_neighbors'].apply(
+    lambda s: s if isinstance(s, set) else set()
+)
+recip['out_neighbors'] = recip['out_neighbors'].apply(
+    lambda s: s if isinstance(s, set) else set()
+)
+
+def _reciprocity(row):
+    inter = row['in_neighbors'] & row['out_neighbors']
+    union = row['in_neighbors'] | row['out_neighbors']
+    return len(inter) / len(union) if len(union) > 0 else 0.0  # 0 if completely isolated
+
+recip['reciprocity'] = recip.apply(_reciprocity, axis=1)
+recip = recip[['root_id', 'reciprocity']]
+
+# Put all neuron-level stats together
+node_stats = (
+    in_stats
+    .merge(out_stats, on='root_id', how='outer')
+    .merge(recip,    on='root_id', how='outer')
+)
 
 # Append brain region
 with open('../processed_data/brain_region_map.pkl', 'rb') as f:
@@ -87,8 +139,12 @@ with open('../processed_data/brain_region_map.pkl', 'rb') as f:
 neuron_df['brain_region'] = neuron_df['neuropil'].map(region_map)
 
 # Append neuron robustness and primary type
-neuron_df = neuron_df.merge(robustness_df, on='root_id')
+neuron_df = neuron_df.merge(node_stats, on='root_id')
 neuron_df = neuron_df.merge(types_df, on='root_id').drop('additional_type(s)',axis=1)
+
+# Set network statistics to 0 if there are no neighbors
+for col in ['in_deg', 'in_strength', 'out_deg', 'out_strength']:
+    neuron_df[col] = neuron_df[col].fillna(0)
 
 # Save dataset as parquet
 neuron_df.to_parquet(data_dir+'neuron_data.parquet')

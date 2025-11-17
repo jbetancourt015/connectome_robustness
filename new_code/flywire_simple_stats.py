@@ -20,6 +20,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import logging
+import re
 
 plt.rcParams.update({
     'font.family': 'Helvetica',
@@ -50,6 +51,7 @@ processed_dir = '../processed_data/'
 
 # Import neuron data
 conn_df = pd.read_parquet(data_dir+'connections_data.parquet')
+neuron_df = pd.read_parquet(data_dir+'neuron_data.parquet')
 
 #------------------------------------------------------------------------------
 # RECIPROCAL PAIRS
@@ -82,3 +84,58 @@ print('Std dev ratio:', reciprocal_df['ratio'].std())
 # RECURRENCE
 #------------------------------------------------------------------------------
 # Quantify the overlap between incoming and outgoing connections
+
+
+#------------------------------------------------------------------------------
+# STATISTICS OF SPECIFIC NEURONS
+#------------------------------------------------------------------------------
+# --- 1. Define neuron group patterns ---
+
+patterns = {
+    "LCs"     : re.compile(r"^LC", re.IGNORECASE),
+    "LPLCs"   : re.compile(r"^LPLC", re.IGNORECASE),
+    "LLPCs"   : re.compile(r"^LLPC", re.IGNORECASE),
+    "LPCs"    : re.compile(r"^LPC", re.IGNORECASE),
+    "LT cells": re.compile(r"^LT", re.IGNORECASE),
+}
+
+# --- 2. Which variables to summarize ---
+
+vars_to_compute = [
+    "in_deg",
+    # "out_degree",
+    "norm_robustness",
+    # "peripherality",
+    # "reciprocity",
+]
+
+# --- 3. Function to extract rows by regex ---
+
+def filter_by_regex(df, col, regex):
+    return df[df[col].str.contains(regex)]
+
+
+# --- 4. Function to compute "mean (std)" ---
+
+def mean_std_str(series):
+    if series.empty:
+        return ""
+    m = series.mean()
+    s = series.std()
+    return f"{m:.2f} ({s:.2f})"
+
+
+# --- 5. Build the table row by row ---
+
+rows = []
+
+for label, regex in patterns.items():
+    subset = filter_by_regex(neuron_df, 'primary_type', regex)
+    row = {'Neuron': label}
+    for var in vars_to_compute:
+        row[var] = mean_std_str(subset[var])
+    rows.append(row)
+
+summary_df = pd.DataFrame(rows)
+summary_df
+
