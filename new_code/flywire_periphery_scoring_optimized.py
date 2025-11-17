@@ -6,7 +6,7 @@ created on:
     Sun 9 Nov 2025
 -------------------------------------------------------------------------------
 last change:
-    Fri 14 Nov 2025
+    Mon 17 Nov 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -227,6 +227,7 @@ for i, mask in enumerate(masks):
     
     # Run simulation
     avg_dist, frac_reached = average_propagation(A, seed_set, n_sim, seed=rng_seed)
+    print(f"Frac. reached from {labels[i]} seed: {frac_reached}")
     
     # Store in DataFrame
     sim_df[f"distance_{labels[i]}"] = avg_dist
