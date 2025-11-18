@@ -23,6 +23,11 @@ import logging
 import re
 
 plt.rcParams.update({
+    'text.usetex': False,  # keep LaTeX off globally
+    'mathtext.fontset': 'cm',   # or 'stixsans' for sans-serif
+    'mathtext.rm': 'Helvetica',
+    'mathtext.it': 'Helvetica:italic',
+    'mathtext.bf': 'Helvetica:bold',
     'font.family': 'Helvetica',
     'axes.labelsize': 9,
     'xtick.labelsize': 8,
@@ -52,6 +57,19 @@ processed_dir = '../processed_data/'
 # Import neuron data
 conn_df = pd.read_parquet(data_dir+'connections_data.parquet')
 neuron_df = pd.read_parquet(data_dir+'neuron_data.parquet')
+peri_df = pd.read_parquet(data_dir+'periphery_data.parquet')
+
+# Add peripherality data
+neuron_df = neuron_df.merge(peri_df, on=("root_id"))
+
+#------------------------------------------------------------------------------
+# AUXILIARY FUNCTIONS
+#------------------------------------------------------------------------------
+def compute_cdf(series):
+    counts = series.value_counts().sort_index()
+    cum_counts = counts.cumsum()
+    cdf = cum_counts / cum_counts.iloc[-1]
+    return cdf.index, cdf.values
 
 #------------------------------------------------------------------------------
 # RECIPROCAL PAIRS
@@ -81,10 +99,39 @@ print('Mean ratio:', reciprocal_df['ratio'].mean())
 print('Std dev ratio:', reciprocal_df['ratio'].std())
 
 #------------------------------------------------------------------------------
-# RECURRENCE
+# OVERLAP STATISTICS (RECIPROCITY)
 #------------------------------------------------------------------------------
-# Quantify the overlap between incoming and outgoing connections
+# FIGURE: Distribution of reciprocity------------------------------------------
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
 
+ax.hist(neuron_df['reciprocity'], bins=20, density=True, histtype='step', color=con_colors[0])
+
+ax.set_xlabel('Reciprocity')
+ax.set_ylabel('Density')
+
+plt.show()
+
+# FIGURE: Robustness by reciprocity quartile-----------------------------------
+# Add quartile to dataset
+neuron_df['reciprocity_q'] = pd.qcut(neuron_df['reciprocity'], q=4, labels=False)
+
+# Plot robustness CDF by quartile
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+cmap = plt.get_cmap('viridis', 4)
+
+for i in range(4):
+    mask = neuron_df['reciprocity_q'] == i
+    rob, cdf = compute_cdf(neuron_df[mask]['norm_robustness'])
+    
+    # Plot CDF
+    ax.step(rob, cdf, where='post', lw=2, c=cmap(i), label=f"Reciprocity Q{i+1}")
+    
+ax.legend()
+    
+ax.set_xlabel('Normalized robustness')
+ax.set_ylabel('CDF')
+
+plt.show()
 
 #------------------------------------------------------------------------------
 # STATISTICS OF SPECIFIC NEURONS
@@ -97,16 +144,27 @@ patterns = {
     "LLPCs"   : re.compile(r"^LLPC", re.IGNORECASE),
     "LPCs"    : re.compile(r"^LPC", re.IGNORECASE),
     "LT cells": re.compile(r"^LT", re.IGNORECASE),
+    "T4"     : re.compile(r"^T4", re.IGNORECASE),
+    "T5"   : re.compile(r"^T5", re.IGNORECASE),
+    "Mi1"   : re.compile(r"^Mi1", re.IGNORECASE),
+    "Mi4"    : re.compile(r"^Mi4", re.IGNORECASE),
+    "CT1": re.compile(r"^CT1", re.IGNORECASE),
+    "PNs": re.compile(r"^PN", re.IGNORECASE),
+    "LNs": re.compile(r"^LN", re.IGNORECASE),
+    "Kenyon cells": re.compile(r"^KC", re.IGNORECASE),
+    "MBONs": re.compile(r"^MBON", re.IGNORECASE),
+    "DANs": re.compile(r"^DAN", re.IGNORECASE),
 }
+
 
 # --- 2. Which variables to summarize ---
 
 vars_to_compute = [
     "in_deg",
-    # "out_degree",
+    "out_deg",
     "norm_robustness",
-    # "peripherality",
-    # "reciprocity",
+    "distance_joint",
+    "reciprocity",
 ]
 
 # --- 3. Function to extract rows by regex ---
@@ -131,11 +189,13 @@ rows = []
 
 for label, regex in patterns.items():
     subset = filter_by_regex(neuron_df, 'primary_type', regex)
-    row = {'Neuron': label}
+    row = {
+        "Neuron": label,
+        "n_neurons": len(subset)
+    }
     for var in vars_to_compute:
         row[var] = mean_std_str(subset[var])
     rows.append(row)
 
 summary_df = pd.DataFrame(rows)
-summary_df
 
