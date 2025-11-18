@@ -5,7 +5,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 23 Sep 2025
+    Tue 18 Nov 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -53,11 +53,12 @@ height = 3.2
 
 # Connectome list
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
+               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
+               'drosophila_banc']
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
-                   [120, 0, 150], [0, 168, 157], [203, 41, 123], [0, 0, 0]])/255;
+                   [120, 0, 150], [0, 168, 157], [203, 41, 123], [153, 153, 0]])/255;
 
 def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
@@ -270,19 +271,25 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
 #------------------------------------------------------------------------------
 thresholded = False
 scheme = 'rand_weight'
-norm = False
-log_axes = True
+norm = True
+log_axes = False
 
 for data_idx in range(len(connectomes)):
     # Get connectome
     A = network_functions.load_connectome(data_idx, thresholded=thresholded if data_idx==5 else False)
     N = A.shape[0]
+    
+    n_threshold = 1
+    if data_idx == 5 and thresholded:
+        n_threshold = 5
+    elif data_idx == 6:
+        n_threshold = 3
 
     if not((scheme!='rand_weight') and data_idx==4):
         # Get null network
         A_rand = network_functions.null_network(A, scheme=scheme, 
                                                 conn_type='cont' if data_idx==4 else 'disc', 
-                                                thresholded=thresholded if data_idx==5 else False)
+                                                n_threshold=n_threshold)
     
         # Plot sensitivities
         plot_robustness(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)

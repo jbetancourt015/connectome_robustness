@@ -6,7 +6,7 @@ created on:
     Mon 12 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Mon 12 May 2025
+    Tue 18 Nov 2025
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -30,10 +30,12 @@ data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
+               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
+               'drosophila_banc']
 
 file_names = ['Drosophila_central_brain.csv','Drosophila_optic_medulla.csv','Celegans.csv',
-              'Platynereis_sensory_motor.csv', 'Mouse_retina.csv', 'flywire_connections.csv.gz']
+              'Platynereis_sensory_motor.csv', 'Mouse_retina.csv', 'flywire_connections.csv.gz',
+              'banc_connections.csv.gz']
 
 #------------------------------------------------------------------------------
 # PROCESSING SMALL CONNECTOMES
@@ -62,42 +64,42 @@ for data_idx in range(5):
     save_npz(processed_dir + '%s.npz'%(connectomes[data_idx]), A_csc)
 
 #------------------------------------------------------------------------------
-# PROCESSING FLYWIRE
+# PROCESSING FLYWIRE CONNECTOMES
 #------------------------------------------------------------------------------
-file_name = 'flywire_connections.csv.gz'
-data_idx = 5
-
-# Load dataset into pandas DataFrame
-df = pd.read_csv(data_dir+file_name, compression='gzip')
-
-# Sum over neuropils
-weights = (
-    df
-    .groupby(['pre_root_id','post_root_id'])['syn_count']
-    .sum()
-    .reset_index()
-)
-
-# Get unique node IDs
-all_nodes = pd.unique(weights[['pre_root_id','post_root_id']].values.ravel())
-N = len(all_nodes)
-node_to_idx = {node: i for i, node in enumerate(all_nodes)}
-
-# Apply mapping to row/col arrays
-rows = weights['pre_root_id'].map(node_to_idx).values
-cols = weights['post_root_id'].map(node_to_idx).values
-data = weights['syn_count'].values
-
-# Create sparse matrix using SciPy
-A_coo = coo_matrix((data, (rows, cols)), shape=(N, N))
-A_csc = A_coo.tocsc()
-
-# Save it to disk
-save_npz(processed_dir + '%s.npz'%(connectomes[data_idx]), A_csc)
+for data_idx in range(5, len(connectomes)):
+    # Load dataset into pandas DataFrame
+    file_name = file_names[data_idx]
+    df = pd.read_csv(data_dir+file_name, compression='gzip')
+    
+    # Sum over neuropils
+    weights = (
+        df
+        .groupby(['pre_root_id','post_root_id'])['syn_count']
+        .sum()
+        .reset_index()
+    )
+    
+    # Get unique node IDs
+    all_nodes = pd.unique(weights[['pre_root_id','post_root_id']].values.ravel())
+    N = len(all_nodes)
+    node_to_idx = {node: i for i, node in enumerate(all_nodes)}
+    
+    # Apply mapping to row/col arrays
+    rows = weights['pre_root_id'].map(node_to_idx).values
+    cols = weights['post_root_id'].map(node_to_idx).values
+    data = weights['syn_count'].values
+    
+    # Create sparse matrix using SciPy
+    A_coo = coo_matrix((data, (rows, cols)), shape=(N, N))
+    A_csc = A_coo.tocsc()
+    
+    # Save it to disk
+    save_npz(processed_dir + f"{connectomes[data_idx]}.npz", A_csc)
 
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE - THRESHOLDED
 #------------------------------------------------------------------------------
+data_idx = 5
 file_name = 'flywire_connections_thresholded.csv.gz'
 
 # Load dataset into pandas DataFrame
