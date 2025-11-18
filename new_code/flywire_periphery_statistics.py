@@ -239,28 +239,28 @@ for seed in seeds:
     
     plt.show()
 
-# # Repeat plots for big neurons only
-# for k_thresh in [5,10,20]:
-#     # Get dataframe of summary statistics
-#     summary = percentile_band_df(neuron_df[neuron_df['in_deg']>=10], x_col=f"distance_{k_thresh}", y_col='norm_robustness')
+# Repeat plots for big neurons only
+for seed in seeds:
+    # Get dataframe of summary statistics
+    summary = percentile_band_df(neuron_df[neuron_df['in_deg']>=10], x_col=f"distance_{seed}", y_col='norm_robustness')
     
-#     # Set up figure
-#     fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
     
-#     ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[1], label='90% range')
-#     ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
-#     ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[1])
-#     ax.legend()
+    ax.plot(summary['x_center'], summary['q05'], lw=2, c=con_colors[1], label='90% range')
+    ax.plot(summary['x_center'], summary['q50'], lw=2, c='k', label='Median')
+    ax.plot(summary['x_center'], summary['q95'], lw=2, c=con_colors[1])
+    ax.legend()
     
-#     ax.fill_between(summary['x_center'], 
-#                     summary['q05'], 
-#                     summary['q95'], 
-#                     color=con_colors[1], alpha=0.25, linewidth=0)
+    ax.fill_between(summary['x_center'], 
+                    summary['q05'], 
+                    summary['q95'], 
+                    color=con_colors[1], alpha=0.25, linewidth=0)
     
-#     ax.set_xlabel('Distance to the periphery')
-#     ax.set_ylabel('Normalized robustness')
+    ax.set_xlabel('Distance to the periphery')
+    ax.set_ylabel('Normalized robustness')
     
-#     plt.show()
+    plt.show()
 
 #------------------------------------------------------------------------------
 # PLOT CDF OF ROBUSTNESS BY PERIPHERALITY
