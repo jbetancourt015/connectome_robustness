@@ -74,8 +74,9 @@ in_stats = (
         sum_w2 = ('weight', lambda s: (s**2).sum())
     )
     .assign(
-        robustness = lambda d: np.sqrt((d['sum_w2'])/d['in_strength']),
-        norm_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)-1.
+        robustness = lambda d: np.sqrt(d['sum_w2']/d['in_strength']),
+        norm_robustness = lambda d: (np.sqrt(d['sum_w2']/d['in_strength']) - np.sqrt(d['in_strength']/d['in_deg']))/(np.sqrt(1. + (d['in_strength']/d['in_deg'])) - np.sqrt(d['in_strength']/d['in_deg'])),
+        scaled_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)-1.
     )
     .reset_index()
     .rename(columns={'post_root_id': 'root_id'})
