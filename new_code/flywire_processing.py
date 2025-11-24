@@ -32,10 +32,12 @@ processed_dir = '../processed_data/'
 
 conn_file = 'flywire_connections.csv.gz'
 types_file = 'flywire_consolidated_cell_types.csv.gz'
+class_file = 'flywire_classification.csv.gz'
 
 # Load dataset into pandas DataFrame
 conn_df = pd.read_csv(data_dir + conn_file, compression='gzip')
 types_df = pd.read_csv(data_dir + types_file, compression='gzip')
+class_df = pd.read_csv(data_dir + class_file, compression='gzip')
 
 #------------------------------------------------------------------------------
 # BUILD NEURON-LEVEL DATASET
@@ -73,7 +75,7 @@ in_stats = (
     )
     .assign(
         robustness = lambda d: np.sqrt((d['sum_w2'])/d['in_strength']),
-        norm_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)
+        norm_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)-1.
     )
     .reset_index()
     .rename(columns={'post_root_id': 'root_id'})
@@ -141,6 +143,7 @@ neuron_df['brain_region'] = neuron_df['neuropil'].map(region_map)
 # Append neuron robustness and primary type
 neuron_df = neuron_df.merge(node_stats, on='root_id')
 neuron_df = neuron_df.merge(types_df, on='root_id').drop('additional_type(s)',axis=1)
+neuron_df = neuron_df.merge(class_df, on='root_id')
 
 # Set network statistics to 0 if there are no neighbors
 for col in ['in_deg', 'in_strength', 'out_deg', 'out_strength']:

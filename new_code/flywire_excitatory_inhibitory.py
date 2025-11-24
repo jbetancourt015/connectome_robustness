@@ -238,6 +238,8 @@ ax.step(rob_inh, cdf_inh, where='post', color=con_colors[1], label='Inhibitory')
 
 ax.legend()
 
+ax.set_xscale('log')
+
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
 

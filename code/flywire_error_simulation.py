@@ -257,6 +257,24 @@ ax_scatter.set_ylim(0.,None)
 
 plt.show()
 
+# FIGURE: LOSS VS INCOMING WEIGHT (NO COLOR)----------------------------------
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+
+# Draw scatterplot (eps=1)
+sc = ax_scatter.scatter(stat_vals['mean'], loss[:,2], c=con_colors[0])
+
+# Add labels
+ax_scatter.set_xlabel(stats['mean']['label'])
+ax_scatter.set_ylabel('Simulated loss')
+
+ax_scatter.set_xlim(0.,None)
+ax_scatter.set_ylim(0.,None)
+
+# plt.savefig(f"../../figures/candidate_figures/fig_1{suffix}.pdf", dpi=600, bbox_inches='tight')
+
+plt.show()
+
 # FIGURE: LOSS VS INCOMING VARIANCE (COLOR MEAN)-------------------------------
 # Set up figure
 fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
@@ -277,6 +295,25 @@ ax_scatter.set_xscale('log')
 ax_scatter.set_xlabel(stats['var']['label'])
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
+
+ax_scatter.set_ylim(0.,None)
+
+# plt.savefig(f"../../figures/candidate_figures/fig_2{suffix}.pdf", dpi=600, bbox_inches='tight')
+
+plt.show()
+
+# FIGURE: LOSS VS INCOMING VARIANCE (NO COLOR)-------------------------------
+# Set up figure
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+
+# Draw scatterplot (eps=1)
+sc = ax_scatter.scatter(stat_vals['var'], loss[:,2], c=con_colors[0])
+
+ax_scatter.set_xscale('log')
+
+# Add labels
+ax_scatter.set_xlabel(stats['var']['label'])
+ax_scatter.set_ylabel('Simulated loss')
 
 ax_scatter.set_ylim(0.,None)
 
@@ -316,6 +353,27 @@ ax_scatter.set_ylim(0.,None)
 
 plt.show()
 
+
+# Set up figure (NO COLOR)
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+
+# Compare model prediction with simulated loss
+sc = ax_scatter.scatter(pred_loss[:,2], loss[:,2], c=con_colors[0])
+
+# Plot y=x line
+ax_scatter.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1)
+
+# Add labels
+ax_scatter.set_xlabel('Predicted loss')
+ax_scatter.set_ylabel('Simulated loss')
+
+ax_scatter.set_xlim(0.,None)
+ax_scatter.set_ylim(0.,None)
+
+# plt.savefig(f"../../figures/candidate_figures/fig_3{suffix}.pdf", dpi=600, bbox_inches='tight')
+
+plt.show()
+
 #------------------------------------------------------------------------------
 # LOSS VS ROBUSTNESS
 #------------------------------------------------------------------------------
@@ -343,6 +401,30 @@ cbar = fig.colorbar(sc, cax=ax_cbar, ax=ax_scatter)
 ax_scatter.set_xlabel('Robustness')
 ax_scatter.set_ylabel('Simulated loss')
 cbar.set_label(stats['mean']['label'])
+
+ax_scatter.set_xlim(0.,None)
+ax_scatter.set_ylim(0.,None)
+
+# plt.savefig(f"../../figures/candidate_figures/fig_4{suffix}.pdf", dpi=600, bbox_inches='tight')
+
+plt.show()
+
+
+# Set up figure (no color)
+fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+
+# Compare model prediction with simulated loss
+robustness = ((stat_vals['var']+stat_vals['mean']**2)/stat_vals['mean'])**0.5
+sc = ax_scatter.scatter(robustness, loss[:,2], c=con_colors[0])
+
+# Plot y=x line
+r_vals = np.linspace(min(robustness), max(robustness), 100)
+ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1, label='Prediction')
+ax_scatter.legend()
+
+# Add labels
+ax_scatter.set_xlabel('Robustness')
+ax_scatter.set_ylabel('Simulated loss')
 
 ax_scatter.set_xlim(0.,None)
 ax_scatter.set_ylim(0.,None)

@@ -27,7 +27,8 @@ from numba import njit
 processed_dir = '../processed_data/'
 
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain']
+               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
+               'drosophila_banc']
 
 def load_connectome(data_idx, thresholded=False, scheme=None):
     if not thresholded:
@@ -95,17 +96,16 @@ def compute_robustness(A, eta=1., normalized=True):
     Q = (s_2/s_eta)**0.5
     if normalized:
         Q *= (s_0/s_1)**(1.-eta/2)
+        Q -= 1.
     return Q
 
 #------------------------------------------------------------------------------
 # NULL NETWORK GENERATION
 #------------------------------------------------------------------------------
 # @njit
-def null_network(A, scheme='rand_weight', conn_type='disc', thresholded=False):
+def null_network(A, scheme='rand_weight', conn_type='disc', n_threshold=1):
     indptr, indices, data = A.indptr, A.indices, A.data
     n = A.shape[0]
-    # Set up how many synapses to keep
-    n_threshold = 1 if not thresholded else 5
     # Create new data array
     M_data = np.empty_like(data)
     # Loop over neurons

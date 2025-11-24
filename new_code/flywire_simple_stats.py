@@ -112,14 +112,16 @@ ax.set_ylabel('Density')
 plt.show()
 
 # FIGURE: Robustness by reciprocity quartile-----------------------------------
+n_quantiles = 10
+
 # Add quartile to dataset
-neuron_df['reciprocity_q'] = pd.qcut(neuron_df['reciprocity'], q=4, labels=False)
+neuron_df['reciprocity_q'] = pd.qcut(neuron_df['reciprocity'], q=n_quantiles, labels=False)
 
 # Plot robustness CDF by quartile
 fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
-cmap = plt.get_cmap('viridis', 4)
+cmap = plt.get_cmap('viridis', n_quantiles)
 
-for i in range(4):
+for i in range(n_quantiles):
     mask = neuron_df['reciprocity_q'] == i
     rob, cdf = compute_cdf(neuron_df[mask]['norm_robustness'])
     
@@ -127,6 +129,8 @@ for i in range(4):
     ax.step(rob, cdf, where='post', lw=2, c=cmap(i), label=f"Reciprocity Q{i+1}")
     
 ax.legend()
+
+ax.set_xscale('log')
     
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
@@ -154,6 +158,14 @@ patterns = {
     "Kenyon cells": re.compile(r"^KC", re.IGNORECASE),
     "MBONs": re.compile(r"^MBON", re.IGNORECASE),
     "DANs": re.compile(r"^DAN", re.IGNORECASE),
+    "R cells": re.compile(r"^ER", re.IGNORECASE),
+    "EPG cells": re.compile(r"^EPG", re.IGNORECASE),
+    "PFNp cells": re.compile(r"^PFNp", re.IGNORECASE),
+    "FB cells": re.compile(r"^FB", re.IGNORECASE),
+    "hdelta": re.compile(r"^hdelta", re.IGNORECASE),
+    "vdelta": re.compile(r"^vdelta", re.IGNORECASE),
+    "PEN1/PEN2": re.compile(r"^PEN", re.IGNORECASE),
+    "DNs": re.compile(r"^DN", re.IGNORECASE),
 }
 
 
@@ -188,7 +200,11 @@ def mean_std_str(series):
 rows = []
 
 for label, regex in patterns.items():
-    subset = filter_by_regex(neuron_df, 'primary_type', regex)
+    if label == 'DANs':
+        subset = filter_by_regex(neuron_df, "class", regex)
+    else:
+        subset = filter_by_regex(neuron_df, "primary_type", regex)
+
     row = {
         "Neuron": label,
         "n_neurons": len(subset)
@@ -198,4 +214,62 @@ for label, regex in patterns.items():
     rows.append(row)
 
 summary_df = pd.DataFrame(rows)
+
+# Get names of neurons obtained by regex pattern
+unique_rows = []
+
+for label, regex in patterns.items():
+    if label == 'DANs':
+        subset = filter_by_regex(neuron_df, "class", regex)
+        
+        # Count occurrences of each neuron name
+        counts = (
+            subset["primary_type"]
+            .value_counts()        # counts descending by default
+            .rename_axis("Name")
+            .reset_index(name="Count")
+        )
+        
+    else:
+        subset = filter_by_regex(neuron_df, "primary_type", regex)
+
+        # Count occurrences of each neuron name
+        counts = (
+            subset["primary_type"]
+            .value_counts()        # counts descending by default
+            .rename_axis("Name")
+            .reset_index(name="Count")
+        )
+
+    unique_rows.append({
+        "Neuron": label,
+        "n_neurons": len(counts),
+        "Names": counts["Name"].tolist(),   # ordered by count
+        "Counts": counts["Count"].tolist()  # matching order
+    })
+
+unique_names_df = pd.DataFrame(unique_rows)
+
+#------------------------------------------------------------------------------
+# STATISTICS OF SPECIFIC NEURONS
+#------------------------------------------------------------------------------
+class_rows = []
+
+for neuron_class in neuron_df['class'].unique():
+    mask = neuron_df['class'] == neuron_class
+    
+    row = {
+        "Neuron": neuron_class,
+        "n_neurons": np.sum(mask)
+    }
+    for var in vars_to_compute:
+        row[var] = mean_std_str(neuron_df[mask][var])
+    class_rows.append(row)
+
+class_stats = pd.DataFrame(class_rows)
+
+
+
+
+
 

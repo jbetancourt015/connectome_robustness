@@ -284,9 +284,12 @@ for seed in seeds:
         cdf = cum_counts / cum_counts.iloc[-1]
         
         # Plot CDF
-        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Dist.$\in$({b[0]},{b[1]})")
+        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Dist.$\in$[{b[0]},{b[1]})", zorder=n_bands-i)
     
     ax.legend()
+    
+    # ax.set_xscale('log')
+    ax.set_xlim(0.,3.)
     
     # Format figure
     ax.set_xlabel('Normalized robustness')
@@ -308,11 +311,84 @@ for seed in seeds:
         cdf = cum_counts / cum_counts.iloc[-1]
         
         # Plot CDF
-        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Dist.$\in$({b[0]},{b[1]})")
+        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Dist.$\in$[{b[0]},{b[1]})", zorder=n_bands-i)
     
     ax.legend()
+    
+    # ax.set_xscale('log')
     
     # Format figure
     ax.set_xlabel('Normalized robustness')
     ax.set_ylabel('CDF')
+    
+#------------------------------------------------------------------------------
+# PLOT CDF OF ROBUSTNESS BY PERIPHERALITY DECILE
+#------------------------------------------------------------------------------
+n_quantiles = 10
+cmap = plt.get_cmap('viridis', n_quantiles)
 
+for seed in seeds:
+    neuron_df[f"decile_{seed}"] = pd.qcut(neuron_df[f"distance_{seed}"], q=n_quantiles, labels=False)
+    
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    
+    # Compute CDF of robustness for each band
+    for i in range(n_quantiles):
+        mask = neuron_df[f"decile_{seed}"] == i
+        counts = neuron_df[mask]['norm_robustness'].value_counts().sort_index()
+        cum_counts = counts.cumsum()
+        cdf = cum_counts / cum_counts.iloc[-1]
+        
+        # Plot CDF
+        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Decile ${i}$", zorder=n_quantiles-i)
+    
+    ax.plot([0.55,0.55], [0.,1.], c='k', ls='--', lw=1)
+    
+    ax.legend()
+    
+    # ax.set_xscale('log')
+    ax.set_xlim(0.,3.)
+    
+    # Format figure
+    ax.set_xlabel('Normalized robustness')
+    ax.set_ylabel('CDF')
+    
+#------------------------------------------------------------------------------
+# PLOT CDF OF ROBUSTNESS BY LOGARITHMIC PERCENTILES
+#------------------------------------------------------------------------------
+# Suppose df has column "x"
+percentiles = [0, 8, 16, 32, 64, 100]
+cmap = plt.get_cmap('viridis', len(percentiles)-1)
+
+# Convert percentile boundaries to actual x-values
+for seed in seeds:
+    mask0 = neuron_df[f"distance_{seed}"] > 0
+    cuts = np.percentile(neuron_df[mask0][f"distance_{seed}"].dropna(), percentiles)
+    
+    # Create readable labels
+    labels = ["0-8", "8–16", "16–32", "32–64", "64–100"]
+    neuron_df[f"{seed}_band"] = pd.cut(neuron_df[f"distance_{seed}"], bins=cuts, labels=labels, include_lowest=True)
+    
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    
+    for i in range(len(percentiles)-1):
+        mask = neuron_df[f"{seed}_band"] == labels[i]
+        counts = neuron_df[mask&mask0]['norm_robustness'].value_counts().sort_index()
+        cum_counts = counts.cumsum()
+        cdf = cum_counts / cum_counts.iloc[-1]
+        
+        # Plot CDF
+        ax.step(cdf.index, cdf.values, where='post', lw=2, c=cmap(i), label=f"Pctiles {labels[i]}", zorder=len(percentiles)-i)
+        
+        ax.plot([0.55,0.55], [0.,1.], c='k', ls='--', lw=1)
+        
+        ax.legend()
+        
+        # ax.set_xscale('log')
+        ax.set_xlim(0.,3.)
+        
+        # Format figure
+        ax.set_xlabel('Normalized robustness')
+        ax.set_ylabel('CDF')

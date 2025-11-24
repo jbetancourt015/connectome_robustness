@@ -118,10 +118,29 @@ ax.legend()
 
 ax.set_yscale('log')
 
-ax.set_xlabel('Robustness')
+ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('Survival function (1-CDF)')
 
 plt.show()
+
+# FIGURE: distribution of normalized robustness by brain region----------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+# Get robustness distribution by region
+for r in region_order:
+    # Compute distribution of robustness
+    mask = neuron_df['brain_region']==r
+    rob_cdf_index, rob_cdf_values = compute_cdf(neuron_df[mask]['norm_robustness'])
+    ax.step(rob_cdf_index[:-1], rob_cdf_values[:-1], where='pre', lw=1, c=region_colors[r], label=r)
+
+ax.legend()
+
+ax.set_xlabel('Normalized robustness')
+ax.set_ylabel('CDF')
+
+plt.show()
+
 
 #------------------------------------------------------------------------------
 # ROBUSTNESS OF SPECIFIC NEURONS

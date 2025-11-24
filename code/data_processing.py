@@ -22,6 +22,9 @@ import networkx as nx
 from scipy.sparse import coo_matrix, csr_matrix, save_npz
 from time import time
 from tqdm import tqdm
+import pyarrow.feather as feather
+import io
+import bz2
 
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
@@ -31,11 +34,11 @@ processed_dir = '../processed_data/'
 
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
-               'drosophila_banc']
+               'drosophila_banc', 'drosophila_manc']
 
 file_names = ['Drosophila_central_brain.csv','Drosophila_optic_medulla.csv','Celegans.csv',
               'Platynereis_sensory_motor.csv', 'Mouse_retina.csv', 'flywire_connections.csv.gz',
-              'banc_connections.csv.gz']
+              'banc_connections.csv.gz', 'manc_connections.bz2']
 
 #------------------------------------------------------------------------------
 # PROCESSING SMALL CONNECTOMES
@@ -66,7 +69,7 @@ for data_idx in range(5):
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE CONNECTOMES
 #------------------------------------------------------------------------------
-for data_idx in range(5, len(connectomes)):
+for data_idx in [5,6]:
     # Load dataset into pandas DataFrame
     file_name = file_names[data_idx]
     df = pd.read_csv(data_dir+file_name, compression='gzip')
@@ -95,6 +98,16 @@ for data_idx in range(5, len(connectomes)):
     
     # Save it to disk
     save_npz(processed_dir + f"{connectomes[data_idx]}.npz", A_csc)
+
+#------------------------------------------------------------------------------
+# PROCESSING JANELIA CONNECTOME
+#------------------------------------------------------------------------------
+data_idx = 7
+
+with bz2.open(file_names[data_idx], 'rb') as f:
+    raw = f.read()
+
+df = pd.read_feather(io.BytesIO(raw))
 
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE - THRESHOLDED

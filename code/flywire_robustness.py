@@ -97,7 +97,7 @@ def process_df(norm, thresholded, k_min, scheme='remove'):
             sum_w2 = ('weight', lambda s: (s**2).sum())
         )
         .assign(
-            Q = ((lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['sum_w']**2)) 
+            Q = ((lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['sum_w']**2) - 1.)
                  if norm else 
                  (lambda d: np.sqrt((d['sum_w2'])/d['sum_w'])))
         )
@@ -183,7 +183,7 @@ thresholded = False
 k_min = 10
 scheme = 'clump'
 
-bounds = 1, 4
+bounds = 0, 3
 
 violin_data, region_order, region_colors = robustness_by_brain_region(norm,
                                                                       thresholded, 
@@ -286,7 +286,7 @@ thresholded = False
 k_min = 10
 scheme = 'clump'
 
-bounds = 1, 4
+bounds = 0, 3
 
 lobe_violin_data, lobe_region_order, lobe_region_colors = optic_lobe_robustness(norm, 
                                                                                 thresholded, 
