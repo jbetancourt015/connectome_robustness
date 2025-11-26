@@ -231,10 +231,10 @@ rob_exc, cdf_exc = compute_cdf(neuron_df[mask_exc]['norm_robustness'])
 rob_inh, cdf_inh = compute_cdf(neuron_df[mask_inh]['norm_robustness'])
 
 # FIGURE: Distribution of robustness by neuron type----------------------------
-fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-ax.step(rob_exc, cdf_exc, where='post', color=con_colors[0], label='Excitatory')
-ax.step(rob_inh, cdf_inh, where='post', color=con_colors[1], label='Inhibitory')
+ax.step(rob_exc, cdf_exc, where='post', color=con_colors[0], lw=2, label='Excitatory')
+ax.step(rob_inh, cdf_inh, where='post', color=con_colors[1], lw=2, label='Inhibitory')
 
 ax.legend()
 

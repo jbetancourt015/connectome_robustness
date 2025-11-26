@@ -50,7 +50,7 @@ logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 width = 3.5
 height = 3.2
 
-alpha_min = 0.2
+alpha_min = 0.
 
 # Connectome list
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
@@ -115,7 +115,7 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
     neuron_df['mean'], neuron_df['sim_loss'],
     bins=[xbins, ybins],
     density=True,
-    norm=LogNorm(),
+    # norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[0], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -148,7 +148,7 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
     neuron_df['std'], neuron_df['sim_loss'],
     bins=[xbins, ybins],
     density=True,
-    norm=LogNorm(),
+    # norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[1], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -193,7 +193,7 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
     neuron_df['pred_loss'], neuron_df['sim_loss'],
     bins=[xbins, ybins],
     density=True,
-    norm=LogNorm(),
+    # norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[2], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -215,7 +215,7 @@ ax_scatter.set_xlim(0.,None)
 ax_scatter.set_ylim(0.,None)
 
 # Plot y=x line
-ax_scatter.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1)
+ax_scatter.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0, alpha=.5)
 
 # plt.savefig(f"../../figures/candidate_figures/fig_3{suffix}.pdf", dpi=600, bbox_inches='tight')
 
@@ -234,13 +234,13 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
     neuron_df['robustness'], neuron_df['sim_loss'],
     bins=[xbins, ybins],
     density=True,
-    norm=LogNorm(),
+    # norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[4], alpha_min=alpha_min, name="fade_to_color")
 )
 
 # Plot prediction line
 r_vals = np.linspace(rob_min, rob_max, 100)
-ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1, label='Prediction')
+ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1, label='Prediction', zorder=0, alpha=.5)
 ax_scatter.legend()
 
 # Use divider to attach colorbar
