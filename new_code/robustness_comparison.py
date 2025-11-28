@@ -106,10 +106,10 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
     ax_scatter.set_ylabel('Shuffled weight robustness' if null_net=='rand_weight' else 'Poisson sensitivity')
-    ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
-                    ha='left',
-                    va='top',
-                    transform=ax_scatter.transAxes)
+    # ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
+    #                 ha='left',
+    #                 va='top',
+    #                 transform=ax_scatter.transAxes)
     
     ax_scatter.set_xlim(0.,None)
     ax_scatter.set_ylim(0.,None)
@@ -118,6 +118,11 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
         # Set axis scales
         ax_scatter.set_xscale('log')
         ax_scatter.set_yscale('log')
+    
+    # Set yticks equal to xticks
+    xticks = ax_scatter.get_xticks()
+    ax_scatter.set_yticks(xticks)
+    ax_scatter.set_yticklabels([f"{v:g}" for v in xticks])
     
     # plt.savefig(f"../../{folder}/robustness/{null_net}_robustness_eta_{int(eta)}_{connectomes[data_idx]}.pdf", 
     #             dpi=600)
@@ -172,8 +177,6 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
         ax_scatter.set_xlim(0.,None)
         ax_scatter.set_ylim(0.,None)
     
-    ax_scatter.set_aspect('equal')
-    
     # 7) re-enable all four spines on joint
     for loc in ["left","right","top","bottom"]:
         ax_scatter.spines[loc].set_visible(True)
@@ -185,13 +188,21 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     # 9) colorbar in its own column
     cb = fig.colorbar(im, cax=ax_cbar)
     
+    # Set yticks equal to xticks
+    ax_scatter.set_aspect('equal', adjustable='box')
+    ax_scatter.set_yticks(ax_scatter.get_xticks())
+    
+    # xticks = ax_scatter.get_xticks()
+    # ax_scatter.set_yticks(xticks)
+    # ax_scatter.set_yticklabels([f"{v:g}" for v in xticks])
+    
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
     ax_scatter.set_ylabel('Shuffled weight robustness')
-    ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
-                    ha='left',
-                    va='top',
-                    transform=ax_scatter.transAxes)
+    # ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
+    #                 ha='left',
+    #                 va='top',
+    #                 transform=ax_scatter.transAxes)
     cb.set_label("Density")
 
     plt.show()

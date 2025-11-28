@@ -47,8 +47,8 @@ logging.getLogger("fontTools").setLevel(logging.ERROR)
 logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
 # Nature figure size
-width = 3.5
-height = 3.2
+width = 1.7
+height = 1.7
 
 alpha_min = 0.
 
@@ -104,7 +104,10 @@ n_bins = 100
 
 # FIGURE: LOSS VS INCOMING WEIGHT (NO COLOR)----------------------------------
 # Set up figure
-fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+fig = plt.figure(figsize=(1.2*width,height))
+
+ax_scatter = fig.add_axes([0.2, 0.15, 0.6, 0.8])
+ax_cbar = fig.add_axes([0.85, 0.15, 0.03, 0.8])
 
 x_max = 15.
 
@@ -115,31 +118,32 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
     neuron_df['mean'], neuron_df['sim_loss'],
     bins=[xbins, ybins],
     density=True,
-    # norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[0], alpha_min=alpha_min, name="fade_to_color")
 )
 
-# Use divider to attach KDE axes to the scatter's box
-divider = make_axes_locatable(ax_scatter)
-ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+ax_scatter.set_xlim(0.,x_max)
+ax_scatter.set_ylim(0.,None)
 
 # Colorbar in its own column
 cb = fig.colorbar(im, cax=ax_cbar)
+cb.ax.tick_params(labelsize=8)
+
+# Save without labels
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_mean.pdf', dpi=600)
 
 # Add labels
 ax_scatter.set_xlabel('Average incoming weight')
 ax_scatter.set_ylabel('Simulated loss')
 cb.set_label('Density')
 
-ax_scatter.set_xlim(0.,x_max)
-# ax_scatter.set_xlim(0.,None)
-ax_scatter.set_ylim(0.,None)
-
 plt.show()
 
 # FIGURE: LOSS VS INCOMING VARIANCE (NO COLOR)-------------------------------
 # Set up figure
-fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+fig = plt.figure(figsize=(1.2*width,height))
+
+ax_scatter = fig.add_axes([0.2, 0.15, 0.6, 0.8])
+ax_cbar = fig.add_axes([0.85, 0.15, 0.03, 0.8])
 
 # Create histogram
 xbins = np.logspace(np.log10(std_min), np.log10(std_max), n_bins)
@@ -148,28 +152,25 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
     neuron_df['std'], neuron_df['sim_loss'],
     bins=[xbins, ybins],
     density=True,
-    # norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[1], alpha_min=alpha_min, name="fade_to_color")
 )
 
 # Set axis scales
 ax_scatter.set_xscale('log')
 
-# Use divider to attach KDE axes to the scatter's box
-divider = make_axes_locatable(ax_scatter)
-ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
-
 # Colorbar in its own column
 cb = fig.colorbar(im, cax=ax_cbar)
+
+ax_scatter.set_ylim(0.,None)
+
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance.pdf', dpi=600)
 
 # Add labels
 ax_scatter.set_xlabel('Variance in weight')
 ax_scatter.set_ylabel('Simulated loss')
 cb.set_label('Density')
 
-ax_scatter.set_ylim(0.,None)
 
-# plt.savefig(f"../../figures/candidate_figures/fig_2{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()
 
@@ -184,7 +185,10 @@ min_pred, max_pred = min(neuron_df['pred_loss']), max(neuron_df['pred_loss'])
 min_loss, max_loss = min([l_min, min_pred]), max([l_max, max_pred])
 
 # Set up figure
-fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+fig = plt.figure(figsize=(1.2*width,height))
+
+ax_scatter = fig.add_axes([0.15, 0.15, 0.6, 0.8])
+ax_cbar = fig.add_axes([0.8, 0.15, 0.03, 0.8])
 
 # Create histogram
 xbins = np.linspace(min_loss, max_loss, n_bins)
@@ -199,17 +203,8 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
 
 ax_scatter.set_aspect('equal')
 
-# Use divider to attach colorbar
-divider = make_axes_locatable(ax_scatter)
-ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
-
 # Colorbar in its own column
 cb = fig.colorbar(im, cax=ax_cbar)
-
-# Add labels
-ax_scatter.set_xlabel('Predicted loss')
-ax_scatter.set_ylabel('Simulated loss')
-cb.set_label('Density')
 
 ax_scatter.set_xlim(0.,None)
 ax_scatter.set_ylim(0.,None)
@@ -217,7 +212,12 @@ ax_scatter.set_ylim(0.,None)
 # Plot y=x line
 ax_scatter.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0, alpha=.5)
 
-# plt.savefig(f"../../figures/candidate_figures/fig_3{suffix}.pdf", dpi=600, bbox_inches='tight')
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.pdf', dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Predicted loss')
+ax_scatter.set_ylabel('Simulated loss')
+cb.set_label('Density')
 
 plt.show()
 
@@ -225,7 +225,11 @@ plt.show()
 # LOSS VS ROBUSTNESS
 #------------------------------------------------------------------------------
 # Set up figure
-fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+fig = plt.figure(figsize=(1.2*width,height))
+
+ax_scatter = fig.add_axes([0.2, 0.15, 0.6, 0.8])
+ax_cbar = fig.add_axes([0.85, 0.15, 0.03, 0.8])
+
 
 # Create histogram
 xbins = np.linspace(rob_min, rob_max, n_bins)
@@ -243,21 +247,17 @@ r_vals = np.linspace(rob_min, rob_max, 100)
 ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1, label='Prediction', zorder=0, alpha=.5)
 ax_scatter.legend()
 
-# Use divider to attach colorbar
-divider = make_axes_locatable(ax_scatter)
-ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
-
 # Colorbar in its own column
 cb = fig.colorbar(im, cax=ax_cbar)
+
+ax_scatter.set_xlim(0.,None)
+ax_scatter.set_ylim(0.,None)
+
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_robustness.pdf', dpi=600)
 
 # Add labels
 ax_scatter.set_xlabel('Robustness')
 ax_scatter.set_ylabel('Simulated loss')
 cb.set_label('Density')
-
-ax_scatter.set_xlim(0.,None)
-ax_scatter.set_ylim(0.,None)
-
-# plt.savefig(f"../../figures/candidate_figures/fig_4{suffix}.pdf", dpi=600, bbox_inches='tight')
 
 plt.show()

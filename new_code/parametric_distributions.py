@@ -58,11 +58,14 @@ height = 3.2
 #------------------------------------------------------------------------------
 # ROBUSTNESS FUNCTIONS
 #------------------------------------------------------------------------------
+def rob_dirac(w0):
+    return (w0)**(1/2)
+
 def rob_gamma(alpha, w0):
     return (1+alpha*w0)*(1/2)
 
 def rob_poisson(w0):
-    return (1+w0)**2
+    return (1+w0)**(1/2)
 
 def rob_pareto(gamma):
     return np.sqrt((gamma-2)/(gamma-3))
@@ -71,9 +74,9 @@ def rob_lognormal(mu,sigma):
     return np.exp((2*mu+3*(sigma**2))/4.)
 
 #------------------------------------------------------------------------------
-# PLOT ROBUSTNESS
+# DIFFERENT ROBUSTNESS PLOTS
 #------------------------------------------------------------------------------
-w0_vals = 10**(np.linspace(0.,3.,100))
+w0_vals = 10**(np.linspace(0.,2.,100))
 
 
 # Gamma distribution
@@ -145,6 +148,25 @@ ax.set_xlabel('Log mean $\mu$')
 ax.set_ylabel('Robustness')
 
 plt.show()
+
+#------------------------------------------------------------------------------
+# ROBUSTNESS IN THE SAME PLOT
+#------------------------------------------------------------------------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+ax.plot(w0_vals, rob_dirac(w0_vals), c=con_colors[0], lw=2, label='Dirac')
+ax.plot(w0_vals, rob_poisson(w0_vals), c=con_colors[1], lw=2, label='Poisson')
+ax.plot(w0_vals, rob_gamma(1.,w0_vals), c=con_colors[2], lw=2, label='Exponential')
+
+ax.legend()
+
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+ax.set_xlabel('Mean')
+ax.set_ylabel('Robustness')
+
 
 
 
