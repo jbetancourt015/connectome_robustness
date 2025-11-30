@@ -104,10 +104,10 @@ n_bins = 100
 
 # FIGURE: LOSS VS INCOMING WEIGHT (NO COLOR)----------------------------------
 # Set up figure
-fig = plt.figure(figsize=(1.2*width,height))
+fig = plt.figure(figsize=(1.3*width,height))
 
-ax_scatter = fig.add_axes([0.2, 0.15, 0.6, 0.8])
-ax_cbar = fig.add_axes([0.85, 0.15, 0.03, 0.8])
+ax_scatter = fig.add_axes([0.2, 0.15, 0.8/1.3, 0.8]) # [left, bottom, width, height]
+ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
 
 x_max = 15.
 
@@ -140,10 +140,10 @@ plt.show()
 
 # FIGURE: LOSS VS INCOMING VARIANCE (NO COLOR)-------------------------------
 # Set up figure
-fig = plt.figure(figsize=(1.2*width,height))
+fig = plt.figure(figsize=(1.3*width,height))
 
-ax_scatter = fig.add_axes([0.2, 0.15, 0.6, 0.8])
-ax_cbar = fig.add_axes([0.85, 0.15, 0.03, 0.8])
+ax_scatter = fig.add_axes([0.2, 0.15, 0.8/1.3, 0.8]) # [left, bottom, width, height]
+ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
 
 # Create histogram
 xbins = np.logspace(np.log10(std_min), np.log10(std_max), n_bins)
@@ -185,10 +185,10 @@ min_pred, max_pred = min(neuron_df['pred_loss']), max(neuron_df['pred_loss'])
 min_loss, max_loss = min([l_min, min_pred]), max([l_max, max_pred])
 
 # Set up figure
-fig = plt.figure(figsize=(1.2*width,height))
+fig = plt.figure(figsize=(1.3*width,height))
 
-ax_scatter = fig.add_axes([0.15, 0.15, 0.6, 0.8])
-ax_cbar = fig.add_axes([0.8, 0.15, 0.03, 0.8])
+ax_scatter = fig.add_axes([0.15, 0.15, 0.8/1.3, 0.8]) # [left, bottom, width, height]
+ax_cbar = fig.add_axes([1.05/1.3, 0.15, 0.03, 0.8])
 
 # Create histogram
 xbins = np.linspace(min_loss, max_loss, n_bins)
@@ -201,13 +201,17 @@ counts, xedges, yedges, im = ax_scatter.hist2d(
     cmap=fade_to_color_cmap(con_colors[2], alpha_min=alpha_min, name="fade_to_color")
 )
 
-ax_scatter.set_aspect('equal')
+# ax_scatter.set_aspect('equal')
 
 # Colorbar in its own column
 cb = fig.colorbar(im, cax=ax_cbar)
 
 ax_scatter.set_xlim(0.,None)
 ax_scatter.set_ylim(0.,None)
+
+# Use the same locator for x and y so ticks coincide
+locator = ax_scatter.yaxis.get_major_locator()
+ax_scatter.xaxis.set_major_locator(locator)
 
 # Plot y=x line
 ax_scatter.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0, alpha=.5)
@@ -225,10 +229,10 @@ plt.show()
 # LOSS VS ROBUSTNESS
 #------------------------------------------------------------------------------
 # Set up figure
-fig = plt.figure(figsize=(1.2*width,height))
+fig = plt.figure(figsize=(1.3*width,height))
 
-ax_scatter = fig.add_axes([0.2, 0.15, 0.6, 0.8])
-ax_cbar = fig.add_axes([0.85, 0.15, 0.03, 0.8])
+ax_scatter = fig.add_axes([0.2, 0.15, 0.8/1.3, 0.8]) # [left, bottom, width, height]
+ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
 
 
 # Create histogram

@@ -48,8 +48,10 @@ logging.getLogger("fontTools").setLevel(logging.ERROR)
 logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
 # Nature figure size
-width = 3.5
-height = 3.2
+width = 1.7
+height = 1.7
+
+alpha_min = .2
 
 # Connectome list
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
@@ -95,21 +97,15 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
     
     Q_min = 0.
     
-    # Set up subfigures
-    fig, ax_scatter = plt.subplots(figsize=(.9*width, .9*height))
+    # Set up figure
+    fig = plt.figure(figsize=(width,height))
+
+    ax_scatter = fig.add_axes([0.15, 0.15, 0.8, 0.8]) # [left, bottom, width, height]
     
     # Plot sensitivities for random weight
     ax_scatter.scatter(Q1, Q2, color=con_colors[data_idx], alpha=.2, rasterized=True)
     ax_scatter.plot([Q_min,Q_max], [Q_min,Q_max], c='k', ls='--', lw=1)
     ax_scatter.set_aspect('equal')
-    
-    # Add labels
-    ax_scatter.set_xlabel('Connectome robustness')
-    ax_scatter.set_ylabel('Shuffled weight robustness' if null_net=='rand_weight' else 'Poisson sensitivity')
-    # ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
-    #                 ha='left',
-    #                 va='top',
-    #                 transform=ax_scatter.transAxes)
     
     ax_scatter.set_xlim(0.,None)
     ax_scatter.set_ylim(0.,None)
@@ -119,13 +115,17 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
         ax_scatter.set_xscale('log')
         ax_scatter.set_yscale('log')
     
-    # Set yticks equal to xticks
-    xticks = ax_scatter.get_xticks()
-    ax_scatter.set_yticks(xticks)
-    ax_scatter.set_yticklabels([f"{v:g}" for v in xticks])
+    # Use the same locator for x and y so ticks coincide
+    locator = ax_scatter.yaxis.get_major_locator()
+    ax_scatter.xaxis.set_major_locator(locator)
     
-    # plt.savefig(f"../../{folder}/robustness/{null_net}_robustness_eta_{int(eta)}_{connectomes[data_idx]}.pdf", 
-    #             dpi=600)
+    # Save plot without labels
+    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_scatter.pdf", dpi=600)
+
+    # Add labels
+    ax_scatter.set_xlabel('Connectome robustness')
+    ax_scatter.set_ylabel('Shuffled weight robustness' if null_net=='rand_weight' else 'Poisson sensitivity')
+
     plt.show()
 
 
@@ -136,7 +136,11 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     frac_lower = np.mean(Q1 >= Q2)
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
 
-    fig, ax_scatter = plt.subplots(figsize=(.9*width,.9*height))
+    # Set up figure
+    fig = plt.figure(figsize=(1.3*width,height))
+
+    ax_scatter = fig.add_axes([0.15, 0.15, 0.8/1.3, 0.8]) # [left, bottom, width, height]
+    ax_cbar = fig.add_axes([1.05/1.3, 0.15, 0.03, 0.8])
     
     if log_axes:
         # Create histogram
@@ -147,16 +151,13 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
             bins=[xbins, ybins],
             density=True,
             norm=LogNorm(),
-            cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=0., name="fade_to_color")
+            cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=alpha_min, name="fade_to_color")
         )
         
         # Set axis scales
         ax_scatter.set_xscale('log')
         ax_scatter.set_yscale('log')
-        
-        # Use divider to attach KDE axes to the scatter's box
-        divider = make_axes_locatable(ax_scatter)
-        ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
+
         
     else:
         Q_min = 0.
@@ -167,12 +168,8 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
             bins=[xbins, ybins],
             density=True,
             norm=LogNorm(),
-            cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=0., name="fade_to_color")
+            cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=alpha_min, name="fade_to_color")
         )
-        
-        # Use divider to attach KDE axes to the scatter's box
-        divider = make_axes_locatable(ax_scatter)
-        ax_cbar = divider.append_axes('right', size='5%', pad=0.1)
         
         ax_scatter.set_xlim(0.,None)
         ax_scatter.set_ylim(0.,None)
@@ -188,21 +185,16 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     # 9) colorbar in its own column
     cb = fig.colorbar(im, cax=ax_cbar)
     
-    # Set yticks equal to xticks
-    ax_scatter.set_aspect('equal', adjustable='box')
-    ax_scatter.set_yticks(ax_scatter.get_xticks())
+    # Use the same locator for x and y so ticks coincide
+    locator = ax_scatter.yaxis.get_major_locator()
+    ax_scatter.xaxis.set_major_locator(locator)
     
-    # xticks = ax_scatter.get_xticks()
-    # ax_scatter.set_yticks(xticks)
-    # ax_scatter.set_yticklabels([f"{v:g}" for v in xticks])
+    # Save plot without labels
+    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_hist.pdf", dpi=600)
     
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
     ax_scatter.set_ylabel('Shuffled weight robustness')
-    # ax_scatter.text(0.05, 0.95, 'Frac. lower: %s'%("{:.3f}".format(frac_lower)),
-    #                 ha='left',
-    #                 va='top',
-    #                 transform=ax_scatter.transAxes)
     cb.set_label("Density")
 
     plt.show()
