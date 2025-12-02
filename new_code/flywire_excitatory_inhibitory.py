@@ -245,8 +245,60 @@ ax.set_ylabel('CDF')
 
 plt.show()
 
+#------------------------------------------------------------------------------
+# ANALYSIS BY CONNECTION
+#------------------------------------------------------------------------------
+# Can we classify connections into excitatory/inhibitory?
+# Step 1: aggregate synapses by connection × neurotransmitter
+nt_df = (
+    conn_df.groupby(["pre_root_id", "post_root_id", "nt_class"])["syn_count"]
+      .sum()
+      .reset_index()
+)
 
+# Step 2: pivot to wide format (one column per neurotransmitter)
+wide_df = nt_df.pivot_table(
+    index=["pre_root_id", "post_root_id"],
+    columns="nt_class",
+    values="syn_count",
+    fill_value=0
+)
 
+# Step 3: compute total synapses per connection
+wide_df["total_syn"] = wide_df.sum(axis=1)
 
+# Step 4: compute fractions
+for col in wide_df.columns:
+    if col != "total_syn":
+        wide_df[f"frac_{col}"] = wide_df[col] / wide_df["total_syn"]
 
+conn_class_df = wide_df.reset_index()
 
+# FIGURE: Distribution of connection composition-------------------------------
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+ax.hist(conn_class_df['frac_exc'], bins=20, density=True, histtype='step', color=con_colors[0], label='Excitatory')
+ax.hist(conn_class_df['frac_inh'], bins=20, density=True, histtype='step', color=con_colors[1], label='Inhibitory')
+
+ax.legend()
+
+ax.set_xlabel('Fraction of synapses in connection')
+ax.set_ylabel('Density')
+
+plt.show()
+
+# FIGURE: Distribution of maximum between the two (CDF)------------------------
+conn_class_df['frac_max'] = conn_class_df[['frac_exc', 'frac_inh']].apply(np.nanmax, axis=1)
+
+fracs, cdf = compute_cdf(conn_class_df['frac_max'])
+
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+ax.step(fracs, cdf, where='post', color=con_colors[0])
+
+ax.set_yscale('log')
+
+ax.set_xlabel('Maximum of exc/inh fractions')
+ax.set_ylabel('CDF')
+
+plt.show()
