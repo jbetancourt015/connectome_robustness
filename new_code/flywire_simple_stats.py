@@ -126,7 +126,7 @@ for i in range(n_quantiles):
     rob, cdf = compute_cdf(neuron_df[mask]['norm_robustness'])
     
     # Plot CDF
-    ax.step(rob, cdf, where='post', lw=2, c=cmap(i), label=f"Reciprocity Q{i+1}")
+    ax.step(rob, cdf, where='post', lw=2, c=cmap(i), label=f"Reciprocity D{i+1}")
     
 ax.legend()
 
