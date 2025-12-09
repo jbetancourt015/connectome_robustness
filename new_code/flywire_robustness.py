@@ -21,6 +21,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import logging
+import seaborn as sns
 
 plt.rcParams.update({
     'text.usetex': False,  # keep LaTeX off globally
@@ -141,6 +142,116 @@ ax.set_ylabel('CDF')
 
 plt.show()
 
+# FIGURE: pdf of normalized robustness by brain region----------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+# Get robustness distribution by region
+for r in region_order:
+    # Compute distribution of robustness
+    mask = neuron_df['brain_region']==r
+    sns.kdeplot(neuron_df[mask]['norm_robustness'], ax=ax, color=region_colors[r], label=r)
+
+ax.legend()
+
+ax.set_xlabel('Normalized robustness')
+ax.set_ylabel('Density')
+
+plt.show()
+
+# FIGURE: violin plot of normalized robustness by brain region----------------
+violin_data = [neuron_df.loc[neuron_df["brain_region"] == r, "norm_robustness"].to_numpy(dtype=float) for r in region_order]
+
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+parts = ax.violinplot(
+    violin_data,
+    showmeans=False,
+    showmedians=True,
+    showextrema=False,
+    widths=0.9
+)
+
+# Color each violin body to match points
+for i, body in enumerate(parts['bodies']):
+    region = region_order[i]
+    color = region_colors[region]
+    body.set_facecolor(color)
+    body.set_edgecolor("black")
+    body.set_alpha(0.6)
+
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color('black')
+    
+# Labels/ticks
+ax.set_ylabel("Normalized Robustness")
+ax.set_xticks(range(1, len(region_order) + 1))
+ax.set_xticklabels(region_order, rotation=35, ha="right")
+
+# Add labels
+plt.show()
+
+#------------------------------------------------------------------------------
+# (LOG) ROBUSTNESS BY BRAIN REGION
+#------------------------------------------------------------------------------
+# FIGURE: violin plot with log robustness----------------
+# Make a transformed column
+mask0 = neuron_df['norm_robustness'] > 0
+neuron_df["log_robustness"] = np.log10(neuron_df["norm_robustness"])
+
+violin_data = [neuron_df.loc[mask0&(neuron_df["brain_region"] == r), "log_robustness"].to_numpy(dtype=float) for r in region_order]
+
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+parts = ax.violinplot(
+    violin_data,
+    showmeans=False,
+    showmedians=True,
+    showextrema=False,
+    widths=0.9
+)
+
+# Color each violin body to match points
+for i, body in enumerate(parts['bodies']):
+    region = region_order[i]
+    color = region_colors[region]
+    body.set_facecolor(color)
+    body.set_edgecolor("black")
+    body.set_alpha(0.6)
+
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color('black')
+    
+# Labels/ticks
+ax.set_ylabel("(log) Normalized Robustness")
+ax.set_xticks(range(1, len(region_order) + 1))
+ax.set_xticklabels(region_order, rotation=35, ha="right")
+
+# Add labels
+plt.show()
+
+# FIGURE: pdf of normalized robustness by brain region----------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+# Get robustness distribution by region
+for r in region_order:
+    # Compute distribution of robustness
+    mask = neuron_df['brain_region']==r
+    sns.kdeplot(neuron_df[mask0&mask]['log_robustness'], ax=ax, color=region_colors[r], label=r)
+
+ax.legend()
+
+ax.set_xlabel('(log) Normalized robustness')
+ax.set_ylabel('Density')
+
+plt.show()
 
 #------------------------------------------------------------------------------
 # ROBUSTNESS OF SPECIFIC NEURONS
