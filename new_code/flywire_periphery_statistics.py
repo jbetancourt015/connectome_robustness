@@ -400,3 +400,31 @@ for seed in seeds:
         # Format figure
         ax.set_xlabel('Normalized robustness')
         ax.set_ylabel('CDF')
+    
+#------------------------------------------------------------------------------
+# PLOT MEDIAN ROBUSTNESS OF EACH PERCENTILE
+#------------------------------------------------------------------------------
+n_quantiles = 30
+cmap = plt.get_cmap('viridis', n_quantiles)
+
+for seed in seeds:
+    mask0 = neuron_df[f"distance_{seed}"] > 0
+    masked_df = neuron_df[mask0].copy()
+    masked_df[f"quantile_{seed}"] = pd.qcut(masked_df[f"distance_{seed}"], q=n_quantiles, labels=False)
+    
+    # Set up figure
+    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    
+    # Compute median of robustness for each band
+    medians = []
+    for i in range(n_quantiles):
+        mask = masked_df[f"quantile_{seed}"] == i
+        medians.append(masked_df[mask]['norm_robustness'].median())
+        
+    # Plot medians
+    ax.plot(np.arange(n_quantiles), medians, lw=2, c=con_colors[4])
+    
+    # Format figure
+    ax.set_xlabel('Peripherality quantile')
+    ax.set_ylabel('Median robustness')
+    
