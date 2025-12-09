@@ -138,6 +138,42 @@ cb.set_label('Density')
 
 plt.show()
 
+# FIGURE: LOSS VS INCOMING WEIGHT (LOG)----------------------------------
+# Set up figure
+fig = plt.figure(figsize=(1.3*width,height))
+
+ax_scatter = fig.add_axes([0.2, 0.15, 0.8/1.3, 0.8]) # [left, bottom, width, height]
+ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
+
+x_max = 15.
+
+# Create histogram
+xbins = np.logspace(np.log10(mu_min), np.log10(mu_max), n_bins)
+ybins = np.linspace(l_min, l_max, n_bins)
+counts, xedges, yedges, im = ax_scatter.hist2d(
+    neuron_df['mean'], neuron_df['sim_loss'],
+    bins=[xbins, ybins],
+    density=True,
+    cmap=fade_to_color_cmap(con_colors[0], alpha_min=alpha_min, name="fade_to_color")
+)
+
+ax_scatter.set_xscale('log')
+ax_scatter.set_ylim(0.,None)
+
+# Colorbar in its own column
+cb = fig.colorbar(im, cax=ax_cbar)
+cb.ax.tick_params(labelsize=8)
+
+# Save without labels
+# plt.savefig('../../paper_figures/simulated_loss/loss_vs_mean.pdf', dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Average incoming weight')
+ax_scatter.set_ylabel('Simulated loss')
+cb.set_label('Density')
+
+plt.show()
+
 # FIGURE: LOSS VS INCOMING VARIANCE (NO COLOR)-------------------------------
 # Set up figure
 fig = plt.figure(figsize=(1.3*width,height))
@@ -258,6 +294,46 @@ ax_scatter.set_xlim(0.,None)
 ax_scatter.set_ylim(0.,None)
 
 plt.savefig('../../paper_figures/simulated_loss/loss_vs_robustness.pdf', dpi=600)
+
+# Add labels
+ax_scatter.set_xlabel('Robustness')
+ax_scatter.set_ylabel('Simulated loss')
+cb.set_label('Density')
+
+plt.show()
+
+# FIGURE: LOG ROBUSTNESS-------------------------------------------------------
+# Set up figure
+fig = plt.figure(figsize=(1.3*width,height))
+
+ax_scatter = fig.add_axes([0.2, 0.15, 0.8/1.3, 0.8]) # [left, bottom, width, height]
+ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
+
+
+# Create histogram
+xbins = np.logspace(np.log10(rob_min), np.log10(rob_max), n_bins)
+ybins = np.linspace(min_loss, max_loss, n_bins)
+counts, xedges, yedges, im = ax_scatter.hist2d(
+    neuron_df['robustness'], neuron_df['sim_loss'],
+    bins=[xbins, ybins],
+    density=True,
+    # norm=LogNorm(),
+    cmap=fade_to_color_cmap(con_colors[4], alpha_min=alpha_min, name="fade_to_color")
+)
+
+# Plot prediction line
+r_vals = np.linspace(rob_min, rob_max, 100)
+ax_scatter.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1, label='Prediction', zorder=0, alpha=.5)
+ax_scatter.legend()
+
+# Colorbar in its own column
+cb = fig.colorbar(im, cax=ax_cbar)
+
+# ax_scatter.set_xlim(0.,None)
+ax_scatter.set_xscale('log')
+ax_scatter.set_ylim(0.,None)
+
+# plt.savefig('../../paper_figures/simulated_loss/loss_vs_robustness.pdf', dpi=600)
 
 # Add labels
 ax_scatter.set_xlabel('Robustness')

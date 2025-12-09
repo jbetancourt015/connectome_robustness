@@ -156,8 +156,76 @@ neuron_df.to_parquet(data_dir+'neuron_data.parquet')
 #------------------------------------------------------------------------------
 # BUILD CONNECTIONS-LEVEL DATASET
 #------------------------------------------------------------------------------
+# Classify connections into excitatory and inhibitory
+# Map of neurotransmitter types
+nt_to_class = {
+    'ACH': 'exc',
+    'GLUT': 'inh',
+    'GABA': 'inh',
+    'DA':  'mod',
+    'SER': 'mod',
+    'OCT': 'mod'
+}
+
+# Add neurotransmitter to connections dataset
+conn_df['nt_class'] = conn_df['nt_type'].map(nt_to_class)
+
+# Step 1: aggregate synapses by connection × neurotransmitter
+nt_df = (
+    conn_df.groupby(["pre_root_id", "post_root_id", "nt_class"])["syn_count"]
+      .sum()
+      .reset_index()
+)
+
+# Step 2: pivot to wide format (one column per neurotransmitter)
+wide_df = nt_df.pivot_table(
+    index=["pre_root_id", "post_root_id"],
+    columns="nt_class",
+    values="syn_count",
+    fill_value=0
+)
+
+# Step 3: compute total synapses per connection
+wide_df["total_syn"] = wide_df.sum(axis=1)
+
+# Step 4: compute fractions
+for col in wide_df.columns:
+    if col != "total_syn":
+        wide_df[f"frac_{col}"] = wide_df[col] / wide_df["total_syn"]
+
+conn_class_df = wide_df.reset_index()
+
+# Set threshold for classification
+thresh = 0.6
+
+# Classify neurons as excitatory/inhibitory
+conn_class_df['is_exc'] = conn_class_df['frac_exc'] >= thresh
+conn_class_df['is_inh'] = conn_class_df['frac_inh'] >= thresh
+
+def classify_row(row):
+    inh = row['is_inh']
+    exc = row['is_exc']
+
+    if not inh and not exc:
+        return np.nan
+    
+    if inh and not exc:
+        return 'inh'
+    if exc and not inh:
+        return 'exc'
+
+conn_class_df['nt_class'] = conn_class_df.apply(classify_row, axis=1)
+conn_class_df = conn_class_df[['pre_root_id', 'post_root_id', 'nt_class']]
+
+
+
+
 # Aggregate connections over neuropils
 conn_df = conn_df.groupby(['pre_root_id','post_root_id'])['syn_count'].sum().reset_index()
+
+# Append neurotransmitter type data
+conn_df = conn_df.merge(conn_class_df, on=('pre_root_id', 'post_root_id'), how='outer')
+
 
 # Append neuron data
 neuron_vars = ['neuropil','brain_region','primary_type']
