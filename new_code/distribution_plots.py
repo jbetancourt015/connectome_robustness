@@ -109,19 +109,35 @@ def compute_cdf(series):
 # FAFB DISTRIBUTIONS
 #------------------------------------------------------------------------------
 # Get distribution of weights
-s_weights, P_weights = empirical_hist_pd(conn_df['syn_count'])
+s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
+vals_fafb, cdf_fafb = compute_cdf(conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the FAFB dataset------------------
 # Set up figure
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-ax.scatter(s_weights, P_weights, color=con_colors[0], s=10, rasterized=True)
+ax.scatter(s_fafb, P_fafb, color=con_colors[0], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
 # Add labels
 ax.set_xlabel('Connection strength')
 ax.set_ylabel('Probability')
+
+plt.show()
+
+# FIGURE: Distribution of all connections in the FAFB dataset (CDF)------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+ax.step(vals_fafb, 1-cdf_fafb, color=con_colors[0], where='post')
+
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+# Add labels
+ax.set_xlabel('Connection strength')
+ax.set_ylabel('1 - CDF')
 
 plt.show()
 
@@ -160,8 +176,8 @@ fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
 for r in tqdm(region_order):
     # Get distribution of weights
     mask = region_df['brain_region'] == r
-    s_weights, P_weights = empirical_hist_pd(region_df[mask]['syn_count'])
-    ax.scatter(s_weights, P_weights, color=region_colors[r], s=10, label=r, rasterized=True)
+    s_region, P_region = empirical_hist_pd(region_df[mask]['syn_count'])
+    ax.scatter(s_region, P_region, color=region_colors[r], s=10, label=r, rasterized=True)
 
 ax.legend()
 
@@ -171,6 +187,27 @@ ax.set_yscale('log')
 # Add labels
 ax.set_xlabel('Connection strength')
 ax.set_ylabel('Probability')
+
+plt.show()
+
+# FIGURE: Distribution of connections by brain region (CDF)--------------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(1.9*width, .9*height))
+
+for r in tqdm(region_order):
+    # Get distribution of weights
+    mask = region_df['brain_region'] == r
+    vals_region, cdf_region = compute_cdf(region_df[mask]['syn_count'])
+    ax.step(vals_region, 1-cdf_region, color=region_colors[r], where='post', label=r)
+
+ax.legend()
+
+ax.set_xscale('log')
+ax.set_yscale('log')
+    
+# Add labels
+ax.set_xlabel('Connection strength')
+ax.set_ylabel('1 - CDF')
 
 plt.show()
 
@@ -188,8 +225,9 @@ banc_conn_df = (
 
 # Get distribution of weights
 s_banc, P_banc = empirical_hist_pd(banc_conn_df['syn_count'])
+vals_banc, cdf_banc = compute_cdf(banc_conn_df['syn_count'])
 
-# FIGURE: Distribution of all connections in the FAFB dataset------------------
+# FIGURE: Distribution of all connections in the BANC dataset------------------
 # Set up figure
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
@@ -203,3 +241,54 @@ ax.set_ylabel('Probability')
 
 plt.show()
 
+# FIGURE: Distribution of all connections in the MANC dataset (CDF)------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+ax.step(vals_banc, 1-cdf_banc, color=con_colors[2], where='post')
+
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+# Add labels
+ax.set_xlabel('Connection strength')
+ax.set_ylabel('1 - CDF')
+
+plt.show()
+
+
+manc_file = 'manc_connections.csv'
+manc_conn_df = pd.read_csv(data_dir + manc_file)
+
+# Get distribution of weights
+s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
+vals_manc, cdf_manc = compute_cdf(manc_conn_df['weight'])
+
+# FIGURE: Distribution of all connections in the MANC dataset------------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+ax.scatter(s_manc, P_manc, color=con_colors[4], s=10, rasterized=True)
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+# Add labels
+ax.set_xlabel('Connection strength')
+ax.set_ylabel('Probability')
+
+plt.show()
+
+# FIGURE: Distribution of all connections in the MANC dataset (CDF)------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+ax.step(vals_manc, 1-cdf_manc, color=con_colors[4], where='post')
+
+ax.set_xscale('log')
+ax.set_yscale('log')
+
+# Add labels
+ax.set_xlabel('Connection strength')
+ax.set_ylabel('1 - CDF')
+
+plt.show()
