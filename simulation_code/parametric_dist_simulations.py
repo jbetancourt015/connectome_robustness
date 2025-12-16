@@ -88,7 +88,7 @@ def average_error_fast(
 eta = 1.0
 eps = 1.0
 
-n_inputs = 10
+n_inputs = 100
 
 n_neurons = int(1e3)
 n_w = 10
@@ -96,37 +96,37 @@ w0_vals = np.logspace(0.,3.,n_w)
 
 rng = np.random.default_rng(1764)
 
-# poisson_loss = []
+poisson_loss = []
 
-# for w0 in tqdm(w0_vals):
-#     loss = np.full(n_neurons, np.nan, dtype=float)
-#     for i in range(n_neurons):
-#         # Draw neurons
-#         w = np.random.poisson(w0, n_inputs)
+for w0 in tqdm(w0_vals):
+    loss = np.full(n_neurons, np.nan, dtype=float)
+    for i in range(n_neurons):
+        # Draw neurons
+        w = np.random.poisson(w0, n_inputs)
     
-#         # Monte Carlo loss (fast, blocked)
-#         l_hat = average_error_fast(
-#             w,
-#             eta=eta,
-#             eps=eps,
-#             n_draws=n_draws,
-#             n_perturb=n_perturb,
-#             block_perturb=128,
-#             rng=rng,
-#         )
+        # Monte Carlo loss (fast, blocked)
+        l_hat = average_error_fast(
+            w,
+            eta=eta,
+            eps=eps,
+            n_draws=n_draws,
+            n_perturb=n_perturb,
+            block_perturb=128,
+            rng=rng,
+        )
     
-#         loss[i] = l_hat
+        loss[i] = l_hat
     
-#     poisson_loss.append(np.mean(loss))
+    poisson_loss.append(np.mean(loss))
 
-# # Build pandas DataFrame
-# poisson_df = pd.DataFrame({
-#     "w0": w0_vals,
-#     "sim_loss": np.array(poisson_loss),
-# })
+# Build pandas DataFrame
+poisson_df = pd.DataFrame({
+    "w0": w0_vals,
+    "sim_loss": np.array(poisson_loss),
+})
 
-# # Save dataset as parquet
-# poisson_df.to_parquet(sim_dir+'poisson_sim.parquet')
+# Save dataset as parquet
+poisson_df.to_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
 
 #------------------------------------------------------------------------------
 # LOGNORMAL SIMULATION
@@ -134,7 +134,7 @@ rng = np.random.default_rng(1764)
 eta = 1.0
 eps = 1.0
 
-n_inputs = 10
+n_inputs = 100
 
 n_neurons = int(1e3)
 n_sigma = 10
@@ -177,4 +177,4 @@ lognormal_df = pd.DataFrame({
 })
 
 # Save dataset as parquet
-lognormal_df.to_parquet(sim_dir+'lognormal_sim.parquet')
+lognormal_df.to_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
