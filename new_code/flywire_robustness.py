@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import logging
 import seaborn as sns
+import matplotlib.ticker as mticker
 
 plt.rcParams.update({
     'text.usetex': False,  # keep LaTeX off globally
@@ -69,6 +70,12 @@ def compute_cdf(series):
     cdf = cum_counts / cum_counts.iloc[-1]
     return cdf.index, cdf.values
 
+def log10_formatter(y, pos):
+    superscripts = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
+    if y.is_integer():
+        return "10" + str(int(y)).translate(superscripts)
+    return ""
+
 #------------------------------------------------------------------------------
 # OVERALL ROBUSTNESS DISTRIBUTION
 #------------------------------------------------------------------------------
@@ -92,6 +99,9 @@ plt.show()
 #------------------------------------------------------------------------------
 # ROBUSTNESS BY BRAIN REGION
 #------------------------------------------------------------------------------
+# Drop "Other Regions"
+neuron_df = neuron_df[neuron_df['brain_region'] != "Other Regions"]
+
 # Sort regions by median
 region_order = (
     neuron_df
@@ -229,9 +239,12 @@ if 'cmedians' in parts and parts['cmedians'] is not None:
     parts['cmedians'].set_color('black')
     
 # Labels/ticks
-ax.set_ylabel("(log) Normalized Robustness")
+ax.set_ylabel("Normalized Robustness")
 ax.set_xticks(range(1, len(region_order) + 1))
 ax.set_xticklabels(region_order, rotation=35, ha="right")
+
+ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 # Add labels
 plt.show()
