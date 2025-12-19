@@ -29,6 +29,8 @@ sim_dir = '../simulation_results/'
 n_draws = int(1e3)          # number of input draws
 n_perturb = int(1e3)        # number of weight perturbation draws
 
+rng = np.random.default_rng(1764)
+
 #------------------------------------------------------------------------------
 # AUXILIARY FUNCTIONS
 #------------------------------------------------------------------------------
@@ -82,75 +84,133 @@ def average_error_fast(
 
     return error_sum / total_pairs
 
+# #------------------------------------------------------------------------------
+# # POISSON SIMULATION
+# #------------------------------------------------------------------------------
+# eta = 1.0
+# eps = 1.0
+
+# n_inputs = 10
+
+# n_neurons = int(1e3)
+# n_w = 10
+# w0_vals = np.logspace(0.,3.,n_w)
+
+# poisson_loss = []
+
+# for w0 in tqdm(w0_vals):
+#     loss = np.full(n_neurons, np.nan, dtype=float)
+#     for i in range(n_neurons):
+#         # Draw neurons
+#         w = np.random.poisson(w0, n_inputs)
+    
+#         # Monte Carlo loss (fast, blocked)
+#         l_hat = average_error_fast(
+#             w,
+#             eta=eta,
+#             eps=eps,
+#             n_draws=n_draws,
+#             n_perturb=n_perturb,
+#             block_perturb=128,
+#             rng=rng,
+#         )
+    
+#         loss[i] = l_hat
+    
+#     poisson_loss.append(np.mean(loss))
+
+# # Build pandas DataFrame
+# poisson_df = pd.DataFrame({
+#     "w0": w0_vals,
+#     "sim_loss": np.array(poisson_loss),
+# })
+
+# # Save dataset as parquet
+# poisson_df.to_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
+
+# #------------------------------------------------------------------------------
+# # LOGNORMAL SIMULATION
+# #------------------------------------------------------------------------------
+# eta = 1.0
+# eps = 1.0
+
+# n_inputs = 1000
+
+# n_neurons = int(1e3)
+# n_mean = 10
+# mean_vals = np.arange(1.,50, n_mean)
+# var_vals = 10**np.arange(5)
+
+# lognormal_loss = []
+# mean_ar = []
+# var_ar = []
+
+# for mean in tqdm(mean_vals):
+#     for var in var_vals:
+#         loss = np.full(n_neurons, np.nan, dtype=float)
+#         for i in range(n_neurons):
+#             # Draw neurons
+#             mu = np.log(mean**2/np.sqrt(mean**2 + var))
+#             sigma = np.sqrt(np.log(1.+var/mean**2))
+#             w = np.random.lognormal(mu,sigma, n_inputs)
+        
+#             # Monte Carlo loss (fast, blocked)
+#             l_hat = average_error_fast(
+#                 w,
+#                 eta=eta,
+#                 eps=eps,
+#                 n_draws=n_draws,
+#                 n_perturb=n_perturb,
+#                 block_perturb=128,
+#                 rng=rng,
+#             )
+        
+#             loss[i] = l_hat
+        
+#         lognormal_loss.append(np.mean(loss))
+#         mean_ar.append(mean)
+#         var_ar.append(var)
+
+# # Build pandas DataFrame
+# lognormal_df = pd.DataFrame({
+#     "mean": np.array(mean_ar),
+#     "var": np.array(var_ar),
+#     "sim_loss": np.array(lognormal_loss),
+# })
+
+# # Save dataset as parquet
+# lognormal_df.to_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
+
+
 #------------------------------------------------------------------------------
-# POISSON SIMULATION
+# LOMAX SIMULATION
 #------------------------------------------------------------------------------
+def invert_lomax(r, w0, a):
+    return (r**(-1/a) - 1.)*w0
+
 eta = 1.0
 eps = 1.0
 
 n_inputs = 100
 
 n_neurons = int(1e3)
-n_w = 10
-w0_vals = np.logspace(0.,3.,n_w)
+n_mean = 10
+mean_vals = np.arange(1.,50, n_mean)
+var_vals = 10**np.arange(1,5)
 
-rng = np.random.default_rng(1764)
+lomax_loss = []
+mean_ar = []
+var_ar = []
 
-poisson_loss = []
-
-for w0 in tqdm(w0_vals):
-    loss = np.full(n_neurons, np.nan, dtype=float)
-    for i in range(n_neurons):
-        # Draw neurons
-        w = np.random.poisson(w0, n_inputs)
-    
-        # Monte Carlo loss (fast, blocked)
-        l_hat = average_error_fast(
-            w,
-            eta=eta,
-            eps=eps,
-            n_draws=n_draws,
-            n_perturb=n_perturb,
-            block_perturb=128,
-            rng=rng,
-        )
-    
-        loss[i] = l_hat
-    
-    poisson_loss.append(np.mean(loss))
-
-# Build pandas DataFrame
-poisson_df = pd.DataFrame({
-    "w0": w0_vals,
-    "sim_loss": np.array(poisson_loss),
-})
-
-# Save dataset as parquet
-poisson_df.to_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
-
-#------------------------------------------------------------------------------
-# LOGNORMAL SIMULATION
-#------------------------------------------------------------------------------
-eta = 1.0
-eps = 1.0
-
-n_inputs = 100
-
-n_neurons = int(1e3)
-n_sigma = 10
-mu_vals = np.arange(5)
-sigma_vals = np.linspace(1.,5.,n_sigma)
-
-lognormal_loss = []
-mu_ar = []
-sigma_ar = []
-
-for mu in tqdm(mu_vals):
-    for sigma in sigma_vals:
+for mean in tqdm(mean_vals):
+    for var in var_vals:
         loss = np.full(n_neurons, np.nan, dtype=float)
         for i in range(n_neurons):
             # Draw neurons
-            w = np.random.lognormal(mu,sigma, n_inputs)
+            a = 2./(1.-(mean**2)/var)
+            w0 = a*mean
+            r = np.random.rand(n_inputs)
+            w = invert_lomax(r,w0,a)
         
             # Monte Carlo loss (fast, blocked)
             l_hat = average_error_fast(
@@ -165,16 +225,16 @@ for mu in tqdm(mu_vals):
         
             loss[i] = l_hat
         
-        lognormal_loss.append(np.mean(loss))
-        mu_ar.append(mu)
-        sigma_ar.append(sigma)
+        lomax_loss.append(np.mean(loss))
+        mean_ar.append(mean)
+        var_ar.append(var)
 
 # Build pandas DataFrame
-lognormal_df = pd.DataFrame({
-    "mu": np.array(mu_ar),
-    "sigma": np.array(sigma_ar),
-    "sim_loss": np.array(lognormal_loss),
+lomax_df = pd.DataFrame({
+    "mean": np.array(mean_ar),
+    "var": np.array(var_ar),
+    "sim_loss": np.array(lomax_loss),
 })
 
 # Save dataset as parquet
-lognormal_df.to_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
+lomax_df.to_parquet(sim_dir+f"lomax_sim_{n_inputs}.parquet")

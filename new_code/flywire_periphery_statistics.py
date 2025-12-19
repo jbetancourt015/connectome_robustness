@@ -362,50 +362,49 @@ seeds =['optic', 'olfactory', 'joint']
 #     ax.set_xlabel('Normalized robustness')
 #     ax.set_ylabel('CDF')
     
-#------------------------------------------------------------------------------
-# PLOT CDF OF ROBUSTNESS BY LOGARITHMIC PERCENTILES
-#------------------------------------------------------------------------------
-# Suppose df has column "x"
-percentiles = [0, 2, 4, 8, 100]
-n_bands = 4
-cmap = plt.get_cmap('PuRd_r', n_bands+1)
+# #------------------------------------------------------------------------------
+# # PLOT CDF OF ROBUSTNESS BY LOGARITHMIC PERCENTILES
+# #------------------------------------------------------------------------------
+# # Suppose df has column "x"
+# percentiles = [0, 2, 4, 8, 100]
+# n_bands = 4
+# cmap = plt.get_cmap('PuRd_r', n_bands+1)
 
-# Convert percentile boundaries to actual x-values
-for seed in seeds:
-    mask0 = neuron_df[f"distance_{seed}"] > 0
-    cuts = np.percentile(neuron_df[mask0][f"distance_{seed}"].dropna(), percentiles)
+# # Convert percentile boundaries to actual x-values
+# for seed in seeds:
+#     mask0 = neuron_df[f"distance_{seed}"] > 0
+#     cuts = np.percentile(neuron_df[mask0][f"distance_{seed}"].dropna(), percentiles)
     
-    # Create readable labels
-    labels = [f"{percentiles[i]}-{percentiles[i+1]}" for i in range(len(percentiles)-1)]
-    neuron_df[f"{seed}_band"] = pd.cut(neuron_df[f"distance_{seed}"], bins=cuts, labels=labels, include_lowest=True)
+#     # Create readable labels
+#     labels = [f"{percentiles[i]}-{percentiles[i+1]}" for i in range(len(percentiles)-1)]
+#     neuron_df[f"{seed}_band"] = pd.cut(neuron_df[f"distance_{seed}"], bins=cuts, labels=labels, include_lowest=True)
     
-    # Set up figure
-    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+#     # Set up figure
+#     fig, ax = plt.subplots(figsize=(.9*width, .9*height))
     
-    # Plot CDF of seeds
-    rob_vals, cdf_vals = compute_cdf(neuron_df[~mask0]['norm_robustness'])
-    ax.step(rob_vals, cdf_vals, where='post', lw=2, c='k', ls='--', label='Seed')
+#     # Plot CDF of seeds
+#     rob_vals, cdf_vals = compute_cdf(neuron_df[~mask0]['norm_robustness'])
+#     ax.step(rob_vals, cdf_vals, where='post', lw=2, c='k', ls='--', label='Seed')
     
-    for i in range(n_bands):
-        mask = neuron_df[f"{seed}_band"] == labels[i]
-        rob_vals, cdf_vals = compute_cdf(neuron_df[mask&mask0]['norm_robustness'])
+#     for i in range(n_bands):
+#         mask = neuron_df[f"{seed}_band"] == labels[i]
+#         rob_vals, cdf_vals = compute_cdf(neuron_df[mask&mask0]['norm_robustness'])
         
-        # Plot CDF
-        ax.step(rob_vals, cdf_vals, where='post', lw=2, c=cmap(i), label=f"Pctiles {labels[i]}", zorder=len(percentiles)-i)
+#         # Plot CDF
+#         ax.step(rob_vals, cdf_vals, where='post', lw=2, c=cmap(i), label=f"Pctiles {labels[i]}", zorder=len(percentiles)-i)
         
-        ax.legend()
+#         ax.legend()
         
-        ax.set_xscale('log')
+#         ax.set_xscale('log')
         
-        # Format figure
-        ax.set_xlabel('Normalized robustness')
-        ax.set_ylabel('CDF')
+#         # Format figure
+#         ax.set_xlabel('Normalized robustness')
+#         ax.set_ylabel('CDF')
     
 # #------------------------------------------------------------------------------
 # # PLOT MEDIAN ROBUSTNESS OF EACH PERCENTILE
 # #------------------------------------------------------------------------------
 # n_quantiles = 30
-# cmap = plt.get_cmap('viridis', n_quantiles)
 
 # for seed in seeds:
 #     mask0 = neuron_df[f"distance_{seed}"] > 0
@@ -427,4 +426,54 @@ for seed in seeds:
 #     # Format figure
 #     ax.set_xlabel('Peripherality quantile')
 #     ax.set_ylabel('Median robustness')
+    
+#------------------------------------------------------------------------------
+# ANALYSIS - VISUAL SEED
+#------------------------------------------------------------------------------
+# Suppose df has column "x"
+percentiles = np.array([0, 1, 2, 4, 8, 16, 32, 64, 100])
+# percentiles = np.arange(0,101)
+centers = (percentiles[1:]+percentiles[:-1])/2
+
+# Convert percentile boundaries to actual x-values
+seed = 'optic'
+mask0 = neuron_df[f"distance_{seed}"] > 0
+masked_df = neuron_df[mask0].copy()
+cuts = np.percentile(neuron_df[mask0][f"distance_{seed}"].dropna(), percentiles)
+
+# Create readable labels
+labels = [f"{percentiles[i]}-{percentiles[i+1]}" for i in range(len(percentiles)-1)]
+masked_df[f"{seed}_band"] = pd.cut(neuron_df[f"distance_{seed}"], bins=cuts, labels=labels, include_lowest=True)
+
+# Compute median of robustness for each band
+medians = []
+for l in labels:
+    mask = masked_df[f"{seed}_band"] == l
+    medians.append(masked_df[mask]['norm_robustness'].median())
+
+seed_median = neuron_df[~mask0]['norm_robustness'].median()
+
+# Set up figure
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    
+# Plot medians
+ax.plot(centers, medians, lw=2, c=con_colors[4])
+
+ax.scatter([centers[0]/2], [seed_median], c='white', edgecolors=con_colors[4])
+
+ax.set_xscale('log')
+
+# Format figure
+ax.set_xlabel('Peripherality quantile')
+ax.set_ylabel('Median robustness')
+
+plt.show()
+
+#------------------------------------------------------------------------------
+# COMPOISITION OF BUCKETS
+#------------------------------------------------------------------------------
+for l in labels[:5]:
+    mask = masked_df[f"{seed}_band"] == l
+    print('Bucket:',l)
+    print(masked_df[mask]['primary_type'].value_counts()/np.sum(masked_df[mask]['primary_type'].value_counts()))
     

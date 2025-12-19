@@ -138,135 +138,173 @@ ax.set_ylabel('CDF')
 plt.show()
 
 #------------------------------------------------------------------------------
-# STATISTICS OF SPECIFIC NEURONS
+# DISTRIBUTION OF MEAN/VARIANCE IN WEIGHTS
 #------------------------------------------------------------------------------
-# --- 1. Define neuron group patterns ---
+# Compute means and variances
+neuron_df['mean_strength'] = neuron_df['in_strength']/neuron_df['in_deg']
+neuron_df['var_strength'] = neuron_df['sum_w2']/neuron_df['in_deg'] - neuron_df['mean_strength']**2
 
-patterns = {
-    "LCs"     : re.compile(r"^LC", re.IGNORECASE),
-    "LPLCs"   : re.compile(r"^LPLC", re.IGNORECASE),
-    "LLPCs"   : re.compile(r"^LLPC", re.IGNORECASE),
-    "LPCs"    : re.compile(r"^LPC", re.IGNORECASE),
-    "LT cells": re.compile(r"^LT", re.IGNORECASE),
-    "T4"     : re.compile(r"^T4", re.IGNORECASE),
-    "T5"   : re.compile(r"^T5", re.IGNORECASE),
-    "Mi1"   : re.compile(r"^Mi1", re.IGNORECASE),
-    "Mi4"    : re.compile(r"^Mi4", re.IGNORECASE),
-    "CT1": re.compile(r"^CT1", re.IGNORECASE),
-    "PNs": re.compile(r"^PN", re.IGNORECASE),
-    "LNs": re.compile(r"^LN", re.IGNORECASE),
-    "Kenyon cells": re.compile(r"^KC", re.IGNORECASE),
-    "MBONs": re.compile(r"^MBON", re.IGNORECASE),
-    "DANs": re.compile(r"^DAN", re.IGNORECASE),
-    "R cells": re.compile(r"^ER", re.IGNORECASE),
-    "EPG cells": re.compile(r"^EPG", re.IGNORECASE),
-    "PFNp cells": re.compile(r"^PFNp", re.IGNORECASE),
-    "FB cells": re.compile(r"^FB", re.IGNORECASE),
-    "hdelta": re.compile(r"^hdelta", re.IGNORECASE),
-    "vdelta": re.compile(r"^vdelta", re.IGNORECASE),
-    "PEN1/PEN2": re.compile(r"^PEN", re.IGNORECASE),
-    "DNs": re.compile(r"^DN", re.IGNORECASE),
-}
+# Plot distribution of means
+mean_vals, mean_cdf = compute_cdf(neuron_df['mean_strength'])
 
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-# --- 2. Which variables to summarize ---
+# Plot CDF
+ax.step(mean_vals, mean_cdf, where='post', lw=2, c=con_colors[0])
 
-vars_to_compute = [
-    "in_deg",
-    "out_deg",
-    "norm_robustness",
-    "distance_joint",
-    "reciprocity",
-]
-
-# --- 3. Function to extract rows by regex ---
-
-def filter_by_regex(df, col, regex):
-    return df[df[col].str.contains(regex)]
-
-
-# --- 4. Function to compute "mean (std)" ---
-
-def mean_std_str(series):
-    if series.empty:
-        return ""
-    m = series.mean()
-    s = series.std()
-    return f"{m:.2f} ({s:.2f})"
-
-
-# --- 5. Build the table row by row ---
-
-rows = []
-
-for label, regex in patterns.items():
-    if label == 'DANs':
-        subset = filter_by_regex(neuron_df, "class", regex)
-    else:
-        subset = filter_by_regex(neuron_df, "primary_type", regex)
-
-    row = {
-        "Neuron": label,
-        "n_neurons": len(subset)
-    }
-    for var in vars_to_compute:
-        row[var] = mean_std_str(subset[var])
-    rows.append(row)
-
-summary_df = pd.DataFrame(rows)
-
-# Get names of neurons obtained by regex pattern
-unique_rows = []
-
-for label, regex in patterns.items():
-    if label == 'DANs':
-        subset = filter_by_regex(neuron_df, "class", regex)
-        
-        # Count occurrences of each neuron name
-        counts = (
-            subset["primary_type"]
-            .value_counts()        # counts descending by default
-            .rename_axis("Name")
-            .reset_index(name="Count")
-        )
-        
-    else:
-        subset = filter_by_regex(neuron_df, "primary_type", regex)
-
-        # Count occurrences of each neuron name
-        counts = (
-            subset["primary_type"]
-            .value_counts()        # counts descending by default
-            .rename_axis("Name")
-            .reset_index(name="Count")
-        )
-
-    unique_rows.append({
-        "Neuron": label,
-        "n_neurons": len(counts),
-        "Names": counts["Name"].tolist(),   # ordered by count
-        "Counts": counts["Count"].tolist()  # matching order
-    })
-
-unique_names_df = pd.DataFrame(unique_rows)
-
-#------------------------------------------------------------------------------
-# STATISTICS OF SPECIFIC NEURONS
-#------------------------------------------------------------------------------
-class_rows = []
-
-for neuron_class in neuron_df['class'].unique():
-    mask = neuron_df['class'] == neuron_class
+ax.set_xscale('log')
     
-    row = {
-        "Neuron": neuron_class,
-        "n_neurons": np.sum(mask)
-    }
-    for var in vars_to_compute:
-        row[var] = mean_std_str(neuron_df[mask][var])
-    class_rows.append(row)
+ax.set_xlabel('Average weight')
+ax.set_ylabel('CDF')
 
-class_stats = pd.DataFrame(class_rows)
+plt.show()
+
+# Plot distribution of variances
+var_vals, var_cdf = compute_cdf(neuron_df['var_strength'])
+
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+# Plot CDF
+ax.step(var_vals, var_cdf, where='post', lw=2, c=con_colors[0])
+
+ax.set_xscale('log')
+    
+ax.set_xlabel('Variance in weight')
+ax.set_ylabel('CDF')
+
+plt.show()
+
+
+# #------------------------------------------------------------------------------
+# # STATISTICS OF SPECIFIC NEURONS
+# #------------------------------------------------------------------------------
+# # --- 1. Define neuron group patterns ---
+
+# patterns = {
+#     "LCs"     : re.compile(r"^LC", re.IGNORECASE),
+#     "LPLCs"   : re.compile(r"^LPLC", re.IGNORECASE),
+#     "LLPCs"   : re.compile(r"^LLPC", re.IGNORECASE),
+#     "LPCs"    : re.compile(r"^LPC", re.IGNORECASE),
+#     "LT cells": re.compile(r"^LT", re.IGNORECASE),
+#     "T4"     : re.compile(r"^T4", re.IGNORECASE),
+#     "T5"   : re.compile(r"^T5", re.IGNORECASE),
+#     "Mi1"   : re.compile(r"^Mi1", re.IGNORECASE),
+#     "Mi4"    : re.compile(r"^Mi4", re.IGNORECASE),
+#     "CT1": re.compile(r"^CT1", re.IGNORECASE),
+#     "PNs": re.compile(r"^PN", re.IGNORECASE),
+#     "LNs": re.compile(r"^LN", re.IGNORECASE),
+#     "Kenyon cells": re.compile(r"^KC", re.IGNORECASE),
+#     "MBONs": re.compile(r"^MBON", re.IGNORECASE),
+#     "DANs": re.compile(r"^DAN", re.IGNORECASE),
+#     "R cells": re.compile(r"^ER", re.IGNORECASE),
+#     "EPG cells": re.compile(r"^EPG", re.IGNORECASE),
+#     "PFNp cells": re.compile(r"^PFNp", re.IGNORECASE),
+#     "FB cells": re.compile(r"^FB", re.IGNORECASE),
+#     "hdelta": re.compile(r"^hdelta", re.IGNORECASE),
+#     "vdelta": re.compile(r"^vdelta", re.IGNORECASE),
+#     "PEN1/PEN2": re.compile(r"^PEN", re.IGNORECASE),
+#     "DNs": re.compile(r"^DN", re.IGNORECASE),
+# }
+
+
+# # --- 2. Which variables to summarize ---
+
+# vars_to_compute = [
+#     "in_deg",
+#     "out_deg",
+#     "norm_robustness",
+#     "distance_joint",
+#     "reciprocity",
+# ]
+
+# # --- 3. Function to extract rows by regex ---
+
+# def filter_by_regex(df, col, regex):
+#     return df[df[col].str.contains(regex)]
+
+
+# # --- 4. Function to compute "mean (std)" ---
+
+# def mean_std_str(series):
+#     if series.empty:
+#         return ""
+#     m = series.mean()
+#     s = series.std()
+#     return f"{m:.2f} ({s:.2f})"
+
+
+# # --- 5. Build the table row by row ---
+
+# rows = []
+
+# for label, regex in patterns.items():
+#     if label == 'DANs':
+#         subset = filter_by_regex(neuron_df, "class", regex)
+#     else:
+#         subset = filter_by_regex(neuron_df, "primary_type", regex)
+
+#     row = {
+#         "Neuron": label,
+#         "n_neurons": len(subset)
+#     }
+#     for var in vars_to_compute:
+#         row[var] = mean_std_str(subset[var])
+#     rows.append(row)
+
+# summary_df = pd.DataFrame(rows)
+
+# # Get names of neurons obtained by regex pattern
+# unique_rows = []
+
+# for label, regex in patterns.items():
+#     if label == 'DANs':
+#         subset = filter_by_regex(neuron_df, "class", regex)
+        
+#         # Count occurrences of each neuron name
+#         counts = (
+#             subset["primary_type"]
+#             .value_counts()        # counts descending by default
+#             .rename_axis("Name")
+#             .reset_index(name="Count")
+#         )
+        
+#     else:
+#         subset = filter_by_regex(neuron_df, "primary_type", regex)
+
+#         # Count occurrences of each neuron name
+#         counts = (
+#             subset["primary_type"]
+#             .value_counts()        # counts descending by default
+#             .rename_axis("Name")
+#             .reset_index(name="Count")
+#         )
+
+#     unique_rows.append({
+#         "Neuron": label,
+#         "n_neurons": len(counts),
+#         "Names": counts["Name"].tolist(),   # ordered by count
+#         "Counts": counts["Count"].tolist()  # matching order
+#     })
+
+# unique_names_df = pd.DataFrame(unique_rows)
+
+# #------------------------------------------------------------------------------
+# # STATISTICS OF SPECIFIC NEURONS
+# #------------------------------------------------------------------------------
+# class_rows = []
+
+# for neuron_class in neuron_df['class'].unique():
+#     mask = neuron_df['class'] == neuron_class
+    
+#     row = {
+#         "Neuron": neuron_class,
+#         "n_neurons": np.sum(mask)
+#     }
+#     for var in vars_to_compute:
+#         row[var] = mean_std_str(neuron_df[mask][var])
+#     class_rows.append(row)
+
+# class_stats = pd.DataFrame(class_rows)
 
 
 

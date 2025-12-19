@@ -52,82 +52,82 @@ width = 3.5
 height = 3.2
 
 sim_dir = '../simulation_results/'
-n_inputs = 100
+n_inputs = 1000
+n_pred = 200
 
 # Import simulated loss
-poisson_df = pd.read_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
+# poisson_df = pd.read_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
 lognormal_df = pd.read_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
 
-#------------------------------------------------------------------------------
-# POISSON SIMULATIONS
-#------------------------------------------------------------------------------
-# Get values of the Poisson rate
-w0_vals = poisson_df['w0'].unique()
-
 # Define predicted loss
-def poisson_loss(w0):
-    rob = np.sqrt(1.+w0)
+def general_loss(mean, var):
+    rob = np.sqrt(mean + var/mean)
     return (1/np.pi)*np.arccos((1.+1./rob**2)**(-1/2))
 
-# Get rates for prediction
-w_min, w_max = np.min(w0_vals), np.max(w0_vals)
-n_pred = 200
-w0_pred = np.logspace(np.log10(w_min), np.log10(w_max), n_pred)
+# #------------------------------------------------------------------------------
+# # POISSON SIMULATIONS
+# #------------------------------------------------------------------------------
+# # Get values of the Poisson rate
+# w0_vals = poisson_df['w0'].unique()
 
-# Plot simulation results and prediction
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+# # Define predicted loss
+# def poisson_loss(w0):
+#     rob = np.sqrt(1.+w0)
+#     return (1/np.pi)*np.arccos((1.+1./rob**2)**(-1/2))
 
-ax.plot(w0_pred, poisson_loss(w0_pred), c=con_colors[3], lw=2, label='Prediction', zorder=0)
-ax.scatter(poisson_df['w0'], poisson_df['sim_loss'], c='white', edgecolors=con_colors[3], s=10, rasterized=True)
+# # Get rates for prediction
+# w_min, w_max = np.min(w0_vals), np.max(w0_vals)
+# w0_pred = np.logspace(np.log10(w_min), np.log10(w_max), n_pred)
 
-ax.legend()
+# # Plot simulation results and prediction
+# fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-ax.set_xscale('log')
+# ax.plot(w0_pred, poisson_loss(w0_pred), c=con_colors[3], lw=2, label='Prediction', zorder=0)
+# ax.scatter(poisson_df['w0'], poisson_df['sim_loss'], c='white', edgecolors=con_colors[3], s=10, rasterized=True)
+
+# ax.legend()
+
+# ax.set_xscale('log')
     
-ax.set_xlabel('Average weight $w_0$')
-ax.set_ylabel('Simulated loss')
+# ax.set_xlabel('Average weight $w_0$')
+# ax.set_ylabel('Simulated loss')
 
-plt.show()
+# plt.show()
 
 #------------------------------------------------------------------------------
 # LOGNORMAL SIMULATIONS
 #------------------------------------------------------------------------------
 # Get values of mu and sigma
-mu_vals = lognormal_df['mu'].unique()
-sigma_vals = lognormal_df['sigma'].unique()
-
-# Define predicted loss
-def lognormal_loss(mu, sigma):
-    mean = np.exp(mu + (sigma**2)/2)
-    var = (np.exp(sigma**2)-1)*np.exp(2*mu + sigma**2)
-    rob = np.sqrt(mean + var/mean)
-    return (1/np.pi)*np.arccos((1.+1./rob**2)**(-1/2))
+mean_vals = lognormal_df['mean'].unique()
+var_vals = lognormal_df['var'].unique()
 
 # Get sigmas for prediction
-sigma_min, sigma_max = np.min(sigma_vals), np.max(sigma_vals)
-sigma_pred = np.linspace(sigma_min, sigma_max, n_pred)
+mean_min, mean_max = np.min(mean_vals), np.max(mean_vals)
+mean_pred = np.linspace(mean_min, mean_max, n_pred)
 
 # Define colormap for each log-mean
-cmap = plt.get_cmap('plasma', len(mu_vals))
+cmap = plt.get_cmap('plasma', len(var_vals))
 
 # Plot simulation results and prediction
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-for i, mu in enumerate(mu_vals):
-    mask = lognormal_df['mu'] == mu
+for i, var in enumerate(var_vals):
+    mask = lognormal_df['var'] == var
     
     # Plot loss
-    ax.plot(sigma_pred, lognormal_loss(mu, sigma_pred), c=cmap(i), lw=2, label=f"$\mu={mu}$", zorder=0)
-    ax.scatter(lognormal_df[mask]['sigma'], lognormal_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
+    ax.plot(mean_pred, general_loss(mean_pred, var), c=cmap(i), lw=2, label=f"Var.$={var}$", zorder=0)
+    ax.scatter(lognormal_df[mask]['mean'], lognormal_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
 
 ax.legend()
     
-ax.set_xlabel('Log-scale $\sigma$')
+ax.set_xlabel('Mean weight')
 ax.set_ylabel('Simulated loss')
 
 plt.show()
 
-
+#------------------------------------------------------------------------------
+# LOMAX SIMULATIONS
+#------------------------------------------------------------------------------
 
 
 
