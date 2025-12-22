@@ -186,16 +186,16 @@ def average_error_fast(
 # LOMAX SIMULATION
 #------------------------------------------------------------------------------
 def invert_lomax(r, w0, a):
-    return (r**(-1/a) - 1.)*w0
+    return ((1-r)**(-1/a) - 1.)*w0
 
 eta = 1.0
 eps = 1.0
 
-n_inputs = 100
+n_inputs = int(1e3)
 
 n_neurons = int(1e3)
-n_mean = 10
-mean_vals = np.arange(1.,50, n_mean)
+n_mean = 5
+mean_vals = np.linspace(1.,50, n_mean)
 var_vals = 10**np.arange(1,5)
 
 lomax_loss = []
@@ -208,7 +208,7 @@ for mean in tqdm(mean_vals):
         for i in range(n_neurons):
             # Draw neurons
             a = 2./(1.-(mean**2)/var)
-            w0 = a*mean
+            w0 = (a-1)*mean
             r = np.random.rand(n_inputs)
             w = invert_lomax(r,w0,a)
         

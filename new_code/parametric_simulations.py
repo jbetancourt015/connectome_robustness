@@ -52,12 +52,13 @@ width = 3.5
 height = 3.2
 
 sim_dir = '../simulation_results/'
-n_inputs = 1000
+n_inputs = 10
 n_pred = 200
 
 # Import simulated loss
 # poisson_df = pd.read_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
 lognormal_df = pd.read_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
+lomax_df = pd.read_parquet(sim_dir+f"lomax_sim_{n_inputs}.parquet")
 
 # Define predicted loss
 def general_loss(mean, var):
@@ -97,7 +98,7 @@ def general_loss(mean, var):
 #------------------------------------------------------------------------------
 # LOGNORMAL SIMULATIONS
 #------------------------------------------------------------------------------
-# Get values of mu and sigma
+# Get values of mean and variance
 mean_vals = lognormal_df['mean'].unique()
 var_vals = lognormal_df['var'].unique()
 
@@ -128,6 +129,33 @@ plt.show()
 #------------------------------------------------------------------------------
 # LOMAX SIMULATIONS
 #------------------------------------------------------------------------------
+# Get values of mean and variance
+mean_vals = lomax_df['mean'].unique()
+var_vals = lomax_df['var'].unique()
+
+# Get sigmas for prediction
+mean_min, mean_max = np.min(mean_vals), np.max(mean_vals)
+mean_pred = np.linspace(mean_min, mean_max, n_pred)
+
+# Define colormap for each log-mean
+cmap = plt.get_cmap('plasma', len(var_vals))
+
+# Plot simulation results and prediction
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+for i, var in enumerate(var_vals):
+    mask = lomax_df['var'] == var
+    
+    # Plot loss
+    ax.plot(mean_pred, general_loss(mean_pred, var), c=cmap(i), lw=2, label=f"Var.$={var}$", zorder=0)
+    ax.scatter(lomax_df[mask]['mean'], lomax_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
+
+ax.legend()
+    
+ax.set_xlabel('Mean weight')
+ax.set_ylabel('Simulated loss')
+
+plt.show()
 
 
 
