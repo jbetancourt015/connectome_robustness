@@ -71,9 +71,12 @@ def compute_z_ztilde(
         rng = np.random.default_rng()
 
     # Generate lognormal weights
-    mu = np.log(mean**2 / np.sqrt(mean**2 + var))
-    sigma = np.sqrt(np.log(1. + var / mean**2))
-    w = rng.lognormal(mu, sigma, n_inputs)
+    # mu = np.log(mean**2 / np.sqrt(mean**2 + var))
+    # sigma = np.sqrt(np.log(1. + var / mean**2))
+    # w = rng.lognormal(mu, sigma, n_inputs)
+    theta = var/mean
+    alpha = mean/theta
+    w = rng.gamma(alpha, theta, n_inputs)
 
     # Draw inputs: n_inputs × n_draws
     x = rng.choice([-1.0, 1.0], size=(n_inputs, n_draws))
@@ -175,19 +178,19 @@ def save_z_ztilde(
 rng = np.random.default_rng(1764)
 
 # Parameters
-means = [10., 20., 10.]
-variances = [100., 100., 200.]
-n_inputs = 1000
+means = [1., 9.5, 1.]
+second_moments = [100., 100., 400.]
+n_inputs = int(1e4)
 eta = 1.0
-eps = 1.0
-n_draws = 1000
-n_perturb = 1000
+eps = 10.0
+n_draws = int(1e3)
+n_perturb = int(1e3)
 fnames = ['baseline', 'high_w', 'high_w2']
 
 for i in range(3):
     fname = fnames[i]
     mean = means[i]
-    var = variances[i]
+    var = second_moments[i] - mean**2
     print(f"Simulating round {fname}")
     # Compute and save
     df, w = save_z_ztilde(
