@@ -71,12 +71,14 @@ def compute_z_ztilde(
         rng = np.random.default_rng()
 
     # Generate lognormal weights
-    # mu = np.log(mean**2 / np.sqrt(mean**2 + var))
-    # sigma = np.sqrt(np.log(1. + var / mean**2))
-    # w = rng.lognormal(mu, sigma, n_inputs)
-    theta = var/mean
-    alpha = mean/theta
-    w = rng.gamma(alpha, theta, n_inputs)
+    mu = np.log(mean**2 / np.sqrt(mean**2 + var))
+    sigma = np.sqrt(np.log(1. + var / mean**2))
+    w = rng.lognormal(mu, sigma, n_inputs)
+    
+    # Generate gamma weights
+    # theta = var/mean
+    # alpha = mean/theta
+    # w = rng.gamma(alpha, theta, n_inputs)
 
     # Draw inputs: n_inputs × n_draws
     x = rng.choice([-1.0, 1.0], size=(n_inputs, n_draws))

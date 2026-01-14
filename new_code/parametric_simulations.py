@@ -102,26 +102,26 @@ def general_loss(mean, var):
 mean_vals = lognormal_df['mean'].unique()
 var_vals = lognormal_df['var'].unique()
 
-# Get sigmas for prediction
-mean_min, mean_max = np.min(mean_vals), np.max(mean_vals)
-mean_pred = np.linspace(mean_min, mean_max, n_pred)
+# Get variances for prediction
+var_min, var_max = np.min(var_vals), np.max(var_vals)
+var_pred = np.linspace(var_min, var_max, n_pred)
 
-# Define colormap for each log-mean
-cmap = plt.get_cmap('plasma', len(var_vals))
+# Define colormap for each mean
+cmap = plt.get_cmap('plasma', len(mean_vals))
 
 # Plot simulation results and prediction
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-for i, var in enumerate(var_vals):
-    mask = lognormal_df['var'] == var
+for i, mean in enumerate(mean_vals):
+    mask = lognormal_df['mean'] == mean
     
     # Plot loss
-    ax.plot(mean_pred, general_loss(mean_pred, var), c=cmap(i), lw=2, label=f"Var.$={var}$", zorder=0)
-    ax.scatter(lognormal_df[mask]['mean'], lognormal_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
+    ax.plot(var_pred, general_loss(mean, var_pred), c=cmap(i), lw=2, label=f"Mean$={mean}$", zorder=0)
+    ax.scatter(lognormal_df[mask]['var'], lognormal_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
 
 ax.legend()
     
-ax.set_xlabel('Mean weight')
+ax.set_xlabel('Variance')
 ax.set_ylabel('Simulated loss')
 
 plt.show()
@@ -133,26 +133,26 @@ plt.show()
 mean_vals = lomax_df['mean'].unique()
 var_vals = lomax_df['var'].unique()
 
-# Get sigmas for prediction
-mean_min, mean_max = np.min(mean_vals), np.max(mean_vals)
-mean_pred = np.linspace(mean_min, mean_max, n_pred)
+# Get variances for prediction
+var_min, var_max = np.min(var_vals), np.max(var_vals)
+var_pred = np.linspace(var_min, var_max, n_pred)
 
-# Define colormap for each log-mean
-cmap = plt.get_cmap('plasma', len(var_vals))
+# Define colormap for each mean
+cmap = plt.get_cmap('plasma', len(mean_vals))
 
 # Plot simulation results and prediction
 fig, ax = plt.subplots(figsize=(.9*width, .9*height))
 
-for i, var in enumerate(var_vals):
-    mask = lomax_df['var'] == var
+for i, mean in enumerate(mean_vals):
+    mask = lomax_df['mean'] == mean
     
     # Plot loss
-    ax.plot(mean_pred, general_loss(mean_pred, var), c=cmap(i), lw=2, label=f"Var.$={var}$", zorder=0)
-    ax.scatter(lomax_df[mask]['mean'], lomax_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
+    ax.plot(var_pred, general_loss(mean, var_pred), c=cmap(i), lw=2, label=f"Mean$={mean}$", zorder=0)
+    ax.scatter(lomax_df[mask]['var'], lomax_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
 
 ax.legend()
     
-ax.set_xlabel('Mean weight')
+ax.set_xlabel('Variance')
 ax.set_ylabel('Simulated loss')
 
 plt.show()
