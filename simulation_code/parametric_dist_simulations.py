@@ -5,7 +5,7 @@ created on:
     Mon 15 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Mon 15 Dec 2025
+    Tue 20 Jan 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -83,14 +83,9 @@ def average_error_fast(
     return error_sum / total_pairs
 
 
-def _invert_lomax(r, w0, a):
-    """Inverse CDF sampling for Lomax distribution."""
-    return ((1-r)**(-1/a) - 1.) * w0
-
-
-def sample_weights(distribution, mean, var, n_inputs, rng=None):
+def get_dist_params(distribution, mean, var):
     """
-    Sample weights from a specified distribution given mean and variance.
+    Convert mean/variance to native distribution parameters.
     
     Parameters
     ----------
@@ -100,9 +95,47 @@ def sample_weights(distribution, mean, var, n_inputs, rng=None):
         Desired mean of the distribution.
     var : float
         Desired variance of the distribution.
+    
+    Returns
+    -------
+    params : tuple
+        Native parameters for the distribution.
+    """
+    if distribution == 'lognormal':
+        sigma = np.sqrt(np.log(1. + var / mean**2))
+        mu = np.log(mean) - sigma**2 / 2.
+        return (mu, sigma)
+    
+    elif distribution == 'lomax':
+        if var <= mean**2:
+            raise ValueError("Lomax requires var > mean^2 for finite variance (alpha > 2)")
+        a = 2. * var / (var - mean**2)
+        w0 = (a - 1.) * mean
+        return (a, w0)
+    
+    elif distribution == 'gamma':
+        shape = mean**2 / var
+        scale = var / mean
+        return (shape, scale)
+    
+    else:
+        raise ValueError(f"Unknown distribution: {distribution}. "
+                         f"Choose from 'lognormal', 'lomax', 'gamma'.")
+
+
+def sample_weights(distribution, params, n_inputs, rng):
+    """
+    Sample weights using pre-computed distribution parameters.
+    
+    Parameters
+    ----------
+    distribution : str
+        One of 'lognormal', 'lomax', or 'gamma'.
+    params : tuple
+        Native parameters from get_dist_params().
     n_inputs : int
         Number of samples to draw.
-    rng : np.random.Generator, optional
+    rng : np.random.Generator
         Random number generator.
     
     Returns
@@ -110,32 +143,18 @@ def sample_weights(distribution, mean, var, n_inputs, rng=None):
     w : ndarray
         Array of sampled weights.
     """
-    if rng is None:
-        rng = np.random.default_rng()
-    
     if distribution == 'lognormal':
-        sigma = np.sqrt(np.log(1. + var / mean**2))
-        mu = np.log(mean) - sigma**2 / 2.
-        w = rng.lognormal(mu, sigma, n_inputs)
+        mu, sigma = params
+        return rng.lognormal(mu, sigma, n_inputs)
     
     elif distribution == 'lomax':
-        if var <= mean**2:
-            raise ValueError("Lomax requires var > mean^2 for finite variance (alpha > 2)")
-        a = 2. * var / (var - mean**2)
-        w0 = (a - 1.) * mean
+        a, w0 = params
         r = rng.random(n_inputs)
-        w = _invert_lomax(r, w0, a)
+        return ((1-r)**(-1/a) - 1.) * w0
     
     elif distribution == 'gamma':
-        shape = mean**2 / var
-        scale = var / mean
-        w = rng.gamma(shape, scale, n_inputs)
-    
-    else:
-        raise ValueError(f"Unknown distribution: {distribution}. "
-                         f"Choose from 'lognormal', 'lomax', 'gamma'.")
-    
-    return w
+        shape, scale = params
+        return rng.gamma(shape, scale, n_inputs)
 
 
 def run_simulation(
@@ -193,10 +212,13 @@ def run_simulation(
     
     for mean in tqdm(mean_vals, desc=distribution):
         for var in var_vals:
+            # Compute distribution parameters once per (mean, var) pair
+            params = get_dist_params(distribution, mean, var)
+            
             loss = np.full(n_neurons, np.nan, dtype=float)
             for i in range(n_neurons):
-                # Sample weights from distribution
-                w = sample_weights(distribution, mean, var, n_inputs, rng)
+                # Sample weights using pre-computed parameters
+                w = sample_weights(distribution, params, n_inputs, rng)
                 
                 # Monte Carlo loss estimate
                 l_hat = average_error_fast(
