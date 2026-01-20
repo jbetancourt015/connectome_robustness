@@ -211,6 +211,27 @@ ax.set_ylabel('1 - CDF')
 
 plt.show()
 
+# FIGURE: Distribution of connections by brain region (Grid)--------------------
+fig, axes = plt.subplots(3, 4, figsize=(2*width, 1.5*height), 
+                          sharex=True, sharey=True)
+
+for idx, r in enumerate(tqdm(region_order[:-1])):
+    ax = axes.flat[idx]
+    mask = region_df['brain_region'] == r
+    s_region, P_region = empirical_hist_pd(region_df[mask]['syn_count'])
+    ax.scatter(s_region, P_region, color=region_colors[r], s=10, rasterized=True)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.text(0.95, 0.95, r, transform=ax.transAxes, fontsize=8,
+            ha='right', va='top')
+
+# Add shared axis labels
+fig.supxlabel('Connection strength')
+fig.supylabel('Probability')
+
+plt.tight_layout()
+plt.show()
+
 #------------------------------------------------------------------------------
 # OTHER DISTRIBUTIONS
 #------------------------------------------------------------------------------

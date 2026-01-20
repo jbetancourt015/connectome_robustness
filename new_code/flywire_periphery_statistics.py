@@ -453,19 +453,45 @@ for l in labels:
 
 seed_median = neuron_df[~mask0]['norm_robustness'].median()
 
-# Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-    
-# Plot medians
-ax.plot(centers, medians, lw=2, c=con_colors[4])
+# Set up figure with broken x-axis
+fig, (ax_left, ax_right) = plt.subplots(
+    1, 2, 
+    sharey=True, 
+    figsize=(.9*width, .9*height),
+    gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
+)
 
-ax.scatter([centers[0]/2], [seed_median], c='white', edgecolors=con_colors[4])
+# Left panel: seed point at x=0 (linear scale)
+ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
+ax_left.text(0, seed_median + 0.5, 'Seed', ha='center', va='bottom', fontsize=8)
+ax_left.set_xlim(-0.5, 0.5)
+ax_left.set_xticks([0])
+ax_left.set_xticklabels(['0'])
 
-ax.set_xscale('log')
+# Right panel: rest of plot (log scale)
+ax_right.plot(centers, medians, lw=2, c=con_colors[4])
+ax_right.set_xscale('log')
+
+# Hide the spines between the two axes to show the "break"
+ax_left.spines['right'].set_visible(False)
+ax_right.spines['left'].set_visible(False)
+ax_right.tick_params(left=False)  # hide left ticks on right panel
+
+# Add diagonal break marks (scale d for left panel to match visual angle)
+d = 0.015  # size of diagonal lines in axes coords (for right panel)
+d_left = d * 6  # scale by width ratio (6:1) for left panel
+
+kwargs = dict(transform=ax_left.transAxes, color='k', clip_on=False, lw=0.8)
+ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
+ax_left.plot((1 - d_left, 1 + d_left), (1 - d, 1 + d), **kwargs)  # top-right
+
+kwargs.update(transform=ax_right.transAxes)
+ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
+ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # top-left
 
 # Format figure
-ax.set_xlabel('Peripherality quantile')
-ax.set_ylabel('Median robustness')
+ax_left.set_ylabel('Median robustness')
+fig.supxlabel('Peripherality quantile', fontsize=9)
 
 plt.show()
 

@@ -128,58 +128,58 @@ def average_error_fast(
 # # Save dataset as parquet
 # poisson_df.to_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
 
-# #------------------------------------------------------------------------------
-# # LOGNORMAL SIMULATION
-# #------------------------------------------------------------------------------
-# eta = 1.0
-# eps = 1.0
+#------------------------------------------------------------------------------
+# LOGNORMAL SIMULATION
+#------------------------------------------------------------------------------
+eta = 1.0
+eps = 1.0
 
-# n_inputs = 1000
+n_inputs = int(1e2)
 
-# n_neurons = int(1e3)
-# n_mean = 10
-# mean_vals = np.arange(1.,50, n_mean)
-# var_vals = 10**np.arange(5)
+n_neurons = int(1e3)
+n_mean = 10
+mean_vals = np.arange(1.,50, n_mean)
+var_vals = 10**np.arange(5)
 
-# lognormal_loss = []
-# mean_ar = []
-# var_ar = []
+lognormal_loss = []
+mean_ar = []
+var_ar = []
 
-# for mean in tqdm(mean_vals):
-#     for var in var_vals:
-#         loss = np.full(n_neurons, np.nan, dtype=float)
-#         for i in range(n_neurons):
-#             # Draw neurons
-#             mu = np.log(mean**2/np.sqrt(mean**2 + var))
-#             sigma = np.sqrt(np.log(1.+var/mean**2))
-#             w = np.random.lognormal(mu,sigma, n_inputs)
+for mean in tqdm(mean_vals):
+    for var in var_vals:
+        loss = np.full(n_neurons, np.nan, dtype=float)
+        for i in range(n_neurons):
+            # Draw neurons
+            mu = np.log(mean**2/np.sqrt(mean**2 + var))
+            sigma = np.sqrt(np.log(1.+var/mean**2))
+            w = np.random.lognormal(mu,sigma, n_inputs)
         
-#             # Monte Carlo loss (fast, blocked)
-#             l_hat = average_error_fast(
-#                 w,
-#                 eta=eta,
-#                 eps=eps,
-#                 n_draws=n_draws,
-#                 n_perturb=n_perturb,
-#                 block_perturb=128,
-#                 rng=rng,
-#             )
+            # Monte Carlo loss (fast, blocked)
+            l_hat = average_error_fast(
+                w,
+                eta=eta,
+                eps=eps,
+                n_draws=n_draws,
+                n_perturb=n_perturb,
+                block_perturb=128,
+                rng=rng,
+            )
         
-#             loss[i] = l_hat
+            loss[i] = l_hat
         
-#         lognormal_loss.append(np.mean(loss))
-#         mean_ar.append(mean)
-#         var_ar.append(var)
+        lognormal_loss.append(np.mean(loss))
+        mean_ar.append(mean)
+        var_ar.append(var)
 
-# # Build pandas DataFrame
-# lognormal_df = pd.DataFrame({
-#     "mean": np.array(mean_ar),
-#     "var": np.array(var_ar),
-#     "sim_loss": np.array(lognormal_loss),
-# })
+# Build pandas DataFrame
+lognormal_df = pd.DataFrame({
+    "mean": np.array(mean_ar),
+    "var": np.array(var_ar),
+    "sim_loss": np.array(lognormal_loss),
+})
 
-# # Save dataset as parquet
-# lognormal_df.to_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
+# Save dataset as parquet
+lognormal_df.to_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
 
 
 #------------------------------------------------------------------------------
@@ -191,7 +191,7 @@ def invert_lomax(r, w0, a):
 eta = 1.0
 eps = 1.0
 
-n_inputs = int(1e3)
+n_inputs = int(1e2)
 
 n_neurons = int(1e3)
 n_mean = 5

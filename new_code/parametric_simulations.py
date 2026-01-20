@@ -52,7 +52,7 @@ width = 3.5
 height = 3.2
 
 sim_dir = '../simulation_results/'
-n_inputs = 10
+n_inputs = 1000
 n_pred = 200
 
 # Import simulated loss
@@ -104,7 +104,7 @@ var_vals = lognormal_df['var'].unique()
 
 # Get variances for prediction
 var_min, var_max = np.min(var_vals), np.max(var_vals)
-var_pred = np.linspace(var_min, var_max, n_pred)
+var_pred = np.logspace(np.log10(var_min), np.log10(var_max), n_pred)
 
 # Define colormap for each mean
 cmap = plt.get_cmap('plasma', len(mean_vals))
@@ -120,6 +120,8 @@ for i, mean in enumerate(mean_vals):
     ax.scatter(lognormal_df[mask]['var'], lognormal_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
 
 ax.legend()
+
+ax.set_xscale('log')
     
 ax.set_xlabel('Variance')
 ax.set_ylabel('Simulated loss')
@@ -135,7 +137,7 @@ var_vals = lomax_df['var'].unique()
 
 # Get variances for prediction
 var_min, var_max = np.min(var_vals), np.max(var_vals)
-var_pred = np.linspace(var_min, var_max, n_pred)
+var_pred = np.logspace(np.log10(var_min), np.log10(var_max), n_pred)
 
 # Define colormap for each mean
 cmap = plt.get_cmap('plasma', len(mean_vals))
@@ -151,6 +153,8 @@ for i, mean in enumerate(mean_vals):
     ax.scatter(lomax_df[mask]['var'], lomax_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
 
 ax.legend()
+
+ax.set_xscale('log')
     
 ax.set_xlabel('Variance')
 ax.set_ylabel('Simulated loss')
