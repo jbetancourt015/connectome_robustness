@@ -18,8 +18,6 @@ contributors:
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from scipy.sparse import coo_matrix
-import matplotlib.pyplot as plt
 
 sim_dir = '../simulation_results/'
 
@@ -84,157 +82,170 @@ def average_error_fast(
 
     return error_sum / total_pairs
 
-# #------------------------------------------------------------------------------
-# # POISSON SIMULATION
-# #------------------------------------------------------------------------------
-# eta = 1.0
-# eps = 1.0
 
-# n_inputs = 10
+def _invert_lomax(r, w0, a):
+    """Inverse CDF sampling for Lomax distribution."""
+    return ((1-r)**(-1/a) - 1.) * w0
 
-# n_neurons = int(1e3)
-# n_w = 10
-# w0_vals = np.logspace(0.,3.,n_w)
 
-# poisson_loss = []
-
-# for w0 in tqdm(w0_vals):
-#     loss = np.full(n_neurons, np.nan, dtype=float)
-#     for i in range(n_neurons):
-#         # Draw neurons
-#         w = np.random.poisson(w0, n_inputs)
+def sample_weights(distribution, mean, var, n_inputs, rng=None):
+    """
+    Sample weights from a specified distribution given mean and variance.
     
-#         # Monte Carlo loss (fast, blocked)
-#         l_hat = average_error_fast(
-#             w,
-#             eta=eta,
-#             eps=eps,
-#             n_draws=n_draws,
-#             n_perturb=n_perturb,
-#             block_perturb=128,
-#             rng=rng,
-#         )
+    Parameters
+    ----------
+    distribution : str
+        One of 'lognormal', 'lomax', or 'gamma'.
+    mean : float
+        Desired mean of the distribution.
+    var : float
+        Desired variance of the distribution.
+    n_inputs : int
+        Number of samples to draw.
+    rng : np.random.Generator, optional
+        Random number generator.
     
-#         loss[i] = l_hat
+    Returns
+    -------
+    w : ndarray
+        Array of sampled weights.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
     
-#     poisson_loss.append(np.mean(loss))
+    if distribution == 'lognormal':
+        sigma = np.sqrt(np.log(1. + var / mean**2))
+        mu = np.log(mean) - sigma**2 / 2.
+        w = rng.lognormal(mu, sigma, n_inputs)
+    
+    elif distribution == 'lomax':
+        if var <= mean**2:
+            raise ValueError("Lomax requires var > mean^2 for finite variance (alpha > 2)")
+        a = 2. * var / (var - mean**2)
+        w0 = (a - 1.) * mean
+        r = rng.random(n_inputs)
+        w = _invert_lomax(r, w0, a)
+    
+    elif distribution == 'gamma':
+        shape = mean**2 / var
+        scale = var / mean
+        w = rng.gamma(shape, scale, n_inputs)
+    
+    else:
+        raise ValueError(f"Unknown distribution: {distribution}. "
+                         f"Choose from 'lognormal', 'lomax', 'gamma'.")
+    
+    return w
 
-# # Build pandas DataFrame
-# poisson_df = pd.DataFrame({
-#     "w0": w0_vals,
-#     "sim_loss": np.array(poisson_loss),
-# })
 
-# # Save dataset as parquet
-# poisson_df.to_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
+def run_simulation(
+    distribution,
+    mean_vals,
+    var_vals,
+    n_inputs=100,
+    n_neurons=1000,
+    n_draws=1000,
+    n_perturb=1000,
+    eta=1.0,
+    eps=1.0,
+    rng=None,
+    sim_dir='../simulation_results/',
+):
+    """
+    Run Monte Carlo loss simulation for a parametric distribution.
+    
+    Parameters
+    ----------
+    distribution : str
+        One of 'lognormal', 'lomax', or 'gamma'.
+    mean_vals : array-like
+        Array of mean values to simulate.
+    var_vals : array-like
+        Array of variance values to simulate.
+    n_inputs : int
+        Number of input weights per neuron.
+    n_neurons : int
+        Number of neurons to simulate per (mean, var) pair.
+    n_draws : int
+        Number of input draws for Monte Carlo.
+    n_perturb : int
+        Number of weight perturbation draws.
+    eta : float
+        Noise scaling exponent.
+    eps : float
+        Perturbation magnitude.
+    rng : np.random.Generator, optional
+        Random number generator.
+    sim_dir : str
+        Directory to save output parquet file.
+    
+    Returns
+    -------
+    df : pd.DataFrame
+        DataFrame with columns 'mean', 'var', 'sim_loss'.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+    
+    loss_list = []
+    mean_list = []
+    var_list = []
+    
+    for mean in tqdm(mean_vals, desc=distribution):
+        for var in var_vals:
+            loss = np.full(n_neurons, np.nan, dtype=float)
+            for i in range(n_neurons):
+                # Sample weights from distribution
+                w = sample_weights(distribution, mean, var, n_inputs, rng)
+                
+                # Monte Carlo loss estimate
+                l_hat = average_error_fast(
+                    w,
+                    eta=eta,
+                    eps=eps,
+                    n_draws=n_draws,
+                    n_perturb=n_perturb,
+                    block_perturb=128,
+                    rng=rng,
+                )
+                loss[i] = l_hat
+            
+            loss_list.append(np.mean(loss))
+            mean_list.append(mean)
+            var_list.append(var)
+    
+    # Build DataFrame
+    df = pd.DataFrame({
+        "mean": np.array(mean_list),
+        "var": np.array(var_list),
+        "sim_loss": np.array(loss_list),
+    })
+    
+    # Save to parquet with distribution name
+    output_path = f"{sim_dir}{distribution}_sim_{n_inputs}.parquet"
+    df.to_parquet(output_path)
+    print(f"Saved: {output_path}")
+    
+    return df
+
 
 #------------------------------------------------------------------------------
-# LOGNORMAL SIMULATION
+# MAIN EXECUTION
 #------------------------------------------------------------------------------
-eta = 1.0
-eps = 1.0
-
+# Simulation parameters
 n_inputs = int(1e2)
-
-n_neurons = int(1e3)
-n_mean = 10
-mean_vals = np.arange(1.,50, n_mean)
+mean_vals = np.arange(1., 50, 10)
 var_vals = 10**np.arange(5)
 
-lognormal_loss = []
-mean_ar = []
-var_ar = []
+# For lomax, variance must be > mean^2, so use larger variances
+lomax_var_vals = 10**np.arange(1, 5)
 
-for mean in tqdm(mean_vals):
-    for var in var_vals:
-        loss = np.full(n_neurons, np.nan, dtype=float)
-        for i in range(n_neurons):
-            # Draw neurons
-            mu = np.log(mean**2/np.sqrt(mean**2 + var))
-            sigma = np.sqrt(np.log(1.+var/mean**2))
-            w = np.random.lognormal(mu,sigma, n_inputs)
-        
-            # Monte Carlo loss (fast, blocked)
-            l_hat = average_error_fast(
-                w,
-                eta=eta,
-                eps=eps,
-                n_draws=n_draws,
-                n_perturb=n_perturb,
-                block_perturb=128,
-                rng=rng,
-            )
-        
-            loss[i] = l_hat
-        
-        lognormal_loss.append(np.mean(loss))
-        mean_ar.append(mean)
-        var_ar.append(var)
+# Run simulations for each distribution
+run_simulation('lognormal', mean_vals, var_vals, n_inputs=n_inputs,
+                n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
 
-# Build pandas DataFrame
-lognormal_df = pd.DataFrame({
-    "mean": np.array(mean_ar),
-    "var": np.array(var_ar),
-    "sim_loss": np.array(lognormal_loss),
-})
+run_simulation('lomax', mean_vals, lomax_var_vals, n_inputs=n_inputs,
+                n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
 
-# Save dataset as parquet
-lognormal_df.to_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
-
-
-#------------------------------------------------------------------------------
-# LOMAX SIMULATION
-#------------------------------------------------------------------------------
-def invert_lomax(r, w0, a):
-    return ((1-r)**(-1/a) - 1.)*w0
-
-eta = 1.0
-eps = 1.0
-
-n_inputs = int(1e2)
-
-n_neurons = int(1e3)
-n_mean = 5
-mean_vals = np.linspace(1.,50, n_mean)
-var_vals = 10**np.arange(1,5)
-
-lomax_loss = []
-mean_ar = []
-var_ar = []
-
-for mean in tqdm(mean_vals):
-    for var in var_vals:
-        loss = np.full(n_neurons, np.nan, dtype=float)
-        for i in range(n_neurons):
-            # Draw neurons
-            a = 2./(1.-(mean**2)/var)
-            w0 = (a-1)*mean
-            r = np.random.rand(n_inputs)
-            w = invert_lomax(r,w0,a)
-        
-            # Monte Carlo loss (fast, blocked)
-            l_hat = average_error_fast(
-                w,
-                eta=eta,
-                eps=eps,
-                n_draws=n_draws,
-                n_perturb=n_perturb,
-                block_perturb=128,
-                rng=rng,
-            )
-        
-            loss[i] = l_hat
-        
-        lomax_loss.append(np.mean(loss))
-        mean_ar.append(mean)
-        var_ar.append(var)
-
-# Build pandas DataFrame
-lomax_df = pd.DataFrame({
-    "mean": np.array(mean_ar),
-    "var": np.array(var_ar),
-    "sim_loss": np.array(lomax_loss),
-})
-
-# Save dataset as parquet
-lomax_df.to_parquet(sim_dir+f"lomax_sim_{n_inputs}.parquet")
+run_simulation('gamma', mean_vals, var_vals, n_inputs=n_inputs,
+                n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
