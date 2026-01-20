@@ -5,7 +5,7 @@ created on:
     Tue 16 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 16 Dec 2025
+    Tue 20 Jan 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -52,114 +52,95 @@ width = 3.5
 height = 3.2
 
 sim_dir = '../simulation_results/'
-n_inputs = 1000
 n_pred = 200
-
-# Import simulated loss
-# poisson_df = pd.read_parquet(sim_dir+f"poisson_sim_{n_inputs}.parquet")
-lognormal_df = pd.read_parquet(sim_dir+f"lognormal_sim_{n_inputs}.parquet")
-lomax_df = pd.read_parquet(sim_dir+f"lomax_sim_{n_inputs}.parquet")
 
 # Define predicted loss
 def general_loss(mean, var):
     rob = np.sqrt(mean + var/mean)
     return (1/np.pi)*np.arccos((1.+1./rob**2)**(-1/2))
 
-# #------------------------------------------------------------------------------
-# # POISSON SIMULATIONS
-# #------------------------------------------------------------------------------
-# # Get values of the Poisson rate
-# w0_vals = poisson_df['w0'].unique()
-
-# # Define predicted loss
-# def poisson_loss(w0):
-#     rob = np.sqrt(1.+w0)
-#     return (1/np.pi)*np.arccos((1.+1./rob**2)**(-1/2))
-
-# # Get rates for prediction
-# w_min, w_max = np.min(w0_vals), np.max(w0_vals)
-# w0_pred = np.logspace(np.log10(w_min), np.log10(w_max), n_pred)
-
-# # Plot simulation results and prediction
-# fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-# ax.plot(w0_pred, poisson_loss(w0_pred), c=con_colors[3], lw=2, label='Prediction', zorder=0)
-# ax.scatter(poisson_df['w0'], poisson_df['sim_loss'], c='white', edgecolors=con_colors[3], s=10, rasterized=True)
-
-# ax.legend()
-
-# ax.set_xscale('log')
+#------------------------------------------------------------------------------
+# WRAPPER FUNCTION FOR PARAMETRIC SIMULATIONS
+#------------------------------------------------------------------------------
+def plot_parametric_loss(distribution, n_inputs):
+    """
+    Plot simulated loss for a given parametric distribution.
     
-# ax.set_xlabel('Average weight $w_0$')
-# ax.set_ylabel('Simulated loss')
-
-# plt.show()
+    Creates two plots:
+        1. Loss vs mean (linear x-axis), colored by variance
+        2. Loss vs variance (log x-axis), colored by mean
+    
+    Parameters
+    ----------
+    distribution : str
+        Name of the distribution (e.g., 'lognormal', 'lomax')
+    n_inputs : int
+        Number of inputs used in the simulation
+    """
+    # Import simulated loss
+    df = pd.read_parquet(sim_dir + f"{distribution}_sim_{n_inputs}.parquet")
+    
+    # Get values of mean and variance
+    mean_vals = df['mean'].unique()
+    var_vals = df['var'].unique()
+    
+    # Get predictions
+    mean_min, mean_max = np.min(mean_vals), np.max(mean_vals)
+    mean_pred = np.linspace(mean_min, mean_max, n_pred)
+    
+    var_min, var_max = np.min(var_vals), np.max(var_vals)
+    var_pred = np.logspace(np.log10(var_min), np.log10(var_max), n_pred)
+    
+    #--------------------------------------------------------------------------
+    # Plot 1: Loss vs mean, colored by variance
+    #--------------------------------------------------------------------------
+    cmap = plt.get_cmap('plasma', len(var_vals))
+    
+    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    
+    for i, var in enumerate(var_vals):
+        mask = df['var'] == var
+        
+        # Plot loss
+        ax.plot(mean_pred, general_loss(mean_pred, var), c=cmap(i), lw=2, label=f"Var$={var:.0f}$", zorder=0)
+        ax.scatter(df[mask]['mean'], df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
+    
+    ax.legend()
+    
+    ax.set_xlabel('Mean')
+    ax.set_ylabel('Simulated loss')
+    
+    plt.show()
+    
+    #--------------------------------------------------------------------------
+    # Plot 2: Loss vs variance, colored by mean
+    #--------------------------------------------------------------------------
+    cmap = plt.get_cmap('plasma', len(mean_vals))
+    
+    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    
+    for i, mean in enumerate(mean_vals):
+        mask = df['mean'] == mean
+        
+        # Plot loss
+        ax.plot(var_pred, general_loss(mean, var_pred), c=cmap(i), lw=2, label=f"Mean$={mean}$", zorder=0)
+        ax.scatter(df[mask]['var'], df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
+    
+    ax.legend()
+    
+    ax.set_xscale('log')
+        
+    ax.set_xlabel('Variance')
+    ax.set_ylabel('Simulated loss')
+    
+    plt.show()
 
 #------------------------------------------------------------------------------
-# LOGNORMAL SIMULATIONS
+# RUN SIMULATIONS
 #------------------------------------------------------------------------------
-# Get values of mean and variance
-mean_vals = lognormal_df['mean'].unique()
-var_vals = lognormal_df['var'].unique()
-
-# Get variances for prediction
-var_min, var_max = np.min(var_vals), np.max(var_vals)
-var_pred = np.logspace(np.log10(var_min), np.log10(var_max), n_pred)
-
-# Define colormap for each mean
-cmap = plt.get_cmap('plasma', len(mean_vals))
-
-# Plot simulation results and prediction
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-for i, mean in enumerate(mean_vals):
-    mask = lognormal_df['mean'] == mean
-    
-    # Plot loss
-    ax.plot(var_pred, general_loss(mean, var_pred), c=cmap(i), lw=2, label=f"Mean$={mean}$", zorder=0)
-    ax.scatter(lognormal_df[mask]['var'], lognormal_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
-
-ax.legend()
-
-ax.set_xscale('log')
-    
-ax.set_xlabel('Variance')
-ax.set_ylabel('Simulated loss')
-
-plt.show()
-
-#------------------------------------------------------------------------------
-# LOMAX SIMULATIONS
-#------------------------------------------------------------------------------
-# Get values of mean and variance
-mean_vals = lomax_df['mean'].unique()
-var_vals = lomax_df['var'].unique()
-
-# Get variances for prediction
-var_min, var_max = np.min(var_vals), np.max(var_vals)
-var_pred = np.logspace(np.log10(var_min), np.log10(var_max), n_pred)
-
-# Define colormap for each mean
-cmap = plt.get_cmap('plasma', len(mean_vals))
-
-# Plot simulation results and prediction
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-for i, mean in enumerate(mean_vals):
-    mask = lomax_df['mean'] == mean
-    
-    # Plot loss
-    ax.plot(var_pred, general_loss(mean, var_pred), c=cmap(i), lw=2, label=f"Mean$={mean}$", zorder=0)
-    ax.scatter(lomax_df[mask]['var'], lomax_df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
-
-ax.legend()
-
-ax.set_xscale('log')
-    
-ax.set_xlabel('Variance')
-ax.set_ylabel('Simulated loss')
-
-plt.show()
+plot_parametric_loss('lognormal', 1000)
+plot_parametric_loss('lomax', 1000)
+plot_parametric_loss('gamma', 100)
 
 
 

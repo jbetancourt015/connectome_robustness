@@ -53,34 +53,32 @@ def average_error_fast(
     if n_inputs == 0:
         return np.nan
 
-    # Draw inputs: n_inputs × n_draws
-    x = rng.choice([-1.0, 1.0], size=(n_inputs, n_draws))
+    # Draw inputs: n_inputs × n_draws (faster than rng.choice)
+    x = 2.0 * rng.integers(0, 2, size=(n_inputs, n_draws)) - 1.0
 
     # Draw base Gaussian noise: n_inputs × n_perturb
-    base_noise = rng.normal(0.0, 1.0, size=(n_inputs, n_perturb))
-    # Scale by w**(eta/2)
-    w_hat = base_noise * (w**(eta / 2.0))[:, None]
+    # Pre-scale by eps and w**(eta/2) to avoid repeated multiplication
+    w_scale = eps * (w ** (eta / 2.0))
+    w_hat = rng.normal(0.0, 1.0, size=(n_inputs, n_perturb)) * w_scale[:, None]
 
     # Baseline output: shape (n_draws,)
     z = w @ x
 
     total_pairs = n_draws * n_perturb
-    error_sum = 0.0
+    error_count = 0
 
     # Process perturbations in blocks to keep memory small
     for start in range(0, n_perturb, block_perturb):
         end = min(start + block_perturb, n_perturb)
 
         # (block_size × n_draws)
-        delta = eps * (w_hat[:, start:end].T @ x)
+        delta = w_hat[:, start:end].T @ x
 
-        # Broadcast z over rows
-        zztilde = z[None, :] * (z[None, :] + delta)
+        # z * (z + delta) < 0 means sign flip (faster than sign arithmetic)
+        zztilde = z * (z + delta)
+        error_count += (zztilde < 0).sum()
 
-        # (1 - sign)/2 is 1 if sign flips, 0 otherwise
-        error_sum += ((1.0 - np.sign(zztilde)) * 0.5).sum()
-
-    return error_sum / total_pairs
+    return error_count / total_pairs
 
 
 def get_dist_params(distribution, mean, var):
@@ -256,18 +254,18 @@ def run_simulation(
 #------------------------------------------------------------------------------
 # Simulation parameters
 n_inputs = int(1e2)
-mean_vals = np.arange(1., 50, 10)
+mean_vals = np.linspace(1., 50, 5)
 var_vals = 10**np.arange(5)
 
 # For lomax, variance must be > mean^2, so use larger variances
 lomax_var_vals = 10**np.arange(1, 5)
 
 # Run simulations for each distribution
-run_simulation('lognormal', mean_vals, var_vals, n_inputs=n_inputs,
-                n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
+# run_simulation('lognormal', mean_vals, var_vals, n_inputs=n_inputs,
+#                 n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
 
-run_simulation('lomax', mean_vals, lomax_var_vals, n_inputs=n_inputs,
-                n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
+# run_simulation('lomax', mean_vals, lomax_var_vals, n_inputs=n_inputs,
+#                 n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
 
 run_simulation('gamma', mean_vals, var_vals, n_inputs=n_inputs,
                 n_draws=n_draws, n_perturb=n_perturb, rng=rng, sim_dir=sim_dir)
