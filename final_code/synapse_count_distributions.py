@@ -5,7 +5,7 @@ created on:
     Mon 15 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Mon 15 Dec 2025
+    Thu 22 Jan 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -23,6 +23,7 @@ import logging
 import pickle
 import re
 import sys
+import os
 from tqdm import tqdm
 from scipy.sparse import load_npz
 
@@ -60,11 +61,13 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'drosophila_banc']
 
 # Nature figure size
-width = 3.5
-height = 3.2
+width = 2
+height = 2
 
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
+output_dir = '../../paper_figures/synapse_count_distributions/'
+os.makedirs(output_dir, exist_ok=True)
 
 conn_file = 'flywire_connections.csv.gz'
 
@@ -143,36 +146,17 @@ def compute_cdf_np(data):
 #------------------------------------------------------------------------------
 # Get distribution of weights
 s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
-vals_fafb, cdf_fafb = compute_cdf(conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the FAFB dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_fafb, P_fafb, color=con_colors[5], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-# Add labels
-ax.set_xlabel('Connection strength')
-ax.set_ylabel('Probability')
-
-plt.show()
-
-# FIGURE: Distribution of all connections in the FAFB dataset (CDF)------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-ax.step(vals_fafb, 1-cdf_fafb, color=con_colors[5], where='post')
-
-ax.set_xscale('log')
-ax.set_yscale('log')
-
-# Add labels
-ax.set_xlabel('Connection strength')
-ax.set_ylabel('1 - CDF')
-
-plt.show()
+plt.savefig(output_dir + 'fafb_distribution.pdf', bbox_inches='tight')
+plt.close()
 
 # Distribution of connections by brain region
 region_df = (
@@ -203,25 +187,29 @@ cmap = plt.get_cmap('viridis', len(region_order))
 region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
 
 # FIGURE: Distribution of connections by brain region (Grid)--------------------
-fig, axes = plt.subplots(3, 4, figsize=(2*width, 1.5*height), 
+fig, axes = plt.subplots(4, 4, figsize=(3*width, 3*height), 
                           sharex=True, sharey=True)
 
-for idx, r in enumerate(tqdm(region_order[:-1])):
+for idx, r in enumerate(tqdm(region_order)):
     ax = axes.flat[idx]
     mask = region_df['brain_region'] == r
     s_region, P_region = empirical_hist_pd(region_df[mask]['syn_count'])
     ax.scatter(s_region, P_region, color=region_colors[r], s=10, rasterized=True)
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.text(0.95, 0.95, r, transform=ax.transAxes, fontsize=8,
+    # Split two-word region names into two lines
+    region_label = r.replace(' ', '\n')
+    ax.text(0.95, 0.95, region_label, transform=ax.transAxes, fontsize=8,
             ha='right', va='top')
 
-# Add shared axis labels
-fig.supxlabel('Connection strength')
-fig.supylabel('Probability')
+# Hide unused panels (14-16, indices 13-15)
+for idx in range(len(region_order), 16):
+    axes.flat[idx].set_visible(False)
 
 plt.tight_layout()
+plt.savefig(output_dir + 'brain_region_grid.pdf', bbox_inches='tight')
 plt.show()
+plt.close()
 
 #------------------------------------------------------------------------------
 # OTHER LARGE DATASETS (BANC, MANC)
@@ -237,83 +225,46 @@ banc_conn_df = (
 
 # Get distribution of weights
 s_banc, P_banc = empirical_hist_pd(banc_conn_df['syn_count'])
-vals_banc, cdf_banc = compute_cdf(banc_conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the BANC dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_banc, P_banc, color=con_colors[6], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-# Add labels
-ax.set_xlabel('Connection strength')
-ax.set_ylabel('Probability')
-
+plt.savefig(output_dir + 'banc_distribution.pdf', bbox_inches='tight')
 plt.show()
-
-# FIGURE: Distribution of all connections in the BANC dataset (CDF)------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-ax.step(vals_banc, 1-cdf_banc, color=con_colors[6], where='post')
-
-ax.set_xscale('log')
-ax.set_yscale('log')
-
-# Add labels
-ax.set_xlabel('Connection strength')
-ax.set_ylabel('1 - CDF')
-
-plt.show()
-
+plt.close()
 
 manc_file = 'manc_connections.csv'
 manc_conn_df = pd.read_csv(data_dir + manc_file)
 
 # Get distribution of weights
 s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
-vals_manc, cdf_manc = compute_cdf(manc_conn_df['weight'])
 
 # FIGURE: Distribution of all connections in the MANC dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_manc, P_manc, color=con_colors[7], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-# Add labels
-ax.set_xlabel('Connection strength')
-ax.set_ylabel('Probability')
-
+plt.savefig(output_dir + 'manc_distribution.pdf', bbox_inches='tight')
 plt.show()
-
-# FIGURE: Distribution of all connections in the MANC dataset (CDF)------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-
-ax.step(vals_manc, 1-cdf_manc, color=con_colors[7], where='post')
-
-ax.set_xscale('log')
-ax.set_yscale('log')
-
-# Add labels
-ax.set_xlabel('Connection strength')
-ax.set_ylabel('1 - CDF')
-
-plt.show()
+plt.close()
 
 #------------------------------------------------------------------------------
 # OTHER SPECIES DISTRIBUTIONS (from processed connectome data)
 #------------------------------------------------------------------------------
 # Species to plot: c_elegans (idx 2), platynereis_sensory_motor (idx 3), mouse_retina (idx 4)
 species_indices = [2, 3, 4]
-species_names = {
-    2: 'C. elegans',
-    3: 'Platynereis',
-    4: 'Mouse retina'
+species_filenames = {
+    2: 'c_elegans_distribution.pdf',
+    3: 'platynereis_distribution.pdf',
+    4: 'mouse_retina_distribution.pdf'
 }
 
 for data_idx in species_indices:
@@ -323,33 +274,14 @@ for data_idx in species_indices:
     
     # Get distribution of weights
     s_species, P_species = empirical_hist_np(synapse_counts)
-    vals_species, cdf_species = compute_cdf_np(synapse_counts)
     
     # FIGURE: Distribution of all connections----------------------------------
-    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    fig, ax = plt.subplots(figsize=(width, height))
     
     ax.scatter(s_species, P_species, color=con_colors[data_idx], s=10, rasterized=True)
     ax.set_xscale('log')
     ax.set_yscale('log')
     
-    # Add labels
-    ax.set_xlabel('Connection strength')
-    ax.set_ylabel('Probability')
-    ax.set_title(species_names[data_idx])
-    
+    plt.savefig(output_dir + species_filenames[data_idx], bbox_inches='tight')
     plt.show()
-    
-    # FIGURE: Distribution of all connections (CDF)----------------------------
-    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
-    
-    ax.step(vals_species, 1-cdf_species, color=con_colors[data_idx], where='post')
-    
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    
-    # Add labels
-    ax.set_xlabel('Connection strength')
-    ax.set_ylabel('1 - CDF')
-    ax.set_title(species_names[data_idx])
-    
-    plt.show()
+    plt.close()
