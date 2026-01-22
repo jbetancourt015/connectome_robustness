@@ -149,13 +149,13 @@ s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the FAFB dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height))
+fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
 
 ax.scatter(s_fafb, P_fafb, color=con_colors[5], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-plt.savefig(output_dir + 'fafb_distribution.pdf', bbox_inches='tight')
+plt.savefig(output_dir + 'fafb_distribution.pdf')
 plt.close()
 
 # Distribution of connections by brain region
@@ -187,7 +187,7 @@ cmap = plt.get_cmap('viridis', len(region_order))
 region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
 
 # FIGURE: Distribution of connections by brain region (Grid)--------------------
-fig, axes = plt.subplots(4, 4, figsize=(3*width, 3*height), 
+fig, axes = plt.subplots(3, 5, figsize=(.7*5*width, .7*3*height), 
                           sharex=True, sharey=True)
 
 for idx, r in enumerate(tqdm(region_order)):
@@ -203,7 +203,7 @@ for idx, r in enumerate(tqdm(region_order)):
             ha='right', va='top')
 
 # Hide unused panels (14-16, indices 13-15)
-for idx in range(len(region_order), 16):
+for idx in range(len(region_order), 15):
     axes.flat[idx].set_visible(False)
 
 plt.tight_layout()
@@ -228,13 +228,13 @@ s_banc, P_banc = empirical_hist_pd(banc_conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the BANC dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height))
+fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
 
 ax.scatter(s_banc, P_banc, color=con_colors[6], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-plt.savefig(output_dir + 'banc_distribution.pdf', bbox_inches='tight')
+plt.savefig(output_dir + 'banc_distribution.pdf')
 plt.show()
 plt.close()
 
@@ -246,13 +246,13 @@ s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
 
 # FIGURE: Distribution of all connections in the MANC dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height))
+fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
 
 ax.scatter(s_manc, P_manc, color=con_colors[7], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-plt.savefig(output_dir + 'manc_distribution.pdf', bbox_inches='tight')
+plt.savefig(output_dir + 'manc_distribution.pdf')
 plt.show()
 plt.close()
 
@@ -276,12 +276,12 @@ for data_idx in species_indices:
     s_species, P_species = empirical_hist_np(synapse_counts)
     
     # FIGURE: Distribution of all connections----------------------------------
-    fig, ax = plt.subplots(figsize=(width, height))
+    fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
     
     ax.scatter(s_species, P_species, color=con_colors[data_idx], s=10, rasterized=True)
     ax.set_xscale('log')
     ax.set_yscale('log')
     
-    plt.savefig(output_dir + species_filenames[data_idx], bbox_inches='tight')
+    plt.savefig(output_dir + species_filenames[data_idx])
     plt.show()
     plt.close()
