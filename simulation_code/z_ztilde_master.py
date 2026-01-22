@@ -9,7 +9,7 @@ last change:
 -------------------------------------------------------------------------------
 notes:
     This script combines functionality from:
-    - z_ztilde_simulation.py: Computes z and ztilde values for lognormal weights
+    - z_ztilde_simulation.py: Computes z and ztilde values for gamma-distributed weights
     - local_field_hist.py: Generates 2D heatmap histograms of normalized local fields
     - ellipse_rho.py: Generates ellipse figures for correlation visualization
     
@@ -58,37 +58,37 @@ logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 # SHARED CONFIGURATION
 #------------------------------------------------------------------------------
 sim_dir = '../simulation_results/'
-fig_dir = '../paper_figures/local_field_hist/'
+fig_dir = '../paper_figures/framework/'
 
 # Single consolidated simulation file
-SIM_FILE = sim_dir + "z_ztilde_simulations.parquet"
+sim_file = sim_dir + "z_ztilde_simulations.parquet"
 
 # Parameter sets (mean, second_moment)
-PARAM_SETS = [
+param_sets = [
     (1.0, 100.0),
     (9.5, 100.0),
     (1.0, 400.0),
 ]
 
 # Simulation parameters
-N_INPUTS = int(1e4)
-ETA = 1.0
-EPS = 10.0
-N_DRAWS = int(1e3)
-N_PERTURB = int(1e3)
+n_inputs = int(1e4)
+eta = 1.0
+eps = 10.0
+n_draws = int(1e3)
+n_perturb = int(1e3)
 
 # Figure parameters
-WIDTH = 2.
-HEIGHT = 2.
-ALPHA_MIN = 0.2
-N_BINS = 20
+width = 2.
+height = 2.
+alpha_min = 0.2
+n_bins = 20
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
                        [120, 0, 150], [0, 168, 157], [203, 41, 123], [153, 153, 0]]) / 255
 
 # Colors for each parameter set
-COLORS = [con_colors[2], con_colors[1], con_colors[4]]
+colors = [con_colors[2], con_colors[1], con_colors[4]]
 
 #------------------------------------------------------------------------------
 # SIMULATION FUNCTIONS
@@ -104,14 +104,14 @@ def compute_z_ztilde(
     rng=None,
 ):
     """
-    Compute z and ztilde values for a single lognormal weight vector.
+    Compute z and ztilde values for a single gamma-distributed weight vector.
     
     Parameters
     ----------
     mean : float
-        Mean of the lognormal distribution for weights.
+        Mean of the gamma distribution for weights.
     second_moment : float
-        Second moment of the lognormal distribution for weights.
+        Second moment of the gamma distribution for weights.
     n_inputs : int
         Number of input dimensions (size of weight vector).
     eta : float
@@ -144,10 +144,12 @@ def compute_z_ztilde(
     # Compute variance from second moment
     var = second_moment - mean**2
 
-    # Generate lognormal weights
-    mu = np.log(mean**2 / np.sqrt(mean**2 + var))
-    sigma = np.sqrt(np.log(1. + var / mean**2))
-    w = rng.lognormal(mu, sigma, n_inputs)
+    # Generate gamma weights
+    # Gamma distribution: mean = alpha * theta, var = alpha * theta^2
+    # Solving: theta = var / mean, alpha = mean / theta = mean^2 / var
+    theta = var / mean
+    alpha = mean / theta
+    w = rng.gamma(alpha, theta, n_inputs)
 
     # Draw inputs: n_inputs × n_draws
     x = rng.choice([-1.0, 1.0], size=(n_inputs, n_draws))
@@ -272,10 +274,10 @@ def plot_local_field_hist(z_norm, ztilde_norm, color, fname, labels=True):
     data_max = 3.
     
     # Set up figure
-    fig, ax_scatter = plt.subplots(figsize=(WIDTH, HEIGHT))
+    fig, ax_scatter = plt.subplots(figsize=(width, height))
 
     # Create histogram bins
-    xbins = np.linspace(data_min, data_max, N_BINS)
+    xbins = np.linspace(data_min, data_max, n_bins)
     ybins = xbins.copy()
     
     # Create 2D histogram
@@ -366,10 +368,10 @@ def plot_ellipse_cartoon(mean, second_moment, color, lim=3., R=1.5):
         Radius scaling factor.
     """
     # Compute rho from parameters
-    rho = (1. + (EPS**2) * mean / second_moment) ** (-0.5)
+    rho = (1. + (eps**2) * mean / second_moment) ** (-0.5)
     
     # Set up figure
-    fig, ax = plt.subplots(figsize=(WIDTH, HEIGHT))
+    fig, ax = plt.subplots(figsize=(width, height))
     
     # Draw ellipse
     draw_ellipse(R, rho, ax, color, lim)
@@ -386,99 +388,102 @@ def plot_ellipse_cartoon(mean, second_moment, color, lim=3., R=1.5):
     ax.set_ylim(-lim, lim)
     ax.set_aspect('equal')
     
+    # Use the same locator for x and y so ticks coincide
+    locator = ax.yaxis.get_major_locator()
+    ax.xaxis.set_major_locator(locator)
+    
     plt.show()
 
 
 #------------------------------------------------------------------------------
 # MAIN EXECUTION
 #------------------------------------------------------------------------------
-if __name__ == "__main__":
-    rng = np.random.default_rng(1764)
+rng = np.random.default_rng(1764)
+
+#--------------------------------------------------------------------------
+# 1. SIMULATION: Load existing or run missing simulations
+#--------------------------------------------------------------------------
+print("=" * 60)
+print("STEP 1: SIMULATION")
+print("=" * 60)
+
+if os.path.exists(sim_file):
+    df_all = pd.read_parquet(sim_file)
+    print(f"Loaded existing file with {len(df_all)} rows")
+else:
+    df_all = None
+    print("No existing simulation file found")
+
+# Check which parameter sets need to be simulated
+missing = get_missing_params(param_sets, df_all)
+
+if missing:
+    print(f"Running simulations for {len(missing)} parameter sets...")
+    new_dfs = []
+    for mean, second_moment in missing:
+        print(f"  Simulating mean={mean}, second_moment={second_moment}...")
+        df, w = compute_z_ztilde(
+            mean=mean,
+            second_moment=second_moment,
+            n_inputs=n_inputs,
+            eta=eta,
+            eps=eps,
+            n_draws=n_draws,
+            n_perturb=n_perturb,
+            rng=rng,
+        )
+        new_dfs.append(df)
+        print(f"    Generated {len(df)} rows")
     
-    #--------------------------------------------------------------------------
-    # 1. SIMULATION: Load existing or run missing simulations
-    #--------------------------------------------------------------------------
-    print("=" * 60)
-    print("STEP 1: SIMULATION")
-    print("=" * 60)
+    # Concatenate new results
+    df_new = pd.concat(new_dfs, ignore_index=True)
     
-    if os.path.exists(SIM_FILE):
-        df_all = pd.read_parquet(SIM_FILE)
-        print(f"Loaded existing file with {len(df_all)} rows")
+    # Merge with existing data
+    if df_all is not None:
+        df_all = pd.concat([df_all, df_new], ignore_index=True)
     else:
-        df_all = None
-        print("No existing simulation file found")
+        df_all = df_new
     
-    # Check which parameter sets need to be simulated
-    missing = get_missing_params(PARAM_SETS, df_all)
+    # Save to file
+    df_all.to_parquet(sim_file)
+    print(f"Saved {len(df_all)} total rows to {sim_file}")
+else:
+    print("All parameter sets already simulated, skipping simulation step")
+
+#--------------------------------------------------------------------------
+# 2. HISTOGRAMS: Generate 2D heatmap histograms
+#--------------------------------------------------------------------------
+print("\n" + "=" * 60)
+print("STEP 2: HISTOGRAMS")
+print("=" * 60)
+
+for i, (mean, second_moment) in enumerate(param_sets):
+    print(f"Processing histogram for mean={mean}, second_moment={second_moment}...")
     
-    if missing:
-        print(f"Running simulations for {len(missing)} parameter sets...")
-        new_dfs = []
-        for mean, second_moment in missing:
-            print(f"  Simulating mean={mean}, second_moment={second_moment}...")
-            df, w = compute_z_ztilde(
-                mean=mean,
-                second_moment=second_moment,
-                n_inputs=N_INPUTS,
-                eta=ETA,
-                eps=EPS,
-                n_draws=N_DRAWS,
-                n_perturb=N_PERTURB,
-                rng=rng,
-            )
-            new_dfs.append(df)
-            print(f"    Generated {len(df)} rows")
-        
-        # Concatenate new results
-        df_new = pd.concat(new_dfs, ignore_index=True)
-        
-        # Merge with existing data
-        if df_all is not None:
-            df_all = pd.concat([df_all, df_new], ignore_index=True)
-        else:
-            df_all = df_new
-        
-        # Save to file
-        df_all.to_parquet(SIM_FILE)
-        print(f"Saved {len(df_all)} total rows to {SIM_FILE}")
-    else:
-        print("All parameter sets already simulated, skipping simulation step")
+    # Load and normalize data
+    z_norm, ztilde_norm = load_and_normalize(df_all, mean, second_moment)
     
-    #--------------------------------------------------------------------------
-    # 2. HISTOGRAMS: Generate 2D heatmap histograms
-    #--------------------------------------------------------------------------
-    print("\n" + "=" * 60)
-    print("STEP 2: HISTOGRAMS")
-    print("=" * 60)
+    # Plot histogram
+    plot_local_field_hist(z_norm, ztilde_norm, color=colors[i], fname=f"m{mean}_s{second_moment}")
     
-    for i, (mean, second_moment) in enumerate(PARAM_SETS):
-        print(f"Processing histogram for mean={mean}, second_moment={second_moment}...")
-        
-        # Load and normalize data
-        z_norm, ztilde_norm = load_and_normalize(df_all, mean, second_moment)
-        
-        # Plot histogram
-        plot_local_field_hist(z_norm, ztilde_norm, color=COLORS[i], fname=f"m{mean}_s{second_moment}")
-        
-        print(f"  Generated histogram")
+    print(f"  Generated histogram")
+
+#--------------------------------------------------------------------------
+# 3. CARTOONS: Generate ellipse cartoons
+#--------------------------------------------------------------------------
+print("\n" + "=" * 60)
+print("STEP 3: ELLIPSE CARTOONS")
+print("=" * 60)
+
+for i, (mean, second_moment) in enumerate(param_sets):
+    print(f"Generating ellipse cartoon for mean={mean}, second_moment={second_moment}...")
     
-    #--------------------------------------------------------------------------
-    # 3. CARTOONS: Generate ellipse cartoons
-    #--------------------------------------------------------------------------
-    print("\n" + "=" * 60)
-    print("STEP 3: ELLIPSE CARTOONS")
-    print("=" * 60)
+    # Plot ellipse cartoon
+    plot_ellipse_cartoon(mean, second_moment, colors[i])
     
-    for i, (mean, second_moment) in enumerate(PARAM_SETS):
-        print(f"Generating ellipse cartoon for mean={mean}, second_moment={second_moment}...")
-        
-        # Plot ellipse cartoon
-        plot_ellipse_cartoon(mean, second_moment, COLORS[i])
-        
-        print(f"  Generated cartoon")
-    
-    print("\n" + "=" * 60)
-    print("COMPLETE")
-    print("=" * 60)
+    print(f"  Generated cartoon")
+
+print("\n" + "=" * 60)
+print("COMPLETE")
+print("=" * 60)
 
