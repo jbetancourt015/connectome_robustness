@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Fri 21 Nov 2025
+    Tue 20 Jan 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -70,6 +70,11 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
     top    = (*rgb, 1.0)
     return LinearSegmentedColormap.from_list(name, [bottom, top], N=256)
+
+def general_loss(mean, var):
+    """Compute predicted loss from mean and variance."""
+    rob = np.sqrt(mean + var/mean)
+    return (1/np.pi)*np.arccos((1.+1./rob**2)**(-1/2))
 
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
@@ -171,6 +176,111 @@ cb.ax.tick_params(labelsize=8)
 ax_scatter.set_xlabel('Average incoming weight')
 ax_scatter.set_ylabel('Simulated loss')
 cb.set_label('Density')
+
+plt.show()
+
+# FIGURE: LOSS VS MEAN (BINNED SCATTER, COLORED BY VARIANCE)------------------
+# Filter to neurons with positive variance
+df_nonneg = neuron_df[nonneg].copy()
+
+# Set up bins
+n_mean_bins = 10
+n_var_bins = 5
+n_pred = 200
+
+# Create bins for mean (linear) and variance (log)
+mean_bins = np.linspace(mu_min, mu_max, n_mean_bins + 1)
+var_bins = np.logspace(np.log10(std_min), np.log10(std_max), n_var_bins + 1)
+
+# Assign bin indices
+df_nonneg['mean_bin'] = pd.cut(df_nonneg['mean'], bins=mean_bins, labels=False, include_lowest=True)
+df_nonneg['var_bin'] = pd.cut(df_nonneg['std'], bins=var_bins, labels=False, include_lowest=True)
+
+# Get prediction values
+mean_pred = np.linspace(mu_min, mu_max, n_pred)
+
+# Set up figure
+cmap = plt.get_cmap('plasma', n_var_bins)
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+for i in range(n_var_bins):
+    # Get variance bin midpoint (geometric mean for log-spaced bins)
+    var_mid = np.sqrt(var_bins[i] * var_bins[i+1])
+    
+    # Filter data for this variance bin
+    mask = df_nonneg['var_bin'] == i
+    
+    # Compute median loss for each mean bin
+    grouped = df_nonneg[mask].groupby('mean_bin')['sim_loss'].median()
+    
+    # Get mean bin midpoints
+    mean_midpoints = (mean_bins[:-1] + mean_bins[1:]) / 2
+    
+    # Plot prediction line
+    ax.plot(mean_pred, general_loss(mean_pred, var_mid), c=cmap(i), lw=2, 
+            label=f"Var$\\in[{var_bins[i]:.1f}, {var_bins[i+1]:.1f}]$", zorder=0)
+    
+    # Plot scatter for bins with data
+    valid_bins = grouped.index.dropna().astype(int)
+    ax.scatter(mean_midpoints[valid_bins], grouped[valid_bins], 
+               c='white', edgecolors=cmap(i), s=10, rasterized=True)
+
+# ax.legend(fontsize=6)
+ax.set_xlabel('Mean')
+ax.set_ylabel('Simulated loss')
+
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_mean_binned.pdf', dpi=600)
+
+plt.show()
+
+# FIGURE: LOSS VS VARIANCE (BINNED SCATTER, COLORED BY MEAN)-----------------
+# Set up bins (reuse df_nonneg from above)
+n_var_bins_x = 10
+n_mean_bins_color = 5
+
+# Create bins for variance (log, x-axis) and mean (linear, color)
+var_bins_x = np.logspace(np.log10(std_min), np.log10(std_max), n_var_bins_x + 1)
+mean_bins_color = np.linspace(mu_min, mu_max, n_mean_bins_color + 1)
+
+# Assign bin indices
+df_nonneg['var_bin_x'] = pd.cut(df_nonneg['std'], bins=var_bins_x, labels=False, include_lowest=True)
+df_nonneg['mean_bin_color'] = pd.cut(df_nonneg['mean'], bins=mean_bins_color, labels=False, include_lowest=True)
+
+# Get prediction values
+var_pred = np.logspace(np.log10(std_min), np.log10(std_max), n_pred)
+
+# Set up figure
+cmap = plt.get_cmap('plasma', n_mean_bins_color)
+fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+
+for i in range(n_mean_bins_color):
+    # Get mean bin midpoint (arithmetic mean for linear bins)
+    mean_mid = (mean_bins_color[i] + mean_bins_color[i+1]) / 2
+    
+    # Filter data for this mean bin
+    mask = df_nonneg['mean_bin_color'] == i
+    
+    # Compute median loss for each variance bin
+    grouped = df_nonneg[mask].groupby('var_bin_x')['sim_loss'].median()
+    
+    # Get variance bin midpoints (geometric mean for log-spaced bins)
+    var_midpoints = np.sqrt(var_bins_x[:-1] * var_bins_x[1:])
+    
+    # Plot prediction line
+    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=cmap(i), lw=2, 
+            label=f"Mean$\\in[{mean_bins_color[i]:.1f}, {mean_bins_color[i+1]:.1f}]$", zorder=0)
+    
+    # Plot scatter for bins with data
+    valid_bins = grouped.index.dropna().astype(int)
+    ax.scatter(var_midpoints[valid_bins], grouped[valid_bins], 
+               c='white', edgecolors=cmap(i), s=10, rasterized=True)
+
+# ax.legend(fontsize=6)
+ax.set_xscale('log')
+ax.set_xlabel('Variance')
+ax.set_ylabel('Simulated loss')
+
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance_binned.pdf', dpi=600)
 
 plt.show()
 
