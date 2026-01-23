@@ -64,6 +64,9 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
 width = 2
 height = 2
 
+# Fixed margins for consistent axes size across all single-panel figures
+fig_margins = dict(left=0.20, right=0.95, bottom=0.18, top=0.95)
+
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 output_dir = '../../paper_figures/synapse_count_distributions/'
@@ -141,6 +144,17 @@ def compute_cdf_np(data):
     cdf = cum_counts / cum_counts[-1]
     return unique_vals, cdf
 
+def empirical_heterogeneity(data):
+    """Compute empirical heterogeneity: <|x_i - x_j|> / <x>."""
+    x = np.sort(data[np.isfinite(data)])
+    n = len(x)
+    if n < 2:
+        return np.nan
+    # Efficient mean absolute difference via sorted formula
+    i = np.arange(1, n + 1)
+    mad = (2.0 / (n * n)) * np.sum((2 * i - n - 1) * x)
+    return mad / np.mean(x)
+
 #------------------------------------------------------------------------------
 # FAFB DISTRIBUTIONS
 #------------------------------------------------------------------------------
@@ -149,12 +163,13 @@ s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the FAFB dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
+fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_fafb, P_fafb, color=con_colors[5], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
+plt.subplots_adjust(**fig_margins)
 plt.savefig(output_dir + 'fafb_distribution.pdf')
 plt.close()
 
@@ -174,12 +189,12 @@ region_df['brain_region'] = region_df['neuropil'].map(region_map)
 # Drop "Other Regions"
 region_df = region_df[region_df['brain_region'] != 'Other Regions']
 
-# Sort regions by median
+# Sort regions by empirical heterogeneity
 region_order = (
     region_df
     .groupby('brain_region')['syn_count']
-    .median()               # average Q_mean over neuropils in that region
-    .sort_values()        # sort regions by their overall Q
+    .apply(lambda x: empirical_heterogeneity(x.values))
+    .sort_values()
     .index
 )
 
@@ -228,12 +243,13 @@ s_banc, P_banc = empirical_hist_pd(banc_conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the BANC dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
+fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_banc, P_banc, color=con_colors[6], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
+plt.subplots_adjust(**fig_margins)
 plt.savefig(output_dir + 'banc_distribution.pdf')
 plt.show()
 plt.close()
@@ -246,12 +262,13 @@ s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
 
 # FIGURE: Distribution of all connections in the MANC dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
+fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_manc, P_manc, color=con_colors[7], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
+plt.subplots_adjust(**fig_margins)
 plt.savefig(output_dir + 'manc_distribution.pdf')
 plt.show()
 plt.close()
@@ -276,12 +293,13 @@ for data_idx in species_indices:
     s_species, P_species = empirical_hist_np(synapse_counts)
     
     # FIGURE: Distribution of all connections----------------------------------
-    fig, ax = plt.subplots(figsize=(width, height), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(width, height))
     
     ax.scatter(s_species, P_species, color=con_colors[data_idx], s=10, rasterized=True)
     ax.set_xscale('log')
     ax.set_yscale('log')
     
+    plt.subplots_adjust(**fig_margins)
     plt.savefig(output_dir + species_filenames[data_idx])
     plt.show()
     plt.close()
