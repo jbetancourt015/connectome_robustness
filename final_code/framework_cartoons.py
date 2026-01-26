@@ -6,7 +6,7 @@ created on:
     Sun 9 Nov 2025
 -------------------------------------------------------------------------------
 last change:
-    Sun 9 Nov 2025
+    Mon 26 Jan 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -17,7 +17,6 @@ contributors:
 -------------------------------------------------------------------------------
 """
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import logging
@@ -49,8 +48,11 @@ con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0],
                    [120, 0, 150], [0, 168, 157], [203, 41, 123], [0, 0, 0]])/255;
 
 # Nature figure size
-width = 3.5
-height = 3.5
+width = 2
+height = 2
+
+# Fixed margins for consistent axes size across all single-panel figures
+fig_margins = dict(left=0.20, right=0.95, bottom=0.18, top=0.95)
 
 def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     white = (1.0, 1.0, 1.0)
@@ -76,7 +78,6 @@ ax.plot([0.,0.],[-1.,1.], c='k', ls='--', lw=1)
 # Classification planes
 ax.plot([-1.,1.],[y1,-y1], c=con_colors[0], lw=2, label='Unperturbed')
 ax.plot([-1.,1.],[y2,-y2], c=con_colors[1], lw=2, label='Perturbed')
-# ax.legend()
 
 ax.annotate("", xytext=(0, 0), xy=(y1*.6/(1.+y1**2)**.5, .6/(1.+y1**2)**.5), arrowprops=dict(arrowstyle="->", color=con_colors[0]))
 ax.annotate("", xytext=(0, 0), xy=(y2*.6/(1.+y2**2)**.5, .6/(1.+y2**2)**.5), arrowprops=dict(arrowstyle="->", color=con_colors[1]))
@@ -86,15 +87,18 @@ ax.text(y2*.6/(1.+y2**2)**.5, .6/(1.+y2**2)**.5, '$\\tilde{{\\bf w}}$', ha='left
 
 ax.fill_between([-1.,1.],[y1,-y1],[y2,-y2], color='grey', alpha=0.3)
 
+ax.set_xticks([-1,0,1])
+ax.set_yticks([-1,0,1])
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/framework/classification_plane.pdf', dpi=600)
+
 # Add lables
 ax.text(0.25, 0.75, 'Fire', ha='left', va='bottom', transform=ax.transAxes)
 ax.text(0.35, 0.35, 'Not fire', ha='right', va='top', transform=ax.transAxes)
 
 ax.set_xlabel('Input 1')
 ax.set_ylabel('Input 2')
-
-ax.set_xticks([-1,0,1])
-ax.set_yticks([-1,0,1])
 
 plt.show()
 
@@ -113,6 +117,11 @@ ax.plot([0.,0.], [0.,1.1/np.sqrt(2*np.pi)], c='k', ls='--', lw=1)
 # Add shading and label
 mask = z_vals >= 0
 ax.fill_between(z_vals[mask], p_vals[mask], 0, color=con_colors[0], alpha=0.2)
+
+# Save raw figure
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/framework/local_field_distribution.pdf', dpi=600)
+
 ax.text(0.65, 0.15, 'Fire', ha='center', va='bottom', transform=ax.transAxes)
 ax.text(0.35, 0.15, 'Not fire', ha='center', va='bottom', transform=ax.transAxes)
 
@@ -134,10 +143,6 @@ ax.plot([0.,0.],[-1.,1.], c='k', lw=1)
 # Fill quadrants for misclassification
 ax.fill_betweenx(np.linspace(0, 1, 2), -1, 0, color=con_colors[1], alpha=0.3)
 ax.fill_betweenx(np.linspace(-1, 0, 2), 0, 1, color=con_colors[1], alpha=0.3)
-
-# Labels
-ax.text(0.77, 0.23, 'Error', ha='center', va='center', transform=ax.transAxes)
-ax.text(0.23, 0.77, 'Error', ha='center', va='center', transform=ax.transAxes)
 
 # Gaussian contours
 # Grid over plotting window
@@ -186,6 +191,15 @@ contours = ax.contour(
 locator = ax.yaxis.get_major_locator()
 ax.xaxis.set_major_locator(locator)
 
+# Save raw figure
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/framework/2d_local_field_distribution.pdf', dpi=600)
+
+# Annotations
+ax.text(0.77, 0.23, 'Error', ha='center', va='center', transform=ax.transAxes)
+ax.text(0.23, 0.77, 'Error', ha='center', va='center', transform=ax.transAxes)
+
+# Set labels
 ax.set_xlabel('Local field $z$')
 ax.set_ylabel('Perturbed local field $\\tilde{z}$')
 
