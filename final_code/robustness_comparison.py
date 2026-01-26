@@ -5,7 +5,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 18 Nov 2025
+    Fri 23 Jan 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ contributors:
         email:      jose.betancourtvalencia@yale.edu
 -------------------------------------------------------------------------------
 """
-import network_functions
+import network_processing
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -56,7 +56,7 @@ alpha_min = .2
 # Connectome list
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
-               'drosophila_banc']
+               'drosophila_banc', 'drosophila_manc']
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
@@ -90,8 +90,8 @@ def log_kde_to_original(q_vals, n_grid=512, bw=None):
 
 def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_axes=False):    
     # Get sensitivity of connectomes
-    Q1 = network_functions.compute_robustness(A, eta, normalized)
-    Q2 = network_functions.compute_robustness(A_rand, eta, normalized)
+    Q1 = network_processing.compute_robustness(A, eta, normalized)
+    Q2 = network_processing.compute_robustness(A_rand, eta, normalized)
     frac_lower = np.mean(Q1 >= Q2)
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
     
@@ -131,8 +131,8 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
 
 def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, log_axes=False, labels=True):
     # Get sensitivity of connectomes
-    Q1 = network_functions.compute_robustness(A, eta, normalized)
-    Q2 = network_functions.compute_robustness(A_rand, eta, normalized)
+    Q1 = network_processing.compute_robustness(A, eta, normalized)
+    Q2 = network_processing.compute_robustness(A_rand, eta, normalized)
     frac_lower = np.mean(Q1 >= Q2)
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
 
@@ -143,36 +143,34 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     ax_cbar = fig.add_axes([1.05/1.3, 0.15, 0.03, 0.8])
     
     if log_axes:
-        # Create histogram
+        # Create histogram bins
         xbins = np.logspace(np.log10(Q_min), np.log10(Q_max), n_bins)
         ybins = xbins.copy()
-        counts, xedges, yedges, im = ax_scatter.hist2d(
-            Q1, Q2,
-            bins=[xbins, ybins],
-            density=True,
-            norm=LogNorm(),
-            cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=alpha_min, name="fade_to_color")
-        )
         
         # Set axis scales
         ax_scatter.set_xscale('log')
         ax_scatter.set_yscale('log')
-
         
     else:
         Q_min = 0.
         xbins = np.linspace(Q_min, Q_max, n_bins)
         ybins = xbins.copy()
-        counts, xedges, yedges, im = ax_scatter.hist2d(
-            Q1, Q2,
-            bins=[xbins, ybins],
-            density=True,
-            norm=LogNorm(),
-            cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=alpha_min, name="fade_to_color")
-        )
-        
-        ax_scatter.set_xlim(0.,None)
-        ax_scatter.set_ylim(0.,None)
+    
+    # Compute histogram counts and normalize to probability
+    counts, xedges, yedges = np.histogram2d(Q1, Q2, bins=[xbins, ybins])
+    prob = counts / counts.sum()  # Normalize so all bins sum to 1
+    
+    # Plot with pcolormesh (need to mask zeros for LogNorm)
+    prob_masked = np.ma.masked_where(prob == 0, prob)
+    im = ax_scatter.pcolormesh(
+        xedges, yedges, prob_masked.T,
+        norm=LogNorm(),
+        cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=alpha_min, name="fade_to_color")
+    )
+    
+    # Set axis limits explicitly based on bin edges
+    ax_scatter.set_xlim(xedges[0], xedges[-1])
+    ax_scatter.set_ylim(yedges[0], yedges[-1])
     
     # 7) re-enable all four spines on joint
     for loc in ["left","right","top","bottom"]:
@@ -195,7 +193,7 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
     ax_scatter.set_ylabel('Shuffled weight robustness')
-    cb.set_label("Density")
+    cb.set_label("Probability")
 
     plt.show()
 
@@ -209,7 +207,7 @@ log_axes = False
 
 for data_idx in range(len(connectomes)):
     # Get connectome
-    A = network_functions.load_connectome(data_idx, thresholded=thresholded if data_idx==5 else False)
+    A = network_processing.load_connectome(data_idx, thresholded=thresholded if data_idx==5 else False)
     N = A.shape[0]
     
     n_threshold = 1
@@ -220,7 +218,7 @@ for data_idx in range(len(connectomes)):
 
     if not((scheme!='rand_weight') and data_idx==4):
         # Get null network
-        A_rand = network_functions.null_network(A, scheme=scheme, 
+        A_rand = network_processing.null_network(A, scheme=scheme, 
                                                 conn_type='cont' if data_idx==4 else 'disc', 
                                                 n_threshold=n_threshold)
     

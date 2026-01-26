@@ -28,7 +28,7 @@ processed_dir = '../processed_data/'
 
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
-               'drosophila_banc']
+               'drosophila_banc', 'drosophila_manc']
 
 def load_connectome(data_idx, thresholded=False, scheme=None):
     if not thresholded:
