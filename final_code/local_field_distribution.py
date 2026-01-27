@@ -66,7 +66,7 @@ sim_file = sim_dir + "z_ztilde_simulations.parquet"
 # Parameter sets (mean, second_moment)
 param_sets = [
     (1.0, 100.0),
-    (9.5, 100.0),
+    (1.0, 1.0),
     (1.0, 400.0),
 ]
 
@@ -95,7 +95,7 @@ colors = [con_colors[2], con_colors[1], con_colors[4]]
 #------------------------------------------------------------------------------
 def compute_z_ztilde(
     mean,
-    second_moment,
+    var,
     n_inputs,
     eta,
     eps,
@@ -110,8 +110,8 @@ def compute_z_ztilde(
     ----------
     mean : float
         Mean of the gamma distribution for weights.
-    second_moment : float
-        Second moment of the gamma distribution for weights.
+    var : float
+        Variance of the gamma distribution for weights.
     n_inputs : int
         Number of input dimensions (size of weight vector).
     eta : float
@@ -140,9 +140,6 @@ def compute_z_ztilde(
     """
     if rng is None:
         rng = np.random.default_rng()
-
-    # Compute variance from second moment
-    var = second_moment - mean**2
 
     # Generate gamma weights
     # Gamma distribution: mean = alpha * theta, var = alpha * theta^2
@@ -176,7 +173,7 @@ def compute_z_ztilde(
 
     df = pd.DataFrame({
         'mean': mean,
-        'second_moment': second_moment,
+        'variance': var,
         'draw_idx': draw_idx,
         'perturb_idx': perturb_idx,
         'z': z_flat,
@@ -204,7 +201,7 @@ def get_missing_params(param_sets, existing_df=None):
     """
     if existing_df is None:
         return param_sets
-    existing = set(zip(existing_df['mean'], existing_df['second_moment']))
+    existing = set(zip(existing_df['mean'], existing_df['variance']))
     return [(m, s) for m, s in param_sets if (m, s) not in existing]
 
 
@@ -218,7 +215,7 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     return LinearSegmentedColormap.from_list(name, [bottom, top], N=256)
 
 
-def load_and_normalize(df_all, mean, second_moment):
+def load_and_normalize(df_all, mean, var):
     """
     Filter and normalize data for a specific parameter set.
     
@@ -228,8 +225,8 @@ def load_and_normalize(df_all, mean, second_moment):
         Full DataFrame with all simulations.
     mean : float
         Mean parameter to filter by.
-    second_moment : float
-        Second moment parameter to filter by.
+    var : float
+        Variance parameter to filter by.
     
     Returns
     -------
@@ -238,7 +235,7 @@ def load_and_normalize(df_all, mean, second_moment):
     ztilde_norm : np.ndarray
         Normalized perturbed local field values (ztilde / sigma_ztilde).
     """
-    df = df_all[(df_all['mean'] == mean) & (df_all['second_moment'] == second_moment)]
+    df = df_all[(df_all['mean'] == mean) & (df_all['variance'] == var)]
     
     z = df['z'].values
     ztilde = df['ztilde'].values
@@ -252,7 +249,7 @@ def load_and_normalize(df_all, mean, second_moment):
     return z_norm, ztilde_norm
 
 
-def plot_local_field_hist(z_norm, ztilde_norm, color, fname, labels=True):
+def plot_local_field_hist(z_norm, ztilde_norm, color, fname):
     """
     Create a 2D heatmap histogram of normalized local field values.
     
@@ -266,8 +263,6 @@ def plot_local_field_hist(z_norm, ztilde_norm, color, fname, labels=True):
         RGB color array for the colormap.
     fname : str
         Filename suffix for saving.
-    labels : bool
-        Whether to add axis labels.
     """
     # Determine plot limits
     data_min = -3.
@@ -294,8 +289,8 @@ def plot_local_field_hist(z_norm, ztilde_norm, color, fname, labels=True):
     ax_scatter.set_frame_on(True)
     
     # Draw reference lines through origin
-    ax_scatter.plot([0., 0.], [data_min, data_max], "--", c="k", lw=1)
-    ax_scatter.plot([data_min, data_max], [0., 0.], "--", c="k", lw=1)
+    ax_scatter.plot([0., 0.], [data_min, data_max], c="k", alpha=.5, lw=1)
+    ax_scatter.plot([data_min, data_max], [0., 0.], c="k", alpha=.5, lw=1)
     
     # Use the same locator for x and y so ticks coincide
     locator = ax_scatter.yaxis.get_major_locator()
@@ -304,10 +299,12 @@ def plot_local_field_hist(z_norm, ztilde_norm, color, fname, labels=True):
     # Set equal aspect ratio
     ax_scatter.set_aspect('equal')
     
-    if labels:
-        # Add axis labels
-        ax_scatter.set_xlabel(r'Local field $z/\sigma_z$')
-        ax_scatter.set_ylabel(r'Perturbed local field $\tilde{z}/\sigma_{\tilde{z}}$')
+    # Save raw figure
+    plt.savefig(f"../../paper_figures/framework/hist_{fname}.pdf", dpi=600)
+    
+    # Add axis labels
+    ax_scatter.set_xlabel(r'Local field $z/\sigma_z$')
+    ax_scatter.set_ylabel(r'Perturbed local field $\tilde{z}/\sigma_{\tilde{z}}$')
     
     plt.show()
 
@@ -350,7 +347,7 @@ def draw_ellipse(R, rho, ax, color, lim=3.):
     ax.contour(X, Y, Z, levels=[level], colors=[color], linewidths=2)
 
 
-def plot_ellipse_cartoon(mean, second_moment, color, lim=3., R=1.5):
+def plot_ellipse_cartoon(mean, var, color, fname, lim=3., R=1.5):
     """
     Plot a single ellipse cartoon for given parameters.
     
@@ -358,8 +355,8 @@ def plot_ellipse_cartoon(mean, second_moment, color, lim=3., R=1.5):
     ----------
     mean : float
         Mean parameter.
-    second_moment : float
-        Second moment parameter.
+    var : float
+        Variance parameter.
     color : np.ndarray
         RGB color array.
     lim : float
@@ -368,21 +365,17 @@ def plot_ellipse_cartoon(mean, second_moment, color, lim=3., R=1.5):
         Radius scaling factor.
     """
     # Compute rho from parameters
-    rho = (1. + (eps**2) * mean / second_moment) ** (-0.5)
+    rho = (1. + (eps**2) * mean / (var + mean**2)) ** (-0.5)
     
     # Set up figure
     fig, ax = plt.subplots(figsize=(width, height))
     
+    # Draw coordinate axes (lines through origin)
+    ax.plot([-lim, lim], [0., 0.], c='k', alpha=.5, lw=1)
+    ax.plot([0., 0.], [-lim, lim], c='k', alpha=.5, lw=1)
+    
     # Draw ellipse
     draw_ellipse(R, rho, ax, color, lim)
-
-    # Draw coordinate axes (lines through origin)
-    ax.plot([-lim, lim], [0., 0.], c='k', lw=1)
-    ax.plot([0., 0.], [-lim, lim], c='k', lw=1)
-    
-    # Labels
-    ax.set_xlabel('Local field $z/\sigma_z$')
-    ax.set_ylabel('Perturbed local field $\\tilde{z}/\sigma_{\\tilde{z}}$')
     
     ax.set_xlim(-lim, lim)
     ax.set_ylim(-lim, lim)
@@ -391,6 +384,13 @@ def plot_ellipse_cartoon(mean, second_moment, color, lim=3., R=1.5):
     # Use the same locator for x and y so ticks coincide
     locator = ax.yaxis.get_major_locator()
     ax.xaxis.set_major_locator(locator)
+    
+    # Save raw figure
+    plt.savefig(f"../../paper_figures/framework/ellipse_{fname}.pdf", dpi=600)
+    
+    # Labels
+    ax.set_xlabel('Local field $z/\sigma_z$')
+    ax.set_ylabel('Perturbed local field $\\tilde{z}/\sigma_{\\tilde{z}}$')
     
     plt.show()
 
@@ -420,11 +420,11 @@ missing = get_missing_params(param_sets, df_all)
 if missing:
     print(f"Running simulations for {len(missing)} parameter sets...")
     new_dfs = []
-    for mean, second_moment in missing:
-        print(f"  Simulating mean={mean}, second_moment={second_moment}...")
+    for mean, var in missing:
+        print(f"  Simulating mean={mean}, variance={var}...")
         df, w = compute_z_ztilde(
             mean=mean,
-            second_moment=second_moment,
+            var=var,
             n_inputs=n_inputs,
             eta=eta,
             eps=eps,
@@ -457,14 +457,14 @@ print("\n" + "=" * 60)
 print("STEP 2: HISTOGRAMS")
 print("=" * 60)
 
-for i, (mean, second_moment) in enumerate(param_sets):
-    print(f"Processing histogram for mean={mean}, second_moment={second_moment}...")
+for i, (mean, var) in enumerate(param_sets):
+    print(f"Processing histogram for mean={mean}, variance={var}...")
     
     # Load and normalize data
-    z_norm, ztilde_norm = load_and_normalize(df_all, mean, second_moment)
+    z_norm, ztilde_norm = load_and_normalize(df_all, mean, var)
     
     # Plot histogram
-    plot_local_field_hist(z_norm, ztilde_norm, color=colors[i], fname=f"m{mean}_s{second_moment}")
+    plot_local_field_hist(z_norm, ztilde_norm, color=colors[i], fname=f"{i}")
     
     print(f"  Generated histogram")
 
@@ -475,11 +475,11 @@ print("\n" + "=" * 60)
 print("STEP 3: ELLIPSE CARTOONS")
 print("=" * 60)
 
-for i, (mean, second_moment) in enumerate(param_sets):
-    print(f"Generating ellipse cartoon for mean={mean}, second_moment={second_moment}...")
+for i, (mean, var) in enumerate(param_sets):
+    print(f"Generating ellipse cartoon for mean={mean}, variance={var}...")
     
     # Plot ellipse cartoon
-    plot_ellipse_cartoon(mean, second_moment, colors[i])
+    plot_ellipse_cartoon(mean, var, colors[i], fname=f"{i}")
     
     print(f"  Generated cartoon")
 
