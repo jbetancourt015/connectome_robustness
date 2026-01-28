@@ -254,7 +254,7 @@ def run_simulation(
 #------------------------------------------------------------------------------
 # Simulation parameters
 n_inputs = int(1e2)
-mean_vals = np.linspace(1., 50, 5)
+mean_vals = np.linspace(10., 50, 5)
 var_vals = 10**np.arange(5)
 
 # For lomax, variance must be > mean^2, so use larger variances

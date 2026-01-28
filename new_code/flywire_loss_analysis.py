@@ -119,10 +119,15 @@ x_max = 15.
 # Create histogram
 xbins = np.linspace(mu_min, min(mu_max, x_max), n_bins)
 ybins = np.linspace(l_min, l_max, n_bins)
-counts, xedges, yedges, im = ax_scatter.hist2d(
+counts, xedges, yedges = np.histogram2d(
     neuron_df['mean'], neuron_df['sim_loss'],
-    bins=[xbins, ybins],
-    density=True,
+    bins=[xbins, ybins]
+)
+prob = counts / counts.sum()
+prob_masked = np.ma.masked_where(prob == 0, prob)
+im = ax_scatter.pcolormesh(
+    xedges, yedges, prob_masked.T,
+    norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[0], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -139,7 +144,7 @@ plt.savefig('../../paper_figures/simulated_loss/loss_vs_mean.pdf', dpi=600)
 # Add labels
 ax_scatter.set_xlabel('Average incoming weight')
 ax_scatter.set_ylabel('Simulated loss')
-cb.set_label('Density')
+cb.set_label('Probability')
 
 plt.show()
 
@@ -155,10 +160,15 @@ x_max = 15.
 # Create histogram
 xbins = np.logspace(np.log10(mu_min), np.log10(mu_max), n_bins)
 ybins = np.linspace(l_min, l_max, n_bins)
-counts, xedges, yedges, im = ax_scatter.hist2d(
+counts, xedges, yedges = np.histogram2d(
     neuron_df['mean'], neuron_df['sim_loss'],
-    bins=[xbins, ybins],
-    density=True,
+    bins=[xbins, ybins]
+)
+prob = counts / counts.sum()
+prob_masked = np.ma.masked_where(prob == 0, prob)
+im = ax_scatter.pcolormesh(
+    xedges, yedges, prob_masked.T,
+    norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[0], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -175,7 +185,7 @@ cb.ax.tick_params(labelsize=8)
 # Add labels
 ax_scatter.set_xlabel('Average incoming weight')
 ax_scatter.set_ylabel('Simulated loss')
-cb.set_label('Density')
+cb.set_label('Probability')
 
 plt.show()
 
@@ -294,10 +304,15 @@ ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
 # Create histogram
 xbins = np.logspace(np.log10(std_min), np.log10(std_max), n_bins)
 ybins = np.linspace(l_min, l_max, n_bins)
-counts, xedges, yedges, im = ax_scatter.hist2d(
+counts, xedges, yedges = np.histogram2d(
     neuron_df['std'], neuron_df['sim_loss'],
-    bins=[xbins, ybins],
-    density=True,
+    bins=[xbins, ybins]
+)
+prob = counts / counts.sum()
+prob_masked = np.ma.masked_where(prob == 0, prob)
+im = ax_scatter.pcolormesh(
+    xedges, yedges, prob_masked.T,
+    norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[1], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -314,7 +329,7 @@ plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance.pdf', dpi=600)
 # Add labels
 ax_scatter.set_xlabel('Variance in weight')
 ax_scatter.set_ylabel('Simulated loss')
-cb.set_label('Density')
+cb.set_label('Probability')
 
 
 
@@ -339,11 +354,15 @@ ax_cbar = fig.add_axes([1.05/1.3, 0.15, 0.03, 0.8])
 # Create histogram
 xbins = np.linspace(min_loss, max_loss, n_bins)
 ybins = np.linspace(min_loss, max_loss, n_bins)
-counts, xedges, yedges, im = ax_scatter.hist2d(
+counts, xedges, yedges = np.histogram2d(
     neuron_df['pred_loss'], neuron_df['sim_loss'],
-    bins=[xbins, ybins],
-    density=True,
-    # norm=LogNorm(),
+    bins=[xbins, ybins]
+)
+prob = counts / counts.sum()
+prob_masked = np.ma.masked_where(prob == 0, prob)
+im = ax_scatter.pcolormesh(
+    xedges, yedges, prob_masked.T,
+    norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[2], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -367,7 +386,7 @@ plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.pdf', dpi=600
 # Add labels
 ax_scatter.set_xlabel('Predicted loss')
 ax_scatter.set_ylabel('Simulated loss')
-cb.set_label('Density')
+cb.set_label('Probability')
 
 plt.show()
 
@@ -384,11 +403,15 @@ ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
 # Create histogram
 xbins = np.linspace(rob_min, rob_max, n_bins)
 ybins = np.linspace(min_loss, max_loss, n_bins)
-counts, xedges, yedges, im = ax_scatter.hist2d(
+counts, xedges, yedges = np.histogram2d(
     neuron_df['robustness'], neuron_df['sim_loss'],
-    bins=[xbins, ybins],
-    density=True,
-    # norm=LogNorm(),
+    bins=[xbins, ybins]
+)
+prob = counts / counts.sum()
+prob_masked = np.ma.masked_where(prob == 0, prob)
+im = ax_scatter.pcolormesh(
+    xedges, yedges, prob_masked.T,
+    norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[4], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -408,7 +431,7 @@ plt.savefig('../../paper_figures/simulated_loss/loss_vs_robustness.pdf', dpi=600
 # Add labels
 ax_scatter.set_xlabel('Robustness')
 ax_scatter.set_ylabel('Simulated loss')
-cb.set_label('Density')
+cb.set_label('Probability')
 
 plt.show()
 
@@ -423,11 +446,15 @@ ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
 # Create histogram
 xbins = np.logspace(np.log10(rob_min), np.log10(rob_max), n_bins)
 ybins = np.linspace(min_loss, max_loss, n_bins)
-counts, xedges, yedges, im = ax_scatter.hist2d(
+counts, xedges, yedges = np.histogram2d(
     neuron_df['robustness'], neuron_df['sim_loss'],
-    bins=[xbins, ybins],
-    density=True,
-    # norm=LogNorm(),
+    bins=[xbins, ybins]
+)
+prob = counts / counts.sum()
+prob_masked = np.ma.masked_where(prob == 0, prob)
+im = ax_scatter.pcolormesh(
+    xedges, yedges, prob_masked.T,
+    norm=LogNorm(),
     cmap=fade_to_color_cmap(con_colors[4], alpha_min=alpha_min, name="fade_to_color")
 )
 
@@ -448,6 +475,6 @@ ax_scatter.set_ylim(0.,None)
 # Add labels
 ax_scatter.set_xlabel('Robustness')
 ax_scatter.set_ylabel('Simulated loss')
-cb.set_label('Density')
+cb.set_label('Probability')
 
 plt.show()

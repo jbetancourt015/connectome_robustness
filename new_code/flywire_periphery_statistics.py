@@ -430,28 +430,42 @@ seeds =['optic', 'olfactory', 'joint']
 #------------------------------------------------------------------------------
 # ANALYSIS - VISUAL SEED
 #------------------------------------------------------------------------------
-# Suppose df has column "x"
-percentiles = np.array([0, 1, 2, 4, 8, 16, 32, 64, 100])
-# percentiles = np.arange(0,101)
-centers = (percentiles[1:]+percentiles[:-1])/2
+# Number of bins in log space (for distance > 1)
+n_log_bins = 20
+
+# Set up seed and masks
+seed = 'optic'
+mask_seed = neuron_df[f"distance_{seed}"] == 0      # seed neurons (distance = 0)
+mask_pos = neuron_df[f"distance_{seed}"] > 0        # all positive distance neurons
+mask_dist1 = neuron_df[f"distance_{seed}"] == 1     # neurons at distance = 1
+mask_rest = neuron_df[f"distance_{seed}"] > 1       # neurons at distance > 1
+
+# Compute median robustness for seed and distance=1
+seed_median = neuron_df[mask_seed]['norm_robustness'].median()
+dist1_median = neuron_df[mask_dist1]['norm_robustness'].median()
+
+# Compute the percentile of distance=1 within positive-distance population
+dist1_percentile = 100 * mask_dist1.sum() / mask_pos.sum() / 2  # midpoint of dist=1 band
+
+# For distance > 1: compute log-spaced percentile bins
+rest_df = neuron_df[mask_rest].copy()
+# min_percentile is where distance > 1 starts (after all distance=1 observations)
+min_percentile = 100 * mask_dist1.sum() / mask_pos.sum()
+percentiles = np.concatenate([[0], np.geomspace(min_percentile, 100, n_log_bins, endpoint=True)])
+centers = (percentiles[1:] + percentiles[:-1]) / 2
 
 # Convert percentile boundaries to actual x-values
-seed = 'optic'
-mask0 = neuron_df[f"distance_{seed}"] > 0
-masked_df = neuron_df[mask0].copy()
-cuts = np.percentile(neuron_df[mask0][f"distance_{seed}"].dropna(), percentiles)
+cuts = np.percentile(rest_df[f"distance_{seed}"].dropna(), percentiles)
 
-# Create readable labels
-labels = [f"{percentiles[i]}-{percentiles[i+1]}" for i in range(len(percentiles)-1)]
-masked_df[f"{seed}_band"] = pd.cut(neuron_df[f"distance_{seed}"], bins=cuts, labels=labels, include_lowest=True)
+# Create readable labels and bin the data
+labels = [f"{percentiles[i]:.2f}-{percentiles[i+1]:.2f}" for i in range(len(percentiles)-1)]
+rest_df[f"{seed}_band"] = pd.cut(rest_df[f"distance_{seed}"], bins=cuts, labels=labels, include_lowest=True)
 
 # Compute median of robustness for each band
 medians = []
 for l in labels:
-    mask = masked_df[f"{seed}_band"] == l
-    medians.append(masked_df[mask]['norm_robustness'].median())
-
-seed_median = neuron_df[~mask0]['norm_robustness'].median()
+    mask = rest_df[f"{seed}_band"] == l
+    medians.append(rest_df[mask]['norm_robustness'].median())
 
 # Set up figure with broken x-axis
 fig, (ax_left, ax_right) = plt.subplots(
@@ -468,7 +482,8 @@ ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
 ax_left.set_xticklabels(['0'])
 
-# Right panel: rest of plot (log scale)
+# Right panel: distance=1 as scatter + log-spaced bins for distance > 1
+ax_right.scatter([dist1_percentile], [dist1_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
 ax_right.plot(centers, medians, lw=2, c=con_colors[4])
 ax_right.set_xscale('log')
 
@@ -499,7 +514,7 @@ plt.show()
 # COMPOISITION OF BUCKETS
 #------------------------------------------------------------------------------
 for l in labels[:5]:
-    mask = masked_df[f"{seed}_band"] == l
+    mask = rest_df[f"{seed}_band"] == l
     print('Bucket:',l)
-    print(masked_df[mask]['primary_type'].value_counts()/np.sum(masked_df[mask]['primary_type'].value_counts()))
+    print(rest_df[mask]['primary_type'].value_counts()/np.sum(rest_df[mask]['primary_type'].value_counts()))
     

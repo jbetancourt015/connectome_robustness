@@ -48,8 +48,8 @@ con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0],
                    [120, 0, 150], [0, 168, 157], [203, 41, 123], [0, 0, 0]])/255;
 
 # Nature figure size
-width = 3.5
-height = 3.2
+width = 2.5
+height = 2.5
 
 sim_dir = '../simulation_results/'
 n_pred = 200
@@ -96,7 +96,8 @@ def plot_parametric_loss(distribution, n_inputs):
     #--------------------------------------------------------------------------
     cmap = plt.get_cmap('plasma', len(var_vals))
     
-    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    fig = plt.figure(figsize=(.9*width, .9*height))
+    ax = fig.add_axes([0.15, 0.15, 0.8, 0.8])
     
     for i, var in enumerate(var_vals):
         mask = df['var'] == var
@@ -104,6 +105,8 @@ def plot_parametric_loss(distribution, n_inputs):
         # Plot loss
         ax.plot(mean_pred, general_loss(mean_pred, var), c=cmap(i), lw=2, label=f"Var$={var:.0f}$", zorder=0)
         ax.scatter(df[mask]['mean'], df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
+    
+    plt.savefig(f"../../paper_figures/framework/{distribution}_simulation_mean.pdf", dpi=600)
     
     ax.legend()
     
@@ -117,7 +120,8 @@ def plot_parametric_loss(distribution, n_inputs):
     #--------------------------------------------------------------------------
     cmap = plt.get_cmap('plasma', len(mean_vals))
     
-    fig, ax = plt.subplots(figsize=(.9*width, .9*height))
+    fig = plt.figure(figsize=(.9*width, .9*height))
+    ax = fig.add_axes([0.15, 0.15, 0.8, 0.8])
     
     for i, mean in enumerate(mean_vals):
         mask = df['mean'] == mean
@@ -126,9 +130,11 @@ def plot_parametric_loss(distribution, n_inputs):
         ax.plot(var_pred, general_loss(mean, var_pred), c=cmap(i), lw=2, label=f"Mean$={mean}$", zorder=0)
         ax.scatter(df[mask]['var'], df[mask]['sim_loss'], c='white', edgecolors=cmap(i), s=10, rasterized=True)
     
-    ax.legend()
-    
     ax.set_xscale('log')
+    
+    plt.savefig(f"../../paper_figures/framework/{distribution}_simulation_var.pdf", dpi=600)
+    
+    ax.legend()
         
     ax.set_xlabel('Variance')
     ax.set_ylabel('Simulated loss')

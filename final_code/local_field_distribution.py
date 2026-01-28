@@ -78,8 +78,8 @@ n_draws = int(1e3)
 n_perturb = int(1e3)
 
 # Figure parameters
-width = 2.
-height = 2.
+width = 1.5
+height = 1.5
 alpha_min = 0.2
 n_bins = 20
 
@@ -269,7 +269,8 @@ def plot_local_field_hist(z_norm, ztilde_norm, color, fname):
     data_max = 3.
     
     # Set up figure
-    fig, ax_scatter = plt.subplots(figsize=(width, height))
+    fig = plt.figure(figsize=(width, height))
+    ax_scatter = fig.add_axes([0.15, 0.15, 0.8, 0.8])
 
     # Create histogram bins
     xbins = np.linspace(data_min, data_max, n_bins)
@@ -368,7 +369,8 @@ def plot_ellipse_cartoon(mean, var, color, fname, lim=3., R=1.5):
     rho = (1. + (eps**2) * mean / (var + mean**2)) ** (-0.5)
     
     # Set up figure
-    fig, ax = plt.subplots(figsize=(width, height))
+    fig = plt.figure(figsize=(width, height))
+    ax = fig.add_axes([0.15, 0.15, 0.8, 0.8])
     
     # Draw coordinate axes (lines through origin)
     ax.plot([-lim, lim], [0., 0.], c='k', alpha=.5, lw=1)
