@@ -20,7 +20,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import logging
-import pickle
 import re
 import sys
 import os
@@ -28,7 +27,7 @@ from tqdm import tqdm
 from scipy.sparse import load_npz
 
 sys.path.append('../new_code')
-import network_functions
+import network_processing
 
 plt.rcParams.update({
     'text.usetex': False,  # keep LaTeX off globally
@@ -60,23 +59,23 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
                'drosophila_banc']
 
-# Nature figure size
-width = 2
-height = 2
+# Figure size (in mm)
+mm_to_in = 25.4
+width = 35./mm_to_in
+height = 35./mm_to_in
+width_large = 80./mm_to_in
+height_large = 80./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
-fig_margins = dict(left=0.20, right=0.95, bottom=0.18, top=0.95)
+fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
 
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 output_dir = '../../paper_figures/synapse_count_distributions/'
 os.makedirs(output_dir, exist_ok=True)
 
-conn_file = 'flywire_connections.csv.gz'
-
 # Import connections data
 conn_df = pd.read_parquet(data_dir+'connections_data.parquet')
-raw_conn_df = pd.read_csv(data_dir + conn_file, compression='gzip')
 
 #------------------------------------------------------------------------------
 # AUXILIARY FUNCTIONS
@@ -163,30 +162,20 @@ s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the FAFB dataset------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height))
+fig, ax = plt.subplots(figsize=(width_large, height_large))
 
 ax.scatter(s_fafb, P_fafb, color=con_colors[5], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig(output_dir + 'fafb_distribution.pdf')
+plt.savefig(output_dir + 'fafb_distribution.pdf', dpi=600)
+plt.show()
 plt.close()
 
-# Distribution of connections by brain region
-region_df = (
-    raw_conn_df.groupby(["pre_root_id", "post_root_id", "neuropil"])["syn_count"]
-      .sum()
-      .reset_index()
-)
-
-# Append brain region
-with open('../processed_data/brain_region_map.pkl', 'rb') as f:
-    region_map = pickle.load(f)
-
-region_df['brain_region'] = region_df['neuropil'].map(region_map)
-
-# Drop "Other Regions"
+# Distribution of connections by brain region (using plurality-assigned regions)
+region_df = conn_df[['syn_count', 'conn_brain_region']].copy()
+region_df = region_df.rename(columns={'conn_brain_region': 'brain_region'})
 region_df = region_df[region_df['brain_region'] != 'Other Regions']
 
 # Sort regions by empirical heterogeneity
@@ -202,27 +191,38 @@ cmap = plt.get_cmap('viridis', len(region_order))
 region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
 
 # FIGURE: Distribution of connections by brain region (Grid)--------------------
-fig, axes = plt.subplots(3, 5, figsize=(.7*5*width, .7*3*height), 
+n_cols = 4
+n_rows = 4
+
+excluded = [(0,3),(1,3),(2,3)]
+excluded_indices = [exc[0]*n_cols+exc[1] for exc in excluded]
+
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(width_large, height_large), 
                           sharex=True, sharey=True)
 
-for idx, r in enumerate(tqdm(region_order)):
+region_idx = 0
+
+for idx in tqdm(range(n_cols*n_rows)):
     ax = axes.flat[idx]
-    mask = region_df['brain_region'] == r
-    s_region, P_region = empirical_hist_pd(region_df[mask]['syn_count'])
-    ax.scatter(s_region, P_region, color=region_colors[r], s=10, rasterized=True)
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    # Split two-word region names into two lines
-    region_label = r.replace(' ', '\n')
-    ax.text(0.95, 0.95, region_label, transform=ax.transAxes, fontsize=8,
-            ha='right', va='top')
+    
+    if np.isin(idx, excluded_indices):
+        ax.set_visible(False)
+    else:
+        r = region_order[region_idx]
+        mask = region_df['brain_region'] == r
+        s_region, P_region = empirical_hist_pd(region_df[mask]['syn_count'])
+        ax.scatter(s_region, P_region, color=region_colors[r], s=10, rasterized=True)
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        # Split two-word region names into two lines
+        region_label = r.replace(' ', '\n')
+        ax.text(0.95, 0.95, region_label, transform=ax.transAxes, fontsize=6,
+                ha='right', va='top')
+        # Advance region index
+        region_idx += 1
 
-# Hide unused panels (14-16, indices 13-15)
-for idx in range(len(region_order), 15):
-    axes.flat[idx].set_visible(False)
-
-plt.tight_layout()
-plt.savefig(output_dir + 'brain_region_grid.pdf', bbox_inches='tight')
+plt.subplots_adjust(**fig_margins, wspace=0.08, hspace=0.08)
+plt.savefig(output_dir + 'brain_region_grid.pdf', dpi=600)
 plt.show()
 plt.close()
 
@@ -250,7 +250,7 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig(output_dir + 'banc_distribution.pdf')
+plt.savefig(output_dir + 'banc_distribution.pdf', dpi=600)
 plt.show()
 plt.close()
 
@@ -269,7 +269,7 @@ ax.set_xscale('log')
 ax.set_yscale('log')
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig(output_dir + 'manc_distribution.pdf')
+plt.savefig(output_dir + 'manc_distribution.pdf', dpi=600)
 plt.show()
 plt.close()
 
@@ -286,7 +286,7 @@ species_filenames = {
 
 for data_idx in species_indices:
     # Load connectome and extract synapse counts
-    A = network_functions.load_connectome(data_idx)
+    A = network_processing.load_connectome(data_idx)
     synapse_counts = A.data
     
     # Get distribution of weights
@@ -300,6 +300,6 @@ for data_idx in species_indices:
     ax.set_yscale('log')
     
     plt.subplots_adjust(**fig_margins)
-    plt.savefig(output_dir + species_filenames[data_idx])
+    plt.savefig(output_dir + species_filenames[data_idx], dpi=600)
     plt.show()
     plt.close()

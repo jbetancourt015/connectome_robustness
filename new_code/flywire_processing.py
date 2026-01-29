@@ -10,7 +10,7 @@ created on:
     Tue 4 Nov 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 4 Nov 2025
+    Thu 29 Jan 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -220,8 +220,36 @@ conn_class_df = conn_class_df[['pre_root_id', 'post_root_id', 'nt_class']]
 
 
 
-# Aggregate connections over neuropils
-conn_df = conn_df.groupby(['pre_root_id','post_root_id'])['syn_count'].sum().reset_index()
+# Map neuropil to brain_region
+conn_df['brain_region'] = conn_df['neuropil'].map(region_map)
+
+# Aggregate by connection and brain_region
+conn_by_region = (
+    conn_df
+    .groupby(['pre_root_id', 'post_root_id', 'brain_region'])['syn_count']
+    .sum()
+    .reset_index()
+)
+
+# Find brain_region with max synapses for each connection (plurality)
+plurality_region = (
+    conn_by_region
+    .sort_values(['pre_root_id', 'post_root_id', 'syn_count'], ascending=[True, True, False])
+    .drop_duplicates(['pre_root_id', 'post_root_id'])
+    .loc[:, ['pre_root_id', 'post_root_id', 'brain_region']]
+    .rename(columns={'brain_region': 'conn_brain_region'})
+)
+
+# Compute total synapse count per connection
+total_syn = (
+    conn_by_region
+    .groupby(['pre_root_id', 'post_root_id'])['syn_count']
+    .sum()
+    .reset_index()
+)
+
+# Merge to get connection dataset with plurality brain_region
+conn_df = total_syn.merge(plurality_region, on=['pre_root_id', 'post_root_id'])
 
 # Append neurotransmitter type data
 conn_df = conn_df.merge(conn_class_df, on=('pre_root_id', 'post_root_id'), how='outer')
