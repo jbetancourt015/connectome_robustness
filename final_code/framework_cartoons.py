@@ -218,10 +218,10 @@ ax.fill_betweenx(np.linspace(0, lim, 2), -lim, 0, color=con_colors[1], alpha=0.3
 ax.fill_betweenx(np.linspace(-lim, 0, 2), 0, lim, color=con_colors[1], alpha=0.3)
 
 # Draw ellipse (single level set)
-draw_ellipse(R, rho, ax, con_colors[0], lim=lim)
+draw_ellipse(R, rho, ax, con_colors[2], lim=lim)
 
 # Draw principal axes (dashed lines within ellipse)
-draw_principal_axes(R, rho, ax, con_colors[0], lw=1)
+draw_principal_axes(R, rho, ax, con_colors[2], lw=1)
 
 # Make axes coincide
 locator = ax.yaxis.get_major_locator()
