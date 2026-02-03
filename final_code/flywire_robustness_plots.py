@@ -1,10 +1,11 @@
 """
-    This script generates five robustness plots for the FlyWire dataset:
+    This script generates six robustness plots for the FlyWire dataset:
     1. CDF of normalized robustness
     2. Violin plots of normalized robustness by brain region
     3. CDF of excitatory vs inhibitory normalized robustness
     4. CDF of normalized robustness by reciprocity decile
-    5. Running median of robustness vs peripherality (sliding window)
+    5. Running median of robustness vs optic peripherality (sliding window)
+    6. Running median of robustness vs olfactory peripherality (sliding window)
 -------------------------------------------------------------------------------
 created on:
     Tue 3 Feb 2026
@@ -371,7 +372,7 @@ ax.set_ylabel('CDF')
 plt.show()
 
 #------------------------------------------------------------------------------
-# PLOT 5: RUNNING MEDIAN OF ROBUSTNESS VS PERIPHERALITY
+# PLOT 5: RUNNING MEDIAN OF ROBUSTNESS VS OPTIC PERIPHERALITY
 #------------------------------------------------------------------------------
 # Sliding window parameters for running median
 log_band_width = 0.3  # Width of band in log10(percentile) space
@@ -460,7 +461,97 @@ ax_left.set_ylabel('Median robustness')
 fig.supxlabel('Peripherality percentile', fontsize=9)
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_peripherality.pdf', dpi=600)
+plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_optic_peripherality.pdf', dpi=600)
+
+plt.show()
+
+#------------------------------------------------------------------------------
+# PLOT 6: RUNNING MEDIAN OF ROBUSTNESS VS OLFACTORY PERIPHERALITY
+#------------------------------------------------------------------------------
+# Set up seed and masks
+seed = 'olfactory'
+mask_seed = neuron_df[f"distance_{seed}"] == 0      # seed neurons (distance = 0)
+mask_pos = neuron_df[f"distance_{seed}"] > 0        # all positive distance neurons
+
+# Compute median robustness for seed
+seed_median = neuron_df[mask_seed]['norm_robustness'].median()
+
+# For positive-distance neurons: compute percentile ranks
+pos_df = neuron_df[mask_pos].copy()
+pos_df['percentile'] = pos_df[f"distance_{seed}"].rank(pct=True) * 100
+
+# Define sliding window centers in log10(percentile) space
+# Start just after the minimum percentile, end at 100
+min_pct = pos_df['percentile'].min()
+log_min = np.log10(max(min_pct, 0.1))  # Avoid log(0)
+log_max = np.log10(100)
+
+# Generate window centers
+window_centers_log = np.arange(log_min + log_band_width/2, 
+                                log_max - log_band_width/2 + log_step_size, 
+                                log_step_size)
+
+# Compute running median for each window position
+running_x = []
+running_median = []
+
+for center_log in window_centers_log:
+    # Define band edges in percentile space
+    low_pct = 10 ** (center_log - log_band_width / 2)
+    high_pct = 10 ** (center_log + log_band_width / 2)
+    
+    # Find neurons within this band
+    band_mask = (pos_df['percentile'] >= low_pct) & (pos_df['percentile'] < high_pct)
+    
+    if band_mask.sum() > 0:
+        # x-coordinate is the geometric mean of band edges (= 10^center)
+        running_x.append(10 ** center_log)
+        running_median.append(pos_df[band_mask]['norm_robustness'].median())
+
+running_x = np.array(running_x)
+running_median = np.array(running_median)
+
+# Set up figure with broken x-axis
+fig, (ax_left, ax_right) = plt.subplots(
+    1, 2, 
+    sharey=True, 
+    figsize=(width, height),
+    gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
+)
+
+# Left panel: seed point at x=0 (linear scale)
+ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
+ax_left.set_xlim(-0.5, 0.5)
+ax_left.set_xticks([0])
+ax_left.set_xticklabels(['0'])
+
+# Right panel: running median line in log-scale
+ax_right.plot(running_x, running_median, lw=2, c=con_colors[4])
+ax_right.set_xscale('log')
+
+# Hide the spines between the two axes to show the "break"
+ax_left.spines['right'].set_visible(False)
+ax_right.spines['left'].set_visible(False)
+ax_right.tick_params(left=False)  # hide left ticks on right panel
+
+# Add diagonal break marks (scale d for left panel to match visual angle)
+d = 0.015  # size of diagonal lines in axes coords (for right panel)
+d_left = d * 6  # scale by width ratio (6:1) for left panel
+
+kwargs = dict(transform=ax_left.transAxes, color='k', clip_on=False, lw=0.8)
+ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
+ax_left.plot((1 - d_left, 1 + d_left), (1 - d, 1 + d), **kwargs)  # top-right
+
+kwargs.update(transform=ax_right.transAxes)
+ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
+ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # top-left
+
+# Format figure
+ax_left.set_ylabel('Median robustness')
+fig.supxlabel('Peripherality percentile', fontsize=9)
+
+plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
+plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_olfactory_peripherality.pdf', dpi=600)
 
 plt.show()
 

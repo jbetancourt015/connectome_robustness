@@ -186,7 +186,107 @@ plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance_binned.pdf', dp
 
 ax.set_xlabel('Variance')
 ax.set_ylabel('Simulated loss')
+ax.set_title('Mean: quantile, Var: quantile')
 
+plt.show()
+
+#------------------------------------------------------------------------------
+# EXTRA PLOTS: DIFFERENT BINNING STRATEGIES
+#------------------------------------------------------------------------------
+def bin_and_plot_loss_vs_variance(df, mean_binning='quantile', var_binning='quantile',
+                                  n_mean_bins=5, n_var_bins=5, ax=None):
+    """
+    Bin neurons by mean and variance using specified strategies and plot loss vs variance.
+    
+    Parameters:
+    -----------
+    df : DataFrame with 'mean', 'std', 'sim_loss' columns
+    mean_binning : 'quantile' or 'log' - how to bin by mean
+    var_binning : 'quantile' or 'log' - how to bin by variance within each mean bin
+    """
+    df = df.copy()
+    
+    # Compute mean bin boundaries
+    if mean_binning == 'quantile':
+        mean_bins = np.percentile(df['mean'], np.linspace(0, 100, n_mean_bins + 1))
+    else:  # log-uniform
+        mean_bins = np.logspace(np.log10(df['mean'].min()), np.log10(df['mean'].max()), n_mean_bins + 1)
+    
+    # Assign mean bin indices
+    df['mean_bin'] = pd.cut(df['mean'], bins=mean_bins, labels=False, include_lowest=True)
+    
+    # Assign variance bin indices within each mean bin
+    df['var_bin'] = -1
+    for i in range(n_mean_bins):
+        if i < n_mean_bins - 1:
+            mean_mask = (df['mean'] >= mean_bins[i]) & (df['mean'] < mean_bins[i+1])
+        else:
+            mean_mask = (df['mean'] >= mean_bins[i]) & (df['mean'] <= mean_bins[i+1])
+        
+        subset_var = df.loc[mean_mask, 'std']
+        if len(subset_var) == 0:
+            continue
+            
+        # Compute variance bin boundaries for this mean bin
+        if var_binning == 'quantile':
+            var_bins = np.percentile(subset_var, np.linspace(0, 100, n_var_bins + 1))
+        else:  # log-uniform
+            var_bins = np.logspace(np.log10(subset_var.min()), np.log10(subset_var.max()), n_var_bins + 1)
+        
+        var_bin_idx = pd.cut(df.loc[mean_mask, 'std'], bins=var_bins, labels=False, include_lowest=True)
+        df.loc[mean_mask, 'var_bin'] = var_bin_idx
+    
+    # Set up figure if ax not provided
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(width, height))
+    
+    cmap = plt.get_cmap('cool', n_mean_bins)
+    
+    for i in range(n_mean_bins):
+        mean_mask = df['mean_bin'] == i
+        if mean_mask.sum() == 0:
+            continue
+            
+        # Get representative mean (median of neurons in this mean bin)
+        mean_mid = df.loc[mean_mask, 'mean'].median()
+        
+        # Compute median loss and median variance for each variance bin
+        grouped_loss = df[mean_mask].groupby('var_bin')['sim_loss'].median()
+        grouped_var = df[mean_mask].groupby('var_bin')['std'].median()
+        
+        # Plot prediction line
+        ax.plot(var_pred, general_loss(mean_mid, var_pred), c=cmap(i), lw=2, zorder=0)
+        
+        # Plot scatter for bins with data
+        valid_bins = grouped_loss.index.dropna().astype(int)
+        ax.scatter(grouped_var[valid_bins], grouped_loss[valid_bins], c='white', 
+                   edgecolors=cmap(i), s=20, rasterized=True)
+    
+    ax.set_xscale('log')
+    ax.set_xlabel('Variance')
+    ax.set_ylabel('Simulated loss')
+    
+    return ax
+
+# FIGURE: Mean quantile, Variance log-uniform
+fig, ax = plt.subplots(figsize=(width, height))
+bin_and_plot_loss_vs_variance(df_nonneg, mean_binning='quantile', var_binning='log', ax=ax)
+ax.set_title('Mean: quantile, Var: log-uniform')
+plt.subplots_adjust(**fig_margins)
+plt.show()
+
+# FIGURE: Mean log-uniform, Variance quantile
+fig, ax = plt.subplots(figsize=(width, height))
+bin_and_plot_loss_vs_variance(df_nonneg, mean_binning='log', var_binning='quantile', ax=ax)
+ax.set_title('Mean: log-uniform, Var: quantile')
+plt.subplots_adjust(**fig_margins)
+plt.show()
+
+# FIGURE: Mean log-uniform, Variance log-uniform
+fig, ax = plt.subplots(figsize=(width, height))
+bin_and_plot_loss_vs_variance(df_nonneg, mean_binning='log', var_binning='log', ax=ax)
+ax.set_title('Mean: log-uniform, Var: log-uniform')
+plt.subplots_adjust(**fig_margins)
 plt.show()
 
 #------------------------------------------------------------------------------
