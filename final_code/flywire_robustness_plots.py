@@ -375,7 +375,7 @@ plt.show()
 # PLOT 5: RUNNING MEDIAN OF ROBUSTNESS VS OPTIC PERIPHERALITY
 #------------------------------------------------------------------------------
 # Sliding window parameters for running median
-log_band_width = 0.3  # Width of band in log10(percentile) space
+log_band_width = 0.8  # Width of band in log10(percentile) space
 log_step_size = 0.1   # Step size for sliding window
 
 # Set up seed and masks
@@ -429,6 +429,10 @@ fig, (ax_left, ax_right) = plt.subplots(
     gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
 )
 
+# Add population median line (behind data, spans both panels via shared y-axis)
+ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
+ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
+
 # Left panel: seed point at x=0 (linear scale)
 ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
 ax_left.set_xlim(-0.5, 0.5)
@@ -456,12 +460,12 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # top-left
 
+plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
+plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_optic_peripherality.pdf', dpi=600)
+
 # Format figure
 ax_left.set_ylabel('Median robustness')
 fig.supxlabel('Peripherality percentile', fontsize=9)
-
-plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_optic_peripherality.pdf', dpi=600)
 
 plt.show()
 
@@ -519,6 +523,10 @@ fig, (ax_left, ax_right) = plt.subplots(
     gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
 )
 
+# Add population median line (behind data, spans both panels via shared y-axis)
+ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
+ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
+
 # Left panel: seed point at x=0 (linear scale)
 ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
 ax_left.set_xlim(-0.5, 0.5)
@@ -546,12 +554,12 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # top-left
 
+plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
+plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_olfactory_peripherality.pdf', dpi=600)
+
 # Format figure
 ax_left.set_ylabel('Median robustness')
 fig.supxlabel('Peripherality percentile', fontsize=9)
-
-plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_olfactory_peripherality.pdf', dpi=600)
 
 plt.show()
 
