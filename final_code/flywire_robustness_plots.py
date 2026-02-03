@@ -1,9 +1,10 @@
 """
-    This script generates four robustness plots for the FlyWire dataset:
+    This script generates five robustness plots for the FlyWire dataset:
     1. CDF of normalized robustness
     2. Violin plots of normalized robustness by brain region
     3. CDF of excitatory vs inhibitory normalized robustness
     4. CDF of normalized robustness by reciprocity decile
+    5. Running median of robustness vs peripherality (sliding window)
 -------------------------------------------------------------------------------
 created on:
     Tue 3 Feb 2026
@@ -23,7 +24,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.ticker as mticker
 import logging
+from scipy.sparse import coo_matrix
+import network_processing
 
 plt.rcParams.update({
     'text.usetex': False,  # keep LaTeX off globally
@@ -48,15 +52,16 @@ logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
 # Nature figure size
 mm_to_in = 25.4
-width = 50./mm_to_in
-height = 50./mm_to_in
+width = 55./mm_to_in
+height = 55./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
+wide_fig_margins = dict(left=0.12, right=0.98, bottom=0.22, top=0.95)
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
-                   [120, 0, 150], [255, 204, 0], [203, 41, 123], [0, 0, 0]])/255
+                   [120, 0, 150], [0, 168, 157], [203, 41, 123], [153, 153, 0]])/255
 
 #------------------------------------------------------------------------------
 # AUXILIARY FUNCTIONS
@@ -67,6 +72,13 @@ def compute_cdf(series):
     cum_counts = counts.cumsum()
     cdf = cum_counts / cum_counts.iloc[-1]
     return cdf.index, cdf.values
+
+def log10_formatter(y, pos):
+    """Format y-axis ticks as powers of 10 with superscript notation."""
+    superscripts = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
+    if y.is_integer():
+        return "10" + str(int(y)).translate(superscripts)
+    return ""
 
 #------------------------------------------------------------------------------
 # LOAD DATASETS
@@ -83,26 +95,93 @@ peri_df = pd.read_parquet(data_dir+'periphery_data.parquet')
 neuron_df = neuron_df.merge(peri_df, on="root_id")
 
 #------------------------------------------------------------------------------
+# BUILD FAFB SPARSE MATRIX AND SHUFFLED NETWORK
+#------------------------------------------------------------------------------
+# Build sparse matrix with index mapping
+nodes_index = pd.Index(
+    pd.unique(pd.concat([conn_df['pre_root_id'], conn_df['post_root_id']], ignore_index=True)),
+    name="root_id"
+)
+
+id_to_idx = pd.Series(np.arange(nodes_index.size), index=nodes_index)
+idx_to_id = nodes_index.to_numpy()
+
+# Map edges to integer rows/cols
+rows = id_to_idx.reindex(conn_df['pre_root_id']).to_numpy()
+cols = id_to_idx.reindex(conn_df['post_root_id']).to_numpy()
+data = conn_df['syn_count'].to_numpy()
+
+# Create sparse CSC matrix
+A_fafb = coo_matrix((data, (rows, cols)),
+                    shape=(nodes_index.size, nodes_index.size)).tocsc()
+
+# Generate shuffled network
+A_fafb_shuffled = network_processing.null_network(A_fafb, scheme='rand_weight', 
+                                                   conn_type='disc', n_threshold=1)
+
+# Compute normalized robustness for shuffled network
+# Formula: (sqrt(sum_w2/in_strength) - sqrt(in_strength/in_deg)) / 
+#          (sqrt(1 + in_strength/in_deg) - sqrt(in_strength/in_deg))
+in_deg_shuf = np.asarray(A_fafb_shuffled.getnnz(axis=0)).ravel()
+in_strength_shuf = np.asarray(A_fafb_shuffled.sum(axis=0)).ravel()
+
+# Compute sum of squared weights for each column
+A_shuf_squared = A_fafb_shuffled.copy()
+A_shuf_squared.data = A_shuf_squared.data ** 2
+sum_w2_shuf = np.asarray(A_shuf_squared.sum(axis=0)).ravel()
+
+# Compute normalized robustness (only for neurons with in_deg > 1)
+mask_valid = in_deg_shuf > 1
+mean_weight_shuf = np.zeros(nodes_index.size)
+mean_weight_shuf[mask_valid] = in_strength_shuf[mask_valid] / in_deg_shuf[mask_valid]
+
+norm_rob_shuf = np.full(nodes_index.size, np.nan)
+numerator = np.sqrt(sum_w2_shuf[mask_valid] / in_strength_shuf[mask_valid]) - np.sqrt(mean_weight_shuf[mask_valid])
+denominator = np.sqrt(1.0 + mean_weight_shuf[mask_valid]) - np.sqrt(mean_weight_shuf[mask_valid])
+norm_rob_shuf[mask_valid] = numerator / denominator
+
+# Create dataframe with shuffled robustness mapped to root_ids
+shuffled_rob_df = pd.DataFrame({
+    'root_id': idx_to_id,
+    'norm_robustness_shuffled': norm_rob_shuf
+})
+
+# Merge with neuron_df to align indices
+neuron_df = neuron_df.merge(shuffled_rob_df, on='root_id', how='left')
+
+#------------------------------------------------------------------------------
 # PLOT 1: CDF OF NORMALIZED ROBUSTNESS
 #------------------------------------------------------------------------------
 rob_vals, rob_cdf = compute_cdf(neuron_df['norm_robustness'])
 median_rob = neuron_df['norm_robustness'].median()
 
+# Compute CDF for shuffled network (filter out NaN values)
+shuffled_valid = neuron_df['norm_robustness_shuffled'].dropna()
+rob_vals_shuf, rob_cdf_shuf = compute_cdf(shuffled_valid)
+
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
-ax.step(rob_vals, rob_cdf, where='post', lw=2, color=con_colors[1])
 ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+ax.plot([1., 1.], [0., 1.], lw=1, c='k', ls='--')
+ax.step(rob_vals, rob_cdf, where='post', lw=2, color=con_colors[5], label='Connectome')
+ax.step(rob_vals_shuf, rob_cdf_shuf, where='post', lw=2, color=con_colors[5], alpha=0.5, label='Shuffled')
+
+
+ax.set_xscale('log')
+ax.set_xlim(1e-1, 1e2)
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/drosophila_robustness/cdf_normalized_robustness.pdf', dpi=600)
 
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
+ax.legend()
 
-plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/flywire_robustness/cdf_normalized_robustness.pdf', dpi=600)
 plt.show()
 
 #------------------------------------------------------------------------------
-# PLOT 2: VIOLIN PLOTS BY BRAIN REGION
+# PLOT 2: VIOLIN PLOTS BY BRAIN REGION (LOG SCALE)
 #------------------------------------------------------------------------------
 # Drop "Other Regions"
 neuron_df_regions = neuron_df[neuron_df['brain_region'] != "Other Regions"].copy()
@@ -119,11 +198,18 @@ region_order = (
 cmap = plt.get_cmap('viridis', len(region_order))
 region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
 
-# Get data for violin plots
-violin_data = [neuron_df_regions.loc[neuron_df_regions["brain_region"] == r, "norm_robustness"].to_numpy(dtype=float) for r in region_order]
+# Transform to log scale (filter out non-positive values)
+mask0 = neuron_df_regions['norm_robustness'] > 0
+neuron_df_regions["log_robustness"] = np.log10(neuron_df_regions["norm_robustness"])
+
+# Get data for violin plots (using log-transformed data)
+violin_data = [neuron_df_regions.loc[mask0 & (neuron_df_regions["brain_region"] == r), "log_robustness"].to_numpy(dtype=float) for r in region_order]
 
 # Set up figure (wider for region labels)
-fig, ax = plt.subplots(figsize=(1.9*width, height))
+fig, ax = plt.subplots(figsize=(2*width, height))
+
+# Add population median line (behind violins)
+ax.axhline(np.log10(median_rob), lw=1, c='k', ls='--', zorder=0)
 
 parts = ax.violinplot(
     violin_data,
@@ -147,30 +233,23 @@ if 'cmedians' in parts and parts['cmedians'] is not None:
     parts['cmedians'].set_color('black')
     
 # Labels/ticks
-ax.set_ylabel("Normalized Robustness")
 ax.set_xticks(range(1, len(region_order) + 1))
 ax.set_xticklabels(region_order, rotation=35, ha="right")
 
-plt.tight_layout()
-plt.savefig('../../paper_figures/flywire_robustness/violin_by_brain_region.pdf', dpi=600, bbox_inches='tight')
+# Format y-axis with log10 tick labels
+ax.set_ylim(-1, 2)
+ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
+
+plt.subplots_adjust(**wide_fig_margins)
+plt.savefig('../../paper_figures/drosophila_robustness/violin_by_brain_region.pdf', dpi=600)
+
+ax.set_ylabel("Normalized Robustness")
 plt.show()
 
 #------------------------------------------------------------------------------
 # PLOT 3: CDF OF EXCITATORY VS INHIBITORY NEURONS
 #------------------------------------------------------------------------------
-# Map of neurotransmitter types
-nt_to_class = {
-    'ACH': 'exc',
-    'GLUT': 'inh',
-    'GABA': 'inh',
-    'DA':  'mod',
-    'SER': 'mod',
-    'OCT': 'mod'
-}
-
-# Add neurotransmitter class to connections dataset
-conn_df['nt_class'] = conn_df['nt_type'].map(nt_to_class)
-
 # Get index of all neurons
 all_neurons = pd.Index(
     pd.unique(
@@ -236,18 +315,23 @@ rob_inh, cdf_inh = compute_cdf(neuron_df_class[mask_inh]['norm_robustness'])
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
+# Add population median line (behind data)
+ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+
 ax.step(rob_exc, cdf_exc, where='post', color=con_colors[0], lw=2, label='Excitatory')
 ax.step(rob_inh, cdf_inh, where='post', color=con_colors[1], lw=2, label='Inhibitory')
 
-ax.legend()
-
 ax.set_xscale('log')
+ax.set_xlim(1e-1, 1e2)
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/drosophila_robustness/cdf_exc_vs_inh.pdf', dpi=600)
+
+ax.legend()
 
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
 
-plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/flywire_robustness/cdf_exc_vs_inh.pdf', dpi=600)
 plt.show()
 
 #------------------------------------------------------------------------------
@@ -260,6 +344,10 @@ neuron_df['reciprocity_q'] = pd.qcut(neuron_df['reciprocity'], q=n_quantiles, la
 
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
+
+# Add population median line (behind data)
+ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+
 cmap = plt.get_cmap('plasma', n_quantiles)
 
 for i in range(n_quantiles):
@@ -272,11 +360,107 @@ for i in range(n_quantiles):
 # ax.legend()
 
 ax.set_xscale('log')
+ax.set_xlim(1e-1, 1e2)
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/drosophila_robustness/cdf_by_reciprocity_decile.pdf', dpi=600)
     
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
 
-plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/flywire_robustness/cdf_by_reciprocity_decile.pdf', dpi=600)
+plt.show()
+
+#------------------------------------------------------------------------------
+# PLOT 5: RUNNING MEDIAN OF ROBUSTNESS VS PERIPHERALITY
+#------------------------------------------------------------------------------
+# Sliding window parameters for running median
+log_band_width = 0.3  # Width of band in log10(percentile) space
+log_step_size = 0.1   # Step size for sliding window
+
+# Set up seed and masks
+seed = 'optic'
+mask_seed = neuron_df[f"distance_{seed}"] == 0      # seed neurons (distance = 0)
+mask_pos = neuron_df[f"distance_{seed}"] > 0        # all positive distance neurons
+
+# Compute median robustness for seed
+seed_median = neuron_df[mask_seed]['norm_robustness'].median()
+
+# For positive-distance neurons: compute percentile ranks
+pos_df = neuron_df[mask_pos].copy()
+pos_df['percentile'] = pos_df[f"distance_{seed}"].rank(pct=True) * 100
+
+# Define sliding window centers in log10(percentile) space
+# Start just after the minimum percentile, end at 100
+min_pct = pos_df['percentile'].min()
+log_min = np.log10(max(min_pct, 0.1))  # Avoid log(0)
+log_max = np.log10(100)
+
+# Generate window centers
+window_centers_log = np.arange(log_min + log_band_width/2, 
+                                log_max - log_band_width/2 + log_step_size, 
+                                log_step_size)
+
+# Compute running median for each window position
+running_x = []
+running_median = []
+
+for center_log in window_centers_log:
+    # Define band edges in percentile space
+    low_pct = 10 ** (center_log - log_band_width / 2)
+    high_pct = 10 ** (center_log + log_band_width / 2)
+    
+    # Find neurons within this band
+    band_mask = (pos_df['percentile'] >= low_pct) & (pos_df['percentile'] < high_pct)
+    
+    if band_mask.sum() > 0:
+        # x-coordinate is the geometric mean of band edges (= 10^center)
+        running_x.append(10 ** center_log)
+        running_median.append(pos_df[band_mask]['norm_robustness'].median())
+
+running_x = np.array(running_x)
+running_median = np.array(running_median)
+
+# Set up figure with broken x-axis
+fig, (ax_left, ax_right) = plt.subplots(
+    1, 2, 
+    sharey=True, 
+    figsize=(width, height),
+    gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
+)
+
+# Left panel: seed point at x=0 (linear scale)
+ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
+ax_left.set_xlim(-0.5, 0.5)
+ax_left.set_xticks([0])
+ax_left.set_xticklabels(['0'])
+
+# Right panel: running median line in log-scale
+ax_right.plot(running_x, running_median, lw=2, c=con_colors[4])
+ax_right.set_xscale('log')
+
+# Hide the spines between the two axes to show the "break"
+ax_left.spines['right'].set_visible(False)
+ax_right.spines['left'].set_visible(False)
+ax_right.tick_params(left=False)  # hide left ticks on right panel
+
+# Add diagonal break marks (scale d for left panel to match visual angle)
+d = 0.015  # size of diagonal lines in axes coords (for right panel)
+d_left = d * 6  # scale by width ratio (6:1) for left panel
+
+kwargs = dict(transform=ax_left.transAxes, color='k', clip_on=False, lw=0.8)
+ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
+ax_left.plot((1 - d_left, 1 + d_left), (1 - d, 1 + d), **kwargs)  # top-right
+
+kwargs.update(transform=ax_right.transAxes)
+ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
+ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # top-left
+
+# Format figure
+ax_left.set_ylabel('Median robustness')
+fig.supxlabel('Peripherality percentile', fontsize=9)
+
+plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
+plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_peripherality.pdf', dpi=600)
+
 plt.show()
 
