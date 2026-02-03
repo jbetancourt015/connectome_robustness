@@ -92,14 +92,33 @@ var_min, var_max = np.min(df_filtered['std']), np.max(df_filtered['std'])
 # Number of bins for histogram
 n_bins = 100
 
+# Number of quantile bins for grid overlay
+n_mean = 5   # quintiles for mean
+n_var = 5    # quintiles for variance within each mean bin
+
+# Compute mean quantile boundaries
+mean_quantiles = np.percentile(df_filtered['mean'], np.linspace(0, 100, n_mean + 1))
+
+# Compute variance quantiles within each mean bin
+var_quantiles_per_bin = []
+for i in range(n_mean):
+    if i < n_mean - 1:
+        mask = (df_filtered['mean'] >= mean_quantiles[i]) & (df_filtered['mean'] < mean_quantiles[i+1])
+    else:
+        # Include right edge for the last bin
+        mask = (df_filtered['mean'] >= mean_quantiles[i]) & (df_filtered['mean'] <= mean_quantiles[i+1])
+    subset = df_filtered.loc[mask, 'std']
+    var_q = np.percentile(subset, np.linspace(0, 100, n_var + 1))
+    var_quantiles_per_bin.append(var_q)
+
 # Set up figure
 fig = plt.figure(figsize=(1.3*width, height))
 
 ax_scatter = fig.add_axes([0.2, 0.15, 0.8/1.3, 0.8])
 ax_cbar = fig.add_axes([1.12/1.3, 0.15, 0.03, 0.8])
 
-# Create histogram bins (linear for mean, log for variance)
-xbins = np.linspace(mu_min, mu_max, n_bins)
+# Create histogram bins (log for both mean and variance)
+xbins = np.logspace(np.log10(mu_min), np.log10(mu_max), n_bins)
 ybins = np.logspace(np.log10(var_min), np.log10(var_max), n_bins)
 
 # Compute histogram counts and normalize to probability
@@ -117,7 +136,8 @@ im = ax_scatter.pcolormesh(
     cmap=fade_to_color_cmap(con_colors[0], alpha_min=alpha_min, name="fade_to_color")
 )
 
-# Set axis scales
+# Set axis scales (log for both axes)
+ax_scatter.set_xscale('log')
 ax_scatter.set_yscale('log')
 
 # Set axis limits explicitly based on bin edges
@@ -128,6 +148,18 @@ ax_scatter.set_ylim(yedges[0], yedges[-1])
 for loc in ["left", "right", "top", "bottom"]:
     ax_scatter.spines[loc].set_visible(True)
 ax_scatter.set_frame_on(True)
+
+# Draw quantile grid overlay
+# Vertical lines at mean quantile boundaries (skip outer edges)
+for mq in mean_quantiles[1:-1]:
+    ax_scatter.axvline(mq, color='k', lw=0.5, ls='--', alpha=0.7)
+
+# Horizontal segments for variance quantiles within each mean bin
+for i, var_q in enumerate(var_quantiles_per_bin):
+    x_left = mean_quantiles[i]
+    x_right = mean_quantiles[i + 1]
+    for vq in var_q[1:-1]:  # skip outer edges
+        ax_scatter.hlines(vq, x_left, x_right, color='k', lw=0.5, ls='--', alpha=0.7)
 
 # Colorbar
 cb = fig.colorbar(im, cax=ax_cbar)
