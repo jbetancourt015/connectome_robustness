@@ -64,6 +64,8 @@ data_idx = 5
 thresholded = False
 scheme = 'remove'
 
+eps = 10.
+
 suffix = '_thresholded' if thresholded else ''
 
 # Plotting colors
@@ -78,7 +80,7 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
 def general_loss(mean, var):
     """Compute predicted loss from mean and variance."""
     rob = np.sqrt(mean + var/mean)
-    return (1/np.pi)*np.arccos((1.+1./rob**2)**(-1/2))
+    return (1/np.pi)*np.arccos((1.+(eps/rob)**2)**(-1/2))
 
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
@@ -286,6 +288,7 @@ plt.show()
 fig, ax = plt.subplots(figsize=(width, height))
 bin_and_plot_loss_vs_variance(df_nonneg, mean_binning='log', var_binning='log', ax=ax)
 ax.set_title('Mean: log-uniform, Var: log-uniform')
+# ax.set_xlim([1.,1e4])
 plt.subplots_adjust(**fig_margins)
 plt.show()
 
@@ -293,7 +296,7 @@ plt.show()
 # PREDICTED VS SIMULATED LOSS
 #------------------------------------------------------------------------------
 # Compute predicted loss
-neuron_df['pred_loss'] = (1/np.pi)*np.arccos((1.+(1./neuron_df['robustness'])**2)**(-1/2))
+neuron_df['pred_loss'] = (1/np.pi)*np.arccos((1.+(eps/neuron_df['robustness'])**2)**(-1/2))
 
 # Get loss range
 min_pred, max_pred = min(neuron_df['pred_loss']), max(neuron_df['pred_loss'])
@@ -367,7 +370,7 @@ for i in range(n_mean_bins):
 
 # Plot prediction line
 r_vals = np.linspace(rob_min, rob_max, 100)
-ax.plot(r_vals, (1./np.pi)*np.arccos((1.+r_vals**(-2))**(-0.5)), c='k', ls='--', lw=1, zorder=0, alpha=.5)
+ax.plot(r_vals, (1./np.pi)*np.arccos((1.+(eps/r_vals)**2)**(-0.5)), c='k', ls='--', lw=1, zorder=0, alpha=.5)
 
 ax.set_xscale('log')
 ax.set_ylim(0., None)
