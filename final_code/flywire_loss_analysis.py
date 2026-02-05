@@ -20,6 +20,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import logging
 import matplotlib as mpl
+import matplotlib.colors as mcolors
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numba import njit
@@ -71,6 +72,12 @@ suffix = '_thresholded' if thresholded else ''
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
                    [120, 0, 150], [255, 204, 0], [203, 41, 123], [0, 0, 0]])/255;
+
+dark_cool = mcolors.LinearSegmentedColormap.from_list(
+    "dark_cool",
+    ["#0b3c49", "#1f5c8b", "#4a4aa8", "#7a3fa0", "#9b2f8a"]
+)
+plt.colormaps.register(dark_cool)
 
 def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
@@ -157,7 +164,7 @@ for i in range(n_mean_bins):
 var_pred = np.logspace(np.log10(std_min), np.log10(std_max), n_pred)
 
 # Set up figure
-cmap = plt.get_cmap('cool', n_mean_bins)
+cmap = plt.get_cmap('dark_cool', n_mean_bins)
 fig, ax = plt.subplots(figsize=(width, height))
 
 for i in range(n_mean_bins):
@@ -242,7 +249,7 @@ def bin_and_plot_loss_vs_variance(df, mean_binning='quantile', var_binning='quan
     if ax is None:
         fig, ax = plt.subplots(figsize=(width, height))
     
-    cmap = plt.get_cmap('cool', n_mean_bins)
+    cmap = plt.get_cmap('dark_cool', n_mean_bins)
     
     for i in range(n_mean_bins):
         mean_mask = df['mean_bin'] == i

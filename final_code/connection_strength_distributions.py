@@ -41,6 +41,8 @@ plt.rcParams.update({
     'ytick.labelsize': 8,
     'legend.fontsize': 8,
     'axes.linewidth': 0.5,   # thin axis lines for publication
+    'axes.spines.top': False,    # remove top spine
+    'axes.spines.right': False,  # remove right spine
     'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
     'ps.fonttype': 42,       # same for PostScript
 })
@@ -63,15 +65,19 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
 mm_to_in = 25.4
 width = 35./mm_to_in
 height = 35./mm_to_in
-width_large = 80./mm_to_in
-height_large = 80./mm_to_in
+width_large = 60./mm_to_in
+height_large = 60./mm_to_in
+width_grid = 100./mm_to_in
+height_grid = 60./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
+fig_margins_large = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
+fig_margins_grid = dict(left=0.1, right=0.97, bottom=0.15, top=0.95)
 
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
-output_dir = '../../paper_figures/synapse_count_distributions/'
+output_dir = '../../paper_figures/connection_strength_distributions/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Import connections data
@@ -164,12 +170,12 @@ s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
 # Set up figure
 fig, ax = plt.subplots(figsize=(width_large, height_large))
 
-ax.scatter(s_fafb, P_fafb, color=con_colors[5], s=10, rasterized=True)
+ax.scatter(s_fafb, P_fafb, color=con_colors[0], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
-plt.subplots_adjust(**fig_margins)
-plt.savefig(output_dir + 'fafb_distribution.pdf', dpi=600)
+plt.subplots_adjust(**fig_margins_large)
+plt.savefig(output_dir + 'fafb_distribution.svg', dpi=600)
 plt.show()
 plt.close()
 
@@ -191,13 +197,13 @@ cmap = plt.get_cmap('viridis', len(region_order))
 region_colors = {r: cmap(i) for i, r in enumerate(region_order)}
 
 # FIGURE: Distribution of connections by brain region (Grid)--------------------
-n_cols = 4
-n_rows = 4
+n_cols = 5
+n_rows = 3
 
-excluded = [(0,3),(1,3),(2,3)]
+excluded = [(0,4),(1,4)]
 excluded_indices = [exc[0]*n_cols+exc[1] for exc in excluded]
 
-fig, axes = plt.subplots(n_rows, n_cols, figsize=(width_large, height_large), 
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(width_grid, height_grid), 
                           sharex=True, sharey=True)
 
 region_idx = 0
@@ -221,8 +227,8 @@ for idx in tqdm(range(n_cols*n_rows)):
         # Advance region index
         region_idx += 1
 
-plt.subplots_adjust(**fig_margins, wspace=0.08, hspace=0.08)
-plt.savefig(output_dir + 'brain_region_grid.pdf', dpi=600)
+plt.subplots_adjust(**fig_margins_grid, wspace=0.08, hspace=0.08)
+plt.savefig(output_dir + 'brain_region_grid.svg', dpi=600)
 plt.show()
 plt.close()
 
@@ -245,12 +251,12 @@ s_banc, P_banc = empirical_hist_pd(banc_conn_df['syn_count'])
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
-ax.scatter(s_banc, P_banc, color=con_colors[6], s=10, rasterized=True)
+ax.scatter(s_banc, P_banc, color=con_colors[1], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig(output_dir + 'banc_distribution.pdf', dpi=600)
+plt.savefig(output_dir + 'banc_distribution.svg', dpi=600)
 plt.show()
 plt.close()
 
@@ -264,12 +270,12 @@ s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
-ax.scatter(s_manc, P_manc, color=con_colors[7], s=10, rasterized=True)
+ax.scatter(s_manc, P_manc, color=con_colors[2], s=10, rasterized=True)
 ax.set_xscale('log')
 ax.set_yscale('log')
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig(output_dir + 'manc_distribution.pdf', dpi=600)
+plt.savefig(output_dir + 'manc_distribution.svg', dpi=600)
 plt.show()
 plt.close()
 
@@ -279,10 +285,12 @@ plt.close()
 # Species to plot: c_elegans (idx 2), platynereis_sensory_motor (idx 3), mouse_retina (idx 4)
 species_indices = [2, 3, 4]
 species_filenames = {
-    2: 'c_elegans_distribution.pdf',
-    3: 'platynereis_distribution.pdf',
-    4: 'mouse_retina_distribution.pdf'
+    2: 'c_elegans_distribution.svg',
+    3: 'platynereis_distribution.svg',
+    4: 'mouse_retina_distribution.svg'
 }
+# Map species data indices to color indices (c_elegans->3, platynereis->5, mouse_retina->4)
+species_color_idx = {2: 3, 3: 5, 4: 4}
 
 for data_idx in species_indices:
     # Load connectome and extract synapse counts
@@ -295,7 +303,7 @@ for data_idx in species_indices:
     # FIGURE: Distribution of all connections----------------------------------
     fig, ax = plt.subplots(figsize=(width, height))
     
-    ax.scatter(s_species, P_species, color=con_colors[data_idx], s=10, rasterized=True)
+    ax.scatter(s_species, P_species, color=con_colors[species_color_idx[data_idx]], s=10, rasterized=True)
     ax.set_xscale('log')
     ax.set_yscale('log')
     
