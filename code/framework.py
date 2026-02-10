@@ -746,11 +746,14 @@ def plot_parametric_loss(distribution, n_inputs):
     ax.set_yscale('log')
     ax.set_ylim([1e-2,.2])
     ax.set_xlim([5e-1,1e4])
+    
+    # Hide the right and top spines
+    ax.spines[['right', 'top']].set_visible(False)
 
     plt.subplots_adjust(**fig_margins_lg)
     plt.savefig(fig_dir + f"{distribution}_simulation_var.svg", dpi=600)
 
-    # ax.legend()
+    ax.legend()
 
     ax.set_xlabel('Variance')
     ax.set_ylabel('Simulated loss')
