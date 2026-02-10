@@ -38,7 +38,9 @@ plt.rcParams.update({
     'ytick.labelsize': 8,
     'legend.fontsize': 8,
     'axes.linewidth': 0.5,   # thin axis lines for publication
-    'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
+    'axes.spines.top': False,    # remove top spine
+    'axes.spines.right': False,  # remove right spine
+    'pdf.fonttype': 42,      # ensures text stays as text in Illustrator5
     'ps.fonttype': 42,       # same for PostScript
 })
 
@@ -49,8 +51,8 @@ logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
 # Nature figure size
 mm_to_in = 25.4
-width = 50./mm_to_in
-height = 50./mm_to_in
+width = 55./mm_to_in
+height = 55./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
@@ -126,39 +128,31 @@ n_bins = 100
 # Filter to neurons with positive variance
 df_nonneg = neuron_df[nonneg].copy()
 
-# Set up quantile bins (matching the grid from mean_variance_histogram.py)
-n_mean_bins = 5   # quintiles for mean
-n_var_bins = 5    # quintiles for variance within each mean bin
+# Binning parameters
+n_mean_bins = 5
+n_var_bins = 5
 n_pred = 200
 
-# Compute mean quantile boundaries
-mean_quantiles = np.percentile(df_nonneg['mean'], np.linspace(0, 100, n_mean_bins + 1))
+# Compute log-uniform mean bin boundaries
+mean_bins = np.logspace(np.log10(df_nonneg['mean'].min()),
+                        np.log10(df_nonneg['mean'].max()), n_mean_bins + 1)
 
-# Compute variance quantiles within each mean bin
-var_quantiles_per_bin = []
+# Assign mean bin indices
+df_nonneg['mean_bin'] = pd.cut(df_nonneg['mean'], bins=mean_bins, labels=False, include_lowest=True)
+
+# Assign variance bin indices using quantiles within each mean bin
+df_nonneg['var_bin'] = -1
 for i in range(n_mean_bins):
     if i < n_mean_bins - 1:
-        mask = (df_nonneg['mean'] >= mean_quantiles[i]) & (df_nonneg['mean'] < mean_quantiles[i+1])
+        mean_mask = (df_nonneg['mean'] >= mean_bins[i]) & (df_nonneg['mean'] < mean_bins[i+1])
     else:
-        # Include right edge for the last bin
-        mask = (df_nonneg['mean'] >= mean_quantiles[i]) & (df_nonneg['mean'] <= mean_quantiles[i+1])
-    subset = df_nonneg.loc[mask, 'var']
-    var_q = np.percentile(subset, np.linspace(0, 100, n_var_bins + 1))
-    var_quantiles_per_bin.append(var_q)
-
-# Assign mean bin indices using quantiles
-df_nonneg['mean_bin'] = pd.cut(df_nonneg['mean'], bins=mean_quantiles, labels=False, include_lowest=True)
-
-# Assign variance bin indices using nested quantiles (within each mean bin)
-df_nonneg['var_bin'] = -1  # Initialize
-for i in range(n_mean_bins):
-    if i < n_mean_bins - 1:
-        mean_mask = (df_nonneg['mean'] >= mean_quantiles[i]) & (df_nonneg['mean'] < mean_quantiles[i+1])
-    else:
-        mean_mask = (df_nonneg['mean'] >= mean_quantiles[i]) & (df_nonneg['mean'] <= mean_quantiles[i+1])
+        mean_mask = (df_nonneg['mean'] >= mean_bins[i]) & (df_nonneg['mean'] <= mean_bins[i+1])
     
-    # Assign variance bins for neurons in this mean bin
-    var_q = var_quantiles_per_bin[i]
+    subset_var = df_nonneg.loc[mean_mask, 'var']
+    if len(subset_var) == 0:
+        continue
+    
+    var_q = np.percentile(subset_var, np.linspace(0, 100, n_var_bins + 1))
     var_bin_idx = pd.cut(df_nonneg.loc[mean_mask, 'var'], bins=var_q, labels=False, include_lowest=True)
     df_nonneg.loc[mean_mask, 'var_bin'] = var_bin_idx
 
@@ -170,8 +164,9 @@ cmap = plt.get_cmap('dark_cool', n_mean_bins)
 fig, ax = plt.subplots(figsize=(width, height))
 
 for i in range(n_mean_bins):
-    # Filter data for this mean bin
     mean_mask = df_nonneg['mean_bin'] == i
+    if mean_mask.sum() == 0:
+        continue
     
     # Get representative mean (median of neurons in this mean bin)
     mean_mid = df_nonneg.loc[mean_mask, 'mean'].median()
@@ -181,120 +176,24 @@ for i in range(n_mean_bins):
     grouped_var = df_nonneg[mean_mask].groupby('var_bin')['var'].median()
     
     # Plot prediction line
-    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=cmap(i), lw=2, 
-            label=f"Mean Q{i+1}", zorder=0)
+    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=cmap(i), lw=2, zorder=0)
     
     # Plot scatter for bins with data (using median variance as x-position)
     valid_bins = grouped_loss.index.dropna().astype(int)
     ax.scatter(grouped_var[valid_bins], grouped_loss[valid_bins], c='white', 
                edgecolors=cmap(i), s=20, rasterized=True)
 
-# ax.legend(fontsize=6)
 ax.set_xscale('log')
-# ax.set_yscale('log')
-
-plt.subplots_adjust(**fig_margins)
-# plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance_binned.pdf', dpi=600)
-
-ax.set_xlabel('Variance')
-ax.set_ylabel('Simulated loss')
-ax.set_title('Mean: quantile, Var: quantile')
-
-plt.show()
-
-#------------------------------------------------------------------------------
-# EXTRA PLOTS: DIFFERENT BINNING STRATEGIES
-#------------------------------------------------------------------------------
-def bin_and_plot_loss_vs_variance(df, mean_binning='quantile', var_binning='quantile',
-                                  n_mean_bins=5, n_var_bins=5, ax=None):
-    """
-    Bin neurons by mean and variance using specified strategies and plot loss vs variance.
-    
-    Parameters:
-    -----------
-    df : DataFrame with 'mean', 'var', 'sim_loss' columns
-    mean_binning : 'quantile' or 'log' - how to bin by mean
-    var_binning : 'quantile' or 'log' - how to bin by variance within each mean bin
-    """
-    df = df.copy()
-    
-    # Compute mean bin boundaries
-    if mean_binning == 'quantile':
-        mean_bins = np.percentile(df['mean'], np.linspace(0, 100, n_mean_bins + 1))
-    else:  # log-uniform
-        mean_bins = np.logspace(np.log10(df['mean'].min()), np.log10(df['mean'].max()), n_mean_bins + 1)
-    
-    # Assign mean bin indices
-    df['mean_bin'] = pd.cut(df['mean'], bins=mean_bins, labels=False, include_lowest=True)
-    
-    # Assign variance bin indices within each mean bin
-    df['var_bin'] = -1
-    for i in range(n_mean_bins):
-        if i < n_mean_bins - 1:
-            mean_mask = (df['mean'] >= mean_bins[i]) & (df['mean'] < mean_bins[i+1])
-        else:
-            mean_mask = (df['mean'] >= mean_bins[i]) & (df['mean'] <= mean_bins[i+1])
-        
-        subset_var = df.loc[mean_mask, 'var']
-        if len(subset_var) == 0:
-            continue
-            
-        # Compute variance bin boundaries for this mean bin
-        if var_binning == 'quantile':
-            var_bins = np.percentile(subset_var, np.linspace(0, 100, n_var_bins + 1))
-        else:  # log-uniform
-            var_bins = np.logspace(np.log10(subset_var.min()), np.log10(subset_var.max()), n_var_bins + 1)
-        
-        var_bin_idx = pd.cut(df.loc[mean_mask, 'var'], bins=var_bins, labels=False, include_lowest=True)
-        df.loc[mean_mask, 'var_bin'] = var_bin_idx
-    
-    # Set up figure if ax not provided
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(width, height))
-    
-    cmap = plt.get_cmap('dark_cool', n_mean_bins)
-    
-    for i in range(n_mean_bins):
-        mean_mask = df['mean_bin'] == i
-        if mean_mask.sum() == 0:
-            continue
-            
-        # Get representative mean (median of neurons in this mean bin)
-        mean_mid = df.loc[mean_mask, 'mean'].median()
-        
-        # Compute median loss and median variance for each variance bin
-        grouped_loss = df[mean_mask].groupby('var_bin')['sim_loss'].median()
-        grouped_var = df[mean_mask].groupby('var_bin')['var'].median()
-        
-        # Plot prediction line
-        ax.plot(var_pred, general_loss(mean_mid, var_pred), c=cmap(i), lw=2, zorder=0)
-        
-        # Plot scatter for bins with data
-        valid_bins = grouped_loss.index.dropna().astype(int)
-        ax.scatter(grouped_var[valid_bins], grouped_loss[valid_bins], c='white', 
-                   edgecolors=cmap(i), s=20, rasterized=True)
-    
-    ax.set_xscale('log')
-    ax.set_xlabel('Variance')
-    ax.set_ylabel('Simulated loss')
-    
-    return ax
-
-# FIGURE: Mean log-uniform, Variance quantile
-fig, ax = plt.subplots(figsize=(width, height))
-bin_and_plot_loss_vs_variance(df_nonneg, mean_binning='log', var_binning='quantile', ax=ax)
-ax.set_title('Mean: log-uniform, Var: quantile')
-plt.subplots_adjust(**fig_margins)
-plt.show()
-
-# FIGURE: Mean log-uniform, Variance quantile
-fig, ax = plt.subplots(figsize=(width, height))
-bin_and_plot_loss_vs_variance(df_nonneg, mean_binning='log', var_binning='quantile', ax=ax)
-ax.set_title('Mean: log-uniform, Var: quantile')
 ax.set_yscale('log')
 ax.set_ylim([1e-2,.2])
 ax.set_xlim([5e-1,1e4])
+
 plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
+
+ax.set_xlabel('Variance')
+ax.set_ylabel('Simulated loss')
+
 plt.show()
 
 #------------------------------------------------------------------------------
@@ -335,7 +234,7 @@ ax.xaxis.set_major_locator(locator)
 ax.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0, alpha=.5)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
+# plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
 
 # Add labels
 ax.set_xlabel('Predicted loss')
@@ -344,6 +243,38 @@ ax.set_ylabel('Simulated loss')
 # Add colorbar after saving (only shows in plt.show(), not in PDF)
 cb = fig.colorbar(im, ax=ax)
 cb.set_label('Probability')
+
+plt.show()
+
+#------------------------------------------------------------------------------
+# PREDICTED VS SIMULATED LOSS (SCATTER)
+#------------------------------------------------------------------------------
+# Set up figure
+fig, ax = plt.subplots(figsize=(width, height))
+
+# Create scatter plot
+ax.scatter(neuron_df['pred_loss'], neuron_df['sim_loss'], color=con_colors[1], 
+           edgecolors=None, s=1, alpha=1/100, rasterized=True)
+
+# Use the same locator for x and y so ticks coincide
+locator = ax.yaxis.get_major_locator()
+ax.xaxis.set_major_locator(locator)
+
+# Plot y=x line
+ax.plot([1e-2,.2], [1e-2,.2], c='k', ls='--', lw=1, zorder=0, alpha=.5)
+
+ax.set_ylim([1e-2,.2])
+ax.set_xlim([1e-2,.2])
+
+ax.set_yscale('log')
+ax.set_xscale('log')
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
+
+# Add labels
+ax.set_xlabel('Predicted loss')
+ax.set_ylabel('Simulated loss')
 
 plt.show()
 
