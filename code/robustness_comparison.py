@@ -44,6 +44,8 @@ plt.rcParams.update({
     'ytick.labelsize': 8,
     'legend.fontsize': 8,
     'axes.linewidth': 0.5,   # thin axis lines for publication
+    'axes.spines.top': False,    # remove top spine
+    'axes.spines.right': False,  # remove right spine
     'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
     'ps.fonttype': 42,       # same for PostScript
 })
@@ -55,13 +57,14 @@ logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
 # Figure size (in mm)
 mm_to_in = 25.4
-width = 35./mm_to_in
-height = 35./mm_to_in
+width = 40./mm_to_in
+height = 40./mm_to_in
 width_large = 80./mm_to_in
 height_large = 80./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
-fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
+fig_margins = dict(left=0.24, right=1., bottom=0.24, top=1.)
+fig_margins_large = dict(left=0.12, right=0.95, bottom=0.12, top=0.95)
 
 alpha_min = .2
 
@@ -74,6 +77,18 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
                    [120, 0, 150], [0, 168, 157], [203, 41, 123], [153, 153, 0]])/255;
 
+# Map data_idx → con_colors index (matches connection_strength_distributions.py)
+data_to_color = {
+    0: 6,  # central brain
+    1: 7,  # optic medulla
+    2: 3,  # c_elegans
+    3: 5,  # platynereis
+    4: 4,  # mouse_retina
+    5: 0,  # FAFB whole brain
+    6: 1,  # BANC
+    7: 2,  # MANC
+}
+
 def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
     top    = (*rgb, 1.0)
@@ -81,6 +96,9 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
 
 # Number of bins for histogram
 n_bins = 100
+
+# Percentile for histogram axis range
+p = 99.9
 
 #------------------------------------------------------------------------------
 # SENSITIVITY PLOTTING FUNCTIONS
@@ -104,7 +122,6 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
     # Get sensitivity of connectomes
     Q1 = network_processing.compute_robustness(A, eta, normalized)
     Q2 = network_processing.compute_robustness(A_rand, eta, normalized)
-    frac_lower = np.mean(Q1 >= Q2)
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
     
     Q_min = 0.
@@ -116,7 +133,7 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
         fig, ax_scatter = plt.subplots(figsize=(width, height))
     
     # Plot sensitivities for random weight
-    ax_scatter.scatter(Q1, Q2, color=con_colors[data_idx], alpha=.2, rasterized=True)
+    ax_scatter.scatter(Q1, Q2, color=con_colors[data_to_color[data_idx]], alpha=.2, rasterized=True)
     ax_scatter.plot([Q_min,Q_max], [Q_min,Q_max], c='k', ls='--', lw=1)
     ax_scatter.set_aspect('equal')
     
@@ -133,10 +150,13 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
     ax_scatter.xaxis.set_major_locator(locator)
     
     # Apply consistent margins
-    plt.subplots_adjust(**fig_margins)
+    if data_idx == 5:
+        plt.subplots_adjust(**fig_margins_large)
+    else:
+        plt.subplots_adjust(**fig_margins)
     
     # Save plot without labels
-    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_scatter.pdf", dpi=600)
+    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_scatter.svg", dpi=600)
 
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
@@ -149,8 +169,10 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     # Get sensitivity of connectomes
     Q1 = network_processing.compute_robustness(A, eta, normalized)
     Q2 = network_processing.compute_robustness(A_rand, eta, normalized)
-    frac_lower = np.mean(Q1 >= Q2)
-    Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
+    Q_min = min(min(Q1),min(Q2))
+
+    # Compute percentile-based upper limit from connectome robustness
+    r_p = np.percentile(Q1, p)
 
     # Set up figure - use large size for FAFB (data_idx=5), small for others
     if data_idx == 5:
@@ -160,7 +182,7 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     
     if log_axes:
         # Create histogram bins
-        xbins = np.logspace(np.log10(Q_min), np.log10(Q_max), n_bins)
+        xbins = np.logspace(np.log10(Q_min), np.log10(r_p), n_bins)
         ybins = xbins.copy()
         
         # Set axis scales
@@ -169,7 +191,7 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
         
     else:
         Q_min = 0.
-        xbins = np.linspace(Q_min, Q_max, n_bins)
+        xbins = np.linspace(Q_min, r_p, n_bins)
         ybins = xbins.copy()
     
     # Compute histogram counts and normalize to probability
@@ -181,30 +203,29 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     im = ax_scatter.pcolormesh(
         xedges, yedges, prob_masked.T,
         norm=LogNorm(),
-        cmap=fade_to_color_cmap(con_colors[data_idx], alpha_min=alpha_min, name="fade_to_color")
+        cmap=fade_to_color_cmap(con_colors[data_to_color[data_idx]], alpha_min=alpha_min, name="fade_to_color"),
+        rasterized = True
     )
     
-    # Set axis limits explicitly based on bin edges
-    ax_scatter.set_xlim(xedges[0], xedges[-1])
-    ax_scatter.set_ylim(yedges[0], yedges[-1])
+    # Set axis limits to percentile-based range
+    ax_scatter.set_xlim(0, r_p)
+    ax_scatter.set_ylim(0, r_p)
     
-    # 7) re-enable all four spines on joint
-    for loc in ["left","right","top","bottom"]:
-        ax_scatter.spines[loc].set_visible(True)
-    ax_scatter.set_frame_on(True)
-    
-    # 8) diagonal & labels & text
-    ax_scatter.plot([Q_min, Q_max], [Q_min, Q_max], "--", c="k", lw=1)
+    # diagonal & labels & text
+    ax_scatter.plot([Q_min, r_p], [Q_min, r_p], "--", c="k", lw=1)
     
     # Use the same locator for x and y so ticks coincide
     locator = ax_scatter.yaxis.get_major_locator()
     ax_scatter.xaxis.set_major_locator(locator)
     
     # Apply consistent margins
-    plt.subplots_adjust(**fig_margins)
+    if data_idx == 5:
+        plt.subplots_adjust(**fig_margins_large)
+    else:
+        plt.subplots_adjust(**fig_margins)
     
     # Save plot without labels
-    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_hist.pdf", dpi=600)
+    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_hist.svg", dpi=600)
     
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
@@ -268,7 +289,7 @@ italic_indices = [2, 3]
 # Get labels and colors for selected connectomes
 plot_indices = [5, 6, 7, 2, 4]
 bar_labels = [short_names[i] for i in plot_indices]
-bar_colors = [con_colors[i] for i in plot_indices]
+bar_colors = [con_colors[data_to_color[i]] for i in plot_indices]
 
 # Map processed indices to fractions, then filter for plot_indices
 frac_map = dict(zip(processed_indices, frac_decreased_list))
@@ -276,7 +297,7 @@ bar_fractions = [frac_map[i] for i in plot_indices]
 
 # Set up figure
 fig_bar_margins = dict(left=0.22, right=0.95, bottom=0.35, top=0.95)
-fig, ax = plt.subplots(figsize=(width_large, 1.5*height))
+fig, ax = plt.subplots(figsize=(0.7*width_large, 1.5*height))
 
 # Create bar plot
 x_pos = np.arange(len(plot_indices))
@@ -298,7 +319,7 @@ ax.set_xlim(-0.5, len(plot_indices) - 0.5)
 plt.subplots_adjust(**fig_bar_margins)
 
 # Save plot without labels
-plt.savefig("../../paper_figures/robustness_comparison/robustness_decrease_fraction.pdf", dpi=600)
+plt.savefig("../../paper_figures/robustness_comparison/robustness_decrease_fraction.svg", dpi=600)
 
 # Add labels
 ax.set_ylabel('Fraction with decreased robustness')
@@ -419,8 +440,8 @@ fafb_bar_fractions = [fafb_frac_decreased[r] for r in fafb_region_order]
 fafb_bar_colors = [fafb_region_colors[r] for r in fafb_region_order]
 
 # Set up figure
-fig_bar_margins_region = dict(left=0.22, right=0.95, bottom=0.35, top=0.95)
-fig, ax = plt.subplots(figsize=(width_large, 1.5*height))
+fig_bar_margins_region = dict(left=0.12, right=0.98, bottom=0.35, top=0.95)
+fig, ax = plt.subplots(figsize=(1.35*width_large, 1.5*height))
 
 # Create bar plot
 x_pos = np.arange(len(fafb_bar_labels))
@@ -436,7 +457,7 @@ ax.set_xlim(-0.5, len(fafb_bar_labels) - 0.5)
 plt.subplots_adjust(**fig_bar_margins_region)
 
 # Save plot without labels
-plt.savefig("../../paper_figures/robustness_comparison/fafb_region_robustness_decrease.pdf", dpi=600)
+plt.savefig("../../paper_figures/robustness_comparison/fafb_region_robustness_decrease.svg", dpi=600)
 
 # Add labels
 ax.set_ylabel('Fraction with decreased robustness')
