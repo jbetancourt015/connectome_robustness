@@ -28,6 +28,7 @@ import matplotlib as mpl
 import matplotlib.ticker as mticker
 import logging
 from scipy.sparse import coo_matrix
+from matplotlib.patches import ConnectionPatch
 import network_processing
 
 plt.rcParams.update({
@@ -42,6 +43,8 @@ plt.rcParams.update({
     'ytick.labelsize': 8,
     'legend.fontsize': 8,
     'axes.linewidth': 0.5,   # thin axis lines for publication
+    'axes.spines.top': False,    # remove top spine
+    'axes.spines.right': False,  # remove right spine
     'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
     'ps.fonttype': 42,       # same for PostScript
 })
@@ -159,21 +162,22 @@ median_rob = neuron_df['norm_robustness'].median()
 # Compute CDF for shuffled network (filter out NaN values)
 shuffled_valid = neuron_df['norm_robustness_shuffled'].dropna()
 rob_vals_shuf, rob_cdf_shuf = compute_cdf(shuffled_valid)
+median_rob_shuffled = neuron_df['norm_robustness_shuffled'].median()
 
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
 ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
-ax.plot([1., 1.], [0., 1.], lw=1, c='k', ls='--')
-ax.step(rob_vals, rob_cdf, where='post', lw=2, color=con_colors[5], label='Connectome')
-ax.step(rob_vals_shuf, rob_cdf_shuf, where='post', lw=2, color=con_colors[5], alpha=0.5, label='Shuffled')
+ax.plot([median_rob_shuffled, median_rob_shuffled], [0., 1.], lw=1, c='k', alpha=.5, ls='--')
+ax.step(rob_vals, rob_cdf, where='post', lw=2, color=con_colors[0], label='Connectome')
+ax.step(rob_vals_shuf, rob_cdf_shuf, where='post', lw=2, color=con_colors[0], alpha=0.5, label='Shuffled')
 
 
 ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/cdf_normalized_robustness.pdf', dpi=600)
+plt.savefig('../../paper_figures/drosophila_robustness/cdf_normalized_robustness.svg', dpi=600)
 
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
@@ -243,7 +247,7 @@ ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 plt.subplots_adjust(**wide_fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/violin_by_brain_region.pdf', dpi=600)
+plt.savefig('../../paper_figures/drosophila_robustness/violin_by_brain_region.svg', dpi=600)
 
 ax.set_ylabel("Normalized Robustness")
 plt.show()
@@ -326,7 +330,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/cdf_exc_vs_inh.pdf', dpi=600)
+plt.savefig('../../paper_figures/drosophila_robustness/cdf_exc_vs_inh.svg', dpi=600)
 
 ax.legend()
 
@@ -364,7 +368,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/cdf_by_reciprocity_decile.pdf', dpi=600)
+plt.savefig('../../paper_figures/drosophila_robustness/cdf_by_reciprocity_decile.svg', dpi=600)
     
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
@@ -428,20 +432,29 @@ fig, (ax_left, ax_right) = plt.subplots(
     figsize=(width, height),
     gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
 )
+ax_right.set_facecolor('none')
 
 # Add population median line (behind data, spans both panels via shared y-axis)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
 # Left panel: seed point at x=0 (linear scale)
-ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
+ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[5], s=40, zorder=5)
+
+# Connect seed point to first running median point (added to ax_left so zorder is respected)
+con = ConnectionPatch(
+    xyA=(0, seed_median), coordsA=ax_left.transData,
+    xyB=(running_x[0], running_median[0]), coordsB=ax_right.transData,
+    color=con_colors[5], lw=2, zorder=4, clip_on=False)
+ax_left.add_artist(con)
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
 ax_left.set_xticklabels(['0'])
 
 # Right panel: running median line in log-scale
-ax_right.plot(running_x, running_median, lw=2, c=con_colors[4])
+ax_right.plot(running_x, running_median, lw=2, c=con_colors[5])
 ax_right.set_xscale('log')
+ax_right.set_xlim(right=100)
 
 # Hide the spines between the two axes to show the "break"
 ax_left.spines['right'].set_visible(False)
@@ -454,14 +467,12 @@ d_left = d * 6  # scale by width ratio (6:1) for left panel
 
 kwargs = dict(transform=ax_left.transAxes, color='k', clip_on=False, lw=0.8)
 ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
-ax_left.plot((1 - d_left, 1 + d_left), (1 - d, 1 + d), **kwargs)  # top-right
 
 kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
-ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # top-left
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_optic_peripherality.pdf', dpi=600)
+plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_optic_peripherality.svg', dpi=600)
 
 # Format figure
 ax_left.set_ylabel('Median robustness')
@@ -522,20 +533,30 @@ fig, (ax_left, ax_right) = plt.subplots(
     figsize=(width, height),
     gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
 )
+ax_right.set_facecolor('none')
 
 # Add population median line (behind data, spans both panels via shared y-axis)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
 # Left panel: seed point at x=0 (linear scale)
-ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[4], s=40, zorder=5)
+ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[6], s=40, zorder=5)
+
+# Connect seed point to first running median point (added to ax_left so zorder is respected)
+con = ConnectionPatch(
+    xyA=(0, seed_median), coordsA=ax_left.transData,
+    xyB=(running_x[0], running_median[0]), coordsB=ax_right.transData,
+    color=con_colors[6], lw=2, zorder=4, clip_on=False)
+ax_left.add_artist(con)
+
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
 ax_left.set_xticklabels(['0'])
 
 # Right panel: running median line in log-scale
-ax_right.plot(running_x, running_median, lw=2, c=con_colors[4])
+ax_right.plot(running_x, running_median, lw=2, c=con_colors[6])
 ax_right.set_xscale('log')
+ax_right.set_xlim(right=100)
 
 # Hide the spines between the two axes to show the "break"
 ax_left.spines['right'].set_visible(False)
@@ -548,18 +569,140 @@ d_left = d * 6  # scale by width ratio (6:1) for left panel
 
 kwargs = dict(transform=ax_left.transAxes, color='k', clip_on=False, lw=0.8)
 ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
-ax_left.plot((1 - d_left, 1 + d_left), (1 - d, 1 + d), **kwargs)  # top-right
 
 kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
-ax_right.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # top-left
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_olfactory_peripherality.pdf', dpi=600)
+plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_olfactory_peripherality.svg', dpi=600)
 
 # Format figure
 ax_left.set_ylabel('Median robustness')
 fig.supxlabel('Peripherality percentile', fontsize=9)
 
+plt.show()
+
+#------------------------------------------------------------------------------
+# PLOT 7: VIOLIN PLOTS – VISUAL PATHWAY (R1-6, L1, Tm3, T4)
+#------------------------------------------------------------------------------
+# Define visual pathway steps in biological order (periphery → deeper processing)
+visual_pathway_order = ['R1-6', 'L1', 'Tm3', 'T4']
+
+# Assign each neuron to its visual pathway step
+visual_masks = {
+    'R1-6': neuron_df['primary_type'] == 'R1-6',
+    'L1':   neuron_df['primary_type'] == 'L1',
+    'Tm3':  neuron_df['primary_type'] == 'Tm3',
+    'T4':   neuron_df['primary_type'].str.startswith('T4', na=False),
+}
+
+# Prepare log-transformed robustness data for each step
+visual_violin_data = []
+for step in visual_pathway_order:
+    mask = visual_masks[step] & (neuron_df['norm_robustness'] > 0)
+    visual_violin_data.append(
+        np.log10(neuron_df.loc[mask, 'norm_robustness']).to_numpy(dtype=float)
+    )
+
+# Set up figure
+fig, ax = plt.subplots(figsize=(width, height))
+
+# Population median line (behind violins)
+ax.axhline(np.log10(median_rob), lw=1, c='k', ls='--', zorder=0)
+
+parts = ax.violinplot(
+    visual_violin_data,
+    showmeans=False,
+    showmedians=True,
+    showextrema=False,
+    widths=0.9
+)
+
+# Color each violin body
+for i, body in enumerate(parts['bodies']):
+    body.set_facecolor(con_colors[5])
+    body.set_edgecolor('black')
+    body.set_alpha(0.6)
+
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color('black')
+
+# Labels / ticks
+ax.set_xticks(range(1, len(visual_pathway_order) + 1))
+ax.set_xticklabels(visual_pathway_order)
+
+# Format y-axis with log10 tick labels
+ax.set_ylim(-1, 2)
+ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/drosophila_robustness/violin_visual_pathway.svg', dpi=600)
+
+ax.set_ylabel('Normalized Robustness')
+plt.show()
+
+#------------------------------------------------------------------------------
+# PLOT 8: VIOLIN PLOTS – OLFACTORY PATHWAY (ORN, PN, KC, MBON)
+#------------------------------------------------------------------------------
+# Define olfactory pathway steps in biological order (periphery → deeper processing)
+olfactory_pathway_order = ['ORN', 'PN', 'KC', 'MBON']
+
+# Assign each neuron to its olfactory pathway step
+olfactory_masks = {
+    'ORN':  neuron_df['primary_type'].str.startswith('ORN', na=False),
+    'PN':   neuron_df['class'] == 'ALPN',
+    'KC':   neuron_df['primary_type'].str.startswith('KC', na=False),
+    'MBON': neuron_df['primary_type'].str.startswith('MBON', na=False),
+}
+
+# Prepare log-transformed robustness data for each step
+olfactory_violin_data = []
+for step in olfactory_pathway_order:
+    mask = olfactory_masks[step] & (neuron_df['norm_robustness'] > 0)
+    olfactory_violin_data.append(
+        np.log10(neuron_df.loc[mask, 'norm_robustness']).to_numpy(dtype=float)
+    )
+
+# Set up figure
+fig, ax = plt.subplots(figsize=(width, height))
+
+# Population median line (behind violins)
+ax.axhline(np.log10(median_rob), lw=1, c='k', ls='--', zorder=0)
+
+parts = ax.violinplot(
+    olfactory_violin_data,
+    showmeans=False,
+    showmedians=True,
+    showextrema=False,
+    widths=0.9
+)
+
+# Color each violin body
+for i, body in enumerate(parts['bodies']):
+    body.set_facecolor(con_colors[6])
+    body.set_edgecolor('black')
+    body.set_alpha(0.6)
+
+# Style median line
+if 'cmedians' in parts and parts['cmedians'] is not None:
+    parts['cmedians'].set_linewidth(2.5)
+    parts['cmedians'].set_color('black')
+
+# Labels / ticks
+ax.set_xticks(range(1, len(olfactory_pathway_order) + 1))
+ax.set_xticklabels(olfactory_pathway_order)
+
+# Format y-axis with log10 tick labels
+ax.set_ylim(-1, 2)
+ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
+ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../paper_figures/drosophila_robustness/violin_olfactory_pathway.svg', dpi=600)
+
+ax.set_ylabel('Normalized Robustness')
 plt.show()
 
