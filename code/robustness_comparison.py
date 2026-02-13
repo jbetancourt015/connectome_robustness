@@ -5,7 +5,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 3 Feb 2026
+    Thu 12 Feb 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -445,6 +445,7 @@ fig, ax = plt.subplots(figsize=(1.35*width_large, 1.5*height))
 
 # Create bar plot
 x_pos = np.arange(len(fafb_bar_labels))
+ax.axhline(frac_map[5], color='k', ls='--', lw=0.75, zorder=0)
 ax.bar(x_pos, fafb_bar_fractions, color=fafb_bar_colors, edgecolor='none', width=0.6)
 
 # Configure axes
