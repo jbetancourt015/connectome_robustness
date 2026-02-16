@@ -97,7 +97,7 @@ processed_dir = '../processed_data/'
 sim_dir = '../simulation_results/'
 
 # Import neuron data
-neuron_df = pd.read_parquet(data_dir+'neuron_data.parquet')
+neuron_df = pd.read_parquet(processed_dir+'neuron_data.parquet')
 loss_df = pd.read_parquet(sim_dir+'loss_data.parquet')
 
 # Append data

@@ -81,7 +81,7 @@ output_dir = '../../paper_figures/connection_strength_distributions/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Import connections data
-conn_df = pd.read_parquet(data_dir+'connections_data.parquet')
+conn_df = pd.read_parquet(processed_dir+'connections_data.parquet')
 
 #------------------------------------------------------------------------------
 # AUXILIARY FUNCTIONS

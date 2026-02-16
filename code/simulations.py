@@ -263,7 +263,7 @@ def run_flywire_loss_simulation():
     
     # Load data
     print("Loading connections data...")
-    conn_df = pd.read_parquet(data_dir + 'connections_data.parquet')
+    conn_df = pd.read_parquet(processed_dir + 'connections_data.parquet')
     
     # Build sparse matrix
     print("Building sparse matrix...")
@@ -343,8 +343,8 @@ def run_flywire_periphery_scoring():
     
     # Load data
     print("Loading data...")
-    conn_df = pd.read_parquet(data_dir + 'connections_data.parquet')
-    neuron_df = pd.read_parquet(data_dir + 'neuron_data.parquet')
+    conn_df = pd.read_parquet(processed_dir + 'connections_data.parquet')
+    neuron_df = pd.read_parquet(processed_dir + 'neuron_data.parquet')
     
     # Build sparse matrix
     print("Building sparse matrix...")
@@ -783,7 +783,7 @@ def run_parametric_simulations():
     
     # --- Derive mean/variance grids from FlyWire neuron data -----------------
     print("Loading neuron data to determine mean/variance ranges...")
-    neuron_df = pd.read_parquet(data_dir + 'neuron_data.parquet')
+    neuron_df = pd.read_parquet(processed_dir + 'neuron_data.parquet')
     neuron_df = neuron_df[neuron_df['in_deg'] >= k_min]
     
     neuron_df['mean'] = neuron_df['in_strength'] / neuron_df['in_deg']

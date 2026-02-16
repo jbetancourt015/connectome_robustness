@@ -91,8 +91,8 @@ data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 
 # Import neuron and connections data
-neuron_df = pd.read_parquet(data_dir+'neuron_data.parquet')
-conn_df = pd.read_parquet(data_dir+'connections_data.parquet')
+neuron_df = pd.read_parquet(processed_dir+'neuron_data.parquet')
+conn_df = pd.read_parquet(processed_dir+'connections_data.parquet')
 peri_df = pd.read_parquet(data_dir+'periphery_data.parquet')
 
 # Add peripherality data to neuron dataframe

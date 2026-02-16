@@ -296,7 +296,7 @@ frac_map = dict(zip(processed_indices, frac_decreased_list))
 bar_fractions = [frac_map[i] for i in plot_indices]
 
 # Set up figure
-fig_bar_margins = dict(left=0.22, right=0.95, bottom=0.35, top=0.95)
+fig_bar_margins = dict(left=0.17, right=0.95, bottom=0.35, top=0.95)
 fig, ax = plt.subplots(figsize=(0.7*width_large, 1.5*height))
 
 # Create bar plot
@@ -334,8 +334,8 @@ data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
 
 # Load parquet data files
-conn_df = pd.read_parquet(data_dir + 'connections_data.parquet')
-neuron_df = pd.read_parquet(data_dir + 'neuron_data.parquet')
+conn_df = pd.read_parquet(processed_dir + 'connections_data.parquet')
+neuron_df = pd.read_parquet(processed_dir + 'neuron_data.parquet')
 
 # Build sparse matrix with index mapping
 nodes_index = pd.Index(

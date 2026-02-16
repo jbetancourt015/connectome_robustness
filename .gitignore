@@ -9,6 +9,7 @@ __pycache__/
 .venv/
 .env.*
 .ipynb_checkpoints/
+processed_data/connections_data.parquet
 
 # R
 .Rhistory
