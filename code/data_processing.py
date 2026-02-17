@@ -267,7 +267,7 @@ node_stats = (
 )
 
 # Append brain region
-with open(processed_dir + 'brain_region_map.pkl', 'rb') as f:
+with open(data_dir + 'brain_region_map.pkl', 'rb') as f:
     region_map = pickle.load(f)
 
 neuron_df['brain_region'] = neuron_df['neuropil'].map(region_map)
@@ -283,6 +283,20 @@ for col in ['in_deg', 'in_strength', 'out_deg', 'out_strength']:
 
 # Save dataset as parquet
 neuron_df.to_parquet(processed_dir+'neuron_data.parquet')
+
+# Sort regions by median (excluding Other Regions)
+neuron_df_regions = neuron_df[neuron_df['brain_region'] != "Other Regions"].copy()
+
+region_order = (
+    neuron_df_regions
+    .groupby('brain_region')['norm_robustness']
+    .median()
+    .sort_values()
+    .index
+)
+
+with open(processed_dir + 'region_order.pkl', 'wb') as f:
+    pickle.dump(region_order, f)
 
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE CONNECTIONS-LEVEL DATASET

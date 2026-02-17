@@ -63,8 +63,8 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
 
 # Figure size (in mm)
 mm_to_in = 25.4
-width = 35./mm_to_in
-height = 35./mm_to_in
+width = 40./mm_to_in
+height = 40./mm_to_in
 width_large = 60./mm_to_in
 height_large = 60./mm_to_in
 width_grid = 100./mm_to_in
