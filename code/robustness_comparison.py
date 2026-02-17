@@ -172,7 +172,7 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     Q_min = min(min(Q1),min(Q2))
 
     # Compute percentile-based upper limit from connectome robustness
-    r_p = np.percentile(Q1, p)
+    r_p = np.percentile(Q1, p if data_idx!= 4 else 99)
 
     # Set up figure - use large size for FAFB (data_idx=5), small for others
     if data_idx == 5:
@@ -182,7 +182,7 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     
     if log_axes:
         # Create histogram bins
-        xbins = np.logspace(np.log10(Q_min), np.log10(r_p), n_bins)
+        xbins = np.logspace(np.log10(Q_min), np.log10(r_p), n_bins if data_idx!=4 else 20)
         ybins = xbins.copy()
         
         # Set axis scales
@@ -191,7 +191,7 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
         
     else:
         Q_min = 0.
-        xbins = np.linspace(Q_min, r_p, n_bins)
+        xbins = np.linspace(Q_min, r_p, n_bins if data_idx!=4 else 20)
         ybins = xbins.copy()
     
     # Compute histogram counts and normalize to probability
