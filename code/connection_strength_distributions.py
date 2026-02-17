@@ -23,6 +23,7 @@ import logging
 import re
 import sys
 import os
+import pickle
 from tqdm import tqdm
 from scipy.sparse import load_npz
 
@@ -149,17 +150,6 @@ def compute_cdf_np(data):
     cdf = cum_counts / cum_counts[-1]
     return unique_vals, cdf
 
-def empirical_heterogeneity(data):
-    """Compute empirical heterogeneity: <|x_i - x_j|> / <x>."""
-    x = np.sort(data[np.isfinite(data)])
-    n = len(x)
-    if n < 2:
-        return np.nan
-    # Efficient mean absolute difference via sorted formula
-    i = np.arange(1, n + 1)
-    mad = (2.0 / (n * n)) * np.sum((2 * i - n - 1) * x)
-    return mad / np.mean(x)
-
 #------------------------------------------------------------------------------
 # FAFB DISTRIBUTIONS
 #------------------------------------------------------------------------------
@@ -184,14 +174,9 @@ region_df = conn_df[['syn_count', 'conn_brain_region']].copy()
 region_df = region_df.rename(columns={'conn_brain_region': 'brain_region'})
 region_df = region_df[region_df['brain_region'] != 'Other Regions']
 
-# Sort regions by empirical heterogeneity
-region_order = (
-    region_df
-    .groupby('brain_region')['syn_count']
-    .apply(lambda x: empirical_heterogeneity(x.values))
-    .sort_values()
-    .index
-)
+# Get region order
+with open(processed_dir + 'region_order.pkl', 'rb') as f:
+    region_order = pickle.load(f)
 
 cmap = plt.get_cmap('viridis', len(region_order))
 region_colors = {r: cmap(i) for i, r in enumerate(region_order)}

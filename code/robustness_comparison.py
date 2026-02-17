@@ -133,7 +133,7 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
         fig, ax_scatter = plt.subplots(figsize=(width, height))
     
     # Plot sensitivities for random weight
-    ax_scatter.scatter(Q1, Q2, color=con_colors[data_to_color[data_idx]], alpha=.2, rasterized=True)
+    ax_scatter.scatter(Q1, Q2, color=con_colors[data_to_color[data_idx]], s=10, alpha=.2, rasterized=True)
     ax_scatter.plot([Q_min,Q_max], [Q_min,Q_max], c='k', ls='--', lw=1)
     ax_scatter.set_aspect('equal')
     

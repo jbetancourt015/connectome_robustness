@@ -199,19 +199,35 @@ plt.show()
 #------------------------------------------------------------------------------
 # PREDICTED VS SIMULATED LOSS
 #------------------------------------------------------------------------------
+# Figure parameters
+log_axes = True
+log_prob = False
+n_bins = 30
+
 # Compute predicted loss
 neuron_df['pred_loss'] = (1/np.pi)*np.arccos((1.+(eps/neuron_df['robustness'])**2)**(-1/2))
 
-# Get loss range
-min_pred, max_pred = min(neuron_df['pred_loss']), max(neuron_df['pred_loss'])
-min_loss, max_loss = min([l_min, min_pred]), max([l_max, max_pred])
+
 
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
 # Create histogram
-xbins = np.linspace(min_loss, max_loss, 30)
-ybins = np.linspace(min_loss, max_loss, 30)
+if log_axes:
+    # Get loss range
+    min_loss, max_loss = 1e-2, .2
+    
+    xbins = np.logspace(np.log10(min_loss), np.log10(max_loss), n_bins)
+    ybins = np.copy(xbins)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+else:
+    # Get loss range
+    min_loss, max_loss = 0., .2
+    
+    xbins = np.linspace(min_loss, max_loss, n_bins)
+    ybins = np.linspace(min_loss, max_loss, n_bins)
+
 counts, xedges, yedges = np.histogram2d(
     neuron_df['pred_loss'], neuron_df['sim_loss'],
     bins=[xbins, ybins]
@@ -219,22 +235,22 @@ counts, xedges, yedges = np.histogram2d(
 prob = counts / counts.sum()
 prob_masked = np.ma.masked_where(prob == 0, prob)
 im = ax.pcolormesh(
-    xedges, yedges, prob_masked.T,
+    xedges, yedges, prob_masked.T, norm=LogNorm() if log_prob else None,
     cmap=fade_to_color_cmap(con_colors[0], alpha_min=alpha_min, name="fade_to_color")
 )
 
-ax.set_xlim(0.,None)
-ax.set_ylim(0.,None)
+ax.set_xlim(min_loss,max_loss)
+ax.set_ylim(min_loss,max_loss)
 
 # Use the same locator for x and y so ticks coincide
 locator = ax.yaxis.get_major_locator()
 ax.xaxis.set_major_locator(locator)
 
 # Plot y=x line
-ax.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0, alpha=.5)
+ax.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0)
 
 plt.subplots_adjust(**fig_margins)
-# plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
+plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
 
 # Add labels
 ax.set_xlabel('Predicted loss')
@@ -243,38 +259,6 @@ ax.set_ylabel('Simulated loss')
 # Add colorbar after saving (only shows in plt.show(), not in PDF)
 cb = fig.colorbar(im, ax=ax)
 cb.set_label('Probability')
-
-plt.show()
-
-#------------------------------------------------------------------------------
-# PREDICTED VS SIMULATED LOSS (SCATTER)
-#------------------------------------------------------------------------------
-# Set up figure
-fig, ax = plt.subplots(figsize=(width, height))
-
-# Create scatter plot
-ax.scatter(neuron_df['pred_loss'], neuron_df['sim_loss'], color=con_colors[1], 
-           edgecolors=None, s=1, alpha=1/100, rasterized=True)
-
-# Use the same locator for x and y so ticks coincide
-locator = ax.yaxis.get_major_locator()
-ax.xaxis.set_major_locator(locator)
-
-# Plot y=x line
-ax.plot([1e-2,.2], [1e-2,.2], c='k', ls='--', lw=1, zorder=0, alpha=.5)
-
-ax.set_ylim([1e-2,.2])
-ax.set_xlim([1e-2,.2])
-
-ax.set_yscale('log')
-ax.set_xscale('log')
-
-plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
-
-# Add labels
-ax.set_xlabel('Predicted loss')
-ax.set_ylabel('Simulated loss')
 
 plt.show()
 
@@ -306,13 +290,13 @@ for i in range(n_mean_bins):
 
 # Plot prediction line
 r_vals = np.linspace(rob_min, rob_max, 100)
-ax.plot(r_vals, (1./np.pi)*np.arccos((1.+(eps/r_vals)**2)**(-0.5)), c='k', ls='--', lw=1, zorder=0, alpha=.5)
+ax.plot(r_vals, (1./np.pi)*np.arccos((1.+(eps/r_vals)**2)**(-0.5)), c='k', ls='--', lw=1, zorder=0)
 
-ax.set_xscale('log')
+# ax.set_xscale('log')
 ax.set_yscale('log')
 # ax.set_xlim([1.,10.])
-ax.set_xticks([1.,10.])
-ax.set_xticks([], minor=True)
+# ax.set_xticks([1.,10.])
+# ax.set_xticks([], minor=True)
 ax.set_ylim([1e-2,.2])
 
 plt.subplots_adjust(**fig_margins)
