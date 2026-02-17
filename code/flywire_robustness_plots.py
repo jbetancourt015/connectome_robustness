@@ -355,8 +355,11 @@ ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
 
 cmap = plt.get_cmap('plasma', n_quantiles)
 
+reciprocities = []
+
 for i in range(n_quantiles):
     mask = neuron_df['reciprocity_q'] == i
+    reciprocities.append(neuron_df[mask]['reciprocity'].median())
     rob, cdf = compute_cdf(neuron_df[mask]['norm_robustness'])
     
     # Plot CDF
@@ -373,6 +376,11 @@ plt.savefig('../../paper_figures/drosophila_robustness/cdf_by_reciprocity_decile
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
 
+plt.show()
+
+plt.plot(np.arange(n_quantiles) + 1, reciprocities)
+plt.xlabel('Reciprocity decile')
+plt.ylabel('Median reciprocity')
 plt.show()
 
 #------------------------------------------------------------------------------
@@ -392,13 +400,13 @@ seed_median = neuron_df[mask_seed]['norm_robustness'].median()
 
 # For positive-distance neurons: compute percentile ranks
 pos_df = neuron_df[mask_pos].copy()
-pos_df['percentile'] = pos_df[f"distance_{seed}"].rank(pct=True) * 100
+pos_df['quantile'] = pos_df[f"distance_{seed}"].rank(pct=True)
 
 # Define sliding window centers in log10(percentile) space
 # Start just after the minimum percentile, end at 100
-min_pct = pos_df['percentile'].min()
-log_min = np.log10(max(min_pct, 0.1))  # Avoid log(0)
-log_max = np.log10(100)
+min_pct = pos_df['quantile'].min()
+log_min = np.log10(max(min_pct, 0.001))  # Avoid log(0)
+log_max = np.log10(1)
 
 # Generate window centers
 window_centers_log = np.arange(log_min + log_band_width/2, 
@@ -415,7 +423,7 @@ for center_log in window_centers_log:
     high_pct = 10 ** (center_log + log_band_width / 2)
     
     # Find neurons within this band
-    band_mask = (pos_df['percentile'] >= low_pct) & (pos_df['percentile'] < high_pct)
+    band_mask = (pos_df['quantile'] >= low_pct) & (pos_df['quantile'] < high_pct)
     
     if band_mask.sum() > 0:
         # x-coordinate is the geometric mean of band edges (= 10^center)
@@ -435,6 +443,7 @@ fig, (ax_left, ax_right) = plt.subplots(
 ax_right.set_facecolor('none')
 
 # Add population median line (behind data, spans both panels via shared y-axis)
+ax_left.set_ylim(-.1,8.)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
@@ -454,7 +463,7 @@ ax_left.set_xticklabels(['0'])
 # Right panel: running median line in log-scale
 ax_right.plot(running_x, running_median, lw=2, c=con_colors[5])
 ax_right.set_xscale('log')
-ax_right.set_xlim(right=100)
+ax_right.set_xlim(right=1)
 
 # Hide the spines between the two axes to show the "break"
 ax_left.spines['right'].set_visible(False)
@@ -491,15 +500,15 @@ mask_pos = neuron_df[f"distance_{seed}"] > 0        # all positive distance neur
 # Compute median robustness for seed
 seed_median = neuron_df[mask_seed]['norm_robustness'].median()
 
-# For positive-distance neurons: compute percentile ranks
+# For positive-distance neurons: compute quantile ranks
 pos_df = neuron_df[mask_pos].copy()
-pos_df['percentile'] = pos_df[f"distance_{seed}"].rank(pct=True) * 100
+pos_df['quantile'] = pos_df[f"distance_{seed}"].rank(pct=True)
 
-# Define sliding window centers in log10(percentile) space
-# Start just after the minimum percentile, end at 100
-min_pct = pos_df['percentile'].min()
-log_min = np.log10(max(min_pct, 0.1))  # Avoid log(0)
-log_max = np.log10(100)
+# Define sliding window centers in log10(quantile) space
+# Start just after the minimum quantile, end at 100
+min_pct = pos_df['quantile'].min()
+log_min = np.log10(max(min_pct, 0.001))  # Avoid log(0)
+log_max = np.log10(1)
 
 # Generate window centers
 window_centers_log = np.arange(log_min + log_band_width/2, 
@@ -516,7 +525,7 @@ for center_log in window_centers_log:
     high_pct = 10 ** (center_log + log_band_width / 2)
     
     # Find neurons within this band
-    band_mask = (pos_df['percentile'] >= low_pct) & (pos_df['percentile'] < high_pct)
+    band_mask = (pos_df['quantile'] >= low_pct) & (pos_df['quantile'] < high_pct)
     
     if band_mask.sum() > 0:
         # x-coordinate is the geometric mean of band edges (= 10^center)
@@ -536,6 +545,7 @@ fig, (ax_left, ax_right) = plt.subplots(
 ax_right.set_facecolor('none')
 
 # Add population median line (behind data, spans both panels via shared y-axis)
+ax_left.set_ylim(-.1,8.)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
@@ -556,7 +566,7 @@ ax_left.set_xticklabels(['0'])
 # Right panel: running median line in log-scale
 ax_right.plot(running_x, running_median, lw=2, c=con_colors[6])
 ax_right.set_xscale('log')
-ax_right.set_xlim(right=100)
+ax_right.set_xlim(right=1)
 
 # Hide the spines between the two axes to show the "break"
 ax_left.spines['right'].set_visible(False)
