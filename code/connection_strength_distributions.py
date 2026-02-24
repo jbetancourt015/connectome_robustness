@@ -224,7 +224,7 @@ banc_file = 'banc_connections.csv.gz'
 banc_conn_df = pd.read_csv(data_dir + banc_file, compression='gzip')
 
 banc_conn_df = (
-    banc_conn_df.groupby(["pre_root_id", "post_root_id", "neuropil"])["syn_count"]
+    banc_conn_df.groupby(["pre_root_id", "post_root_id"])["syn_count"]
       .sum()
       .reset_index()
 )

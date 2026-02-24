@@ -356,31 +356,9 @@ A_fafb = coo_matrix((data, (rows, cols)),
                     shape=(nodes_index.size, nodes_index.size)).tocsc()
 N_fafb = A_fafb.shape[0]
 
-# Define empirical heterogeneity function (same as in synapse_count_distributions.py)
-def empirical_heterogeneity(data):
-    """Compute empirical heterogeneity: <|x_i - x_j|> / <x>."""
-    x = np.sort(data[np.isfinite(data)])
-    n = len(x)
-    if n < 2:
-        return np.nan
-    # Efficient mean absolute difference via sorted formula
-    i = np.arange(1, n + 1)
-    mad = (2.0 / (n * n)) * np.sum((2 * i - n - 1) * x)
-    return mad / np.mean(x)
-
-# Prepare region data for ordering (using connection-level brain region)
-region_df = conn_df[['syn_count', 'conn_brain_region']].copy()
-region_df = region_df.rename(columns={'conn_brain_region': 'brain_region'})
-region_df = region_df[region_df['brain_region'] != 'Other Regions']
-
-# Sort regions by empirical heterogeneity (same ordering as synapse_count_distributions.py)
-fafb_region_order = (
-    region_df
-    .groupby('brain_region')['syn_count']
-    .apply(lambda x: empirical_heterogeneity(x.values))
-    .sort_values()
-    .index
-)
+# Load region order
+with open(processed_dir + 'region_order.pkl', 'rb') as f:
+    fafb_region_order = pickle.load(f)
 
 # Create viridis colormap for regions
 fafb_cmap = plt.get_cmap('viridis', len(fafb_region_order))
