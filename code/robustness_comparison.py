@@ -1,11 +1,11 @@
 """
-    This script calculates statistics of single-neuron sensitivities
+    This script calculates statistics of single-neuron robustnesses
 -------------------------------------------------------------------------------
 created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Thu 12 Feb 2026
+    Wed 25 Feb 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -15,23 +15,19 @@ contributors:
         email:      jose.betancourtvalencia@yale.edu
 -------------------------------------------------------------------------------
 """
-import network_processing
 import numpy as np
-import networkx as nx
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import matplotlib as mpl
 from matplotlib import gridspec
 from matplotlib.colors import LinearSegmentedColormap
-from time import time
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import gaussian_kde
 from matplotlib.ticker import ScalarFormatter
-from scipy.sparse import coo_matrix
-import pickle
 import logging
+import pickle
 
 plt.rcParams.update({
     'font.family': 'Helvetica',
@@ -100,8 +96,22 @@ n_bins = 100
 # Percentile for histogram axis range
 p = 99.9
 
+# Directories
+processed_dir = '../processed_data/'
+sim_dir = '../simulation_results/'
+
+def load_robustness_dataset(connectome):
+    df = pd.read_parquet(sim_dir + f"{connectome}_shuffled.parquet")
+    required_cols = {"robustness", "shuffled_robustness"}
+    missing = required_cols.difference(df.columns)
+    if missing:
+        raise ValueError(
+            f"Missing required columns {sorted(missing)} in {connectome}_shuffled.parquet"
+        )
+    return df
+
 #------------------------------------------------------------------------------
-# SENSITIVITY PLOTTING FUNCTIONS
+# ROBUSTNESS PLOTTING FUNCTIONS
 #------------------------------------------------------------------------------
 formatter = ScalarFormatter()
 formatter.set_scientific(False)
@@ -118,10 +128,7 @@ def log_kde_to_original(q_vals, n_grid=512, bw=None):
     f_x    = f_u / (x_grid * np.log(10.0))           # change-of-variables
     return x_grid, f_x
 
-def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_axes=False):    
-    # Get sensitivity of connectomes
-    Q1 = network_processing.compute_robustness(A, eta, normalized)
-    Q2 = network_processing.compute_robustness(A_rand, eta, normalized)
+def plot_robustness(data_idx, Q1, Q2, null_net, log_axes=False):    
     Q_min, Q_max = min(min(Q1),min(Q2)), max(max(Q1),max(Q2))
     
     Q_min = 0.
@@ -165,10 +172,7 @@ def plot_robustness(data_idx, A, A_rand, eta, null_net, normalized=False, log_ax
     plt.show()
 
 
-def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, log_axes=False, labels=True):
-    # Get sensitivity of connectomes
-    Q1 = network_processing.compute_robustness(A, eta, normalized)
-    Q2 = network_processing.compute_robustness(A_rand, eta, normalized)
+def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
     Q_min = min(min(Q1),min(Q2))
 
     # Compute percentile-based upper limit from connectome robustness
@@ -196,6 +200,7 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
     
     # Compute histogram counts and normalize to probability
     counts, xedges, yedges = np.histogram2d(Q1, Q2, bins=[xbins, ybins])
+    print('Total counts',counts.sum())
     prob = counts / counts.sum()  # Normalize so all bins sum to 1
     
     # Plot with pcolormesh (need to mask zeros for LogNorm)
@@ -240,42 +245,26 @@ def plot_robustness_hist(data_idx, A, A_rand, eta, null_net, normalized=False, l
 #------------------------------------------------------------------------------
 # COMPARE SENSITIVITIES
 #------------------------------------------------------------------------------
-thresholded = False
-scheme = 'rand_weight'
 norm = False
 log_axes = False
+k_min = 2
 
 # Collect fraction of neurons with decreased robustness after shuffling
 frac_decreased_list = []
 processed_indices = []
 
 for data_idx in range(len(connectomes)):
-    # Get connectome
-    A = network_processing.load_connectome(data_idx, thresholded=thresholded if data_idx==5 else False)
-    N = A.shape[0]
-    
-    n_threshold = 1
-    if data_idx == 5 and thresholded:
-        n_threshold = 5
-    elif data_idx == 6:
-        n_threshold = 3
+    # Load per-neuron robustness values directly from saved simulation results
+    robustness_df = load_robustness_dataset(connectomes[data_idx]).dropna()
+    Q1 = robustness_df["robustness"].to_numpy()
+    Q2 = robustness_df["shuffled_robustness"].to_numpy()
+    frac_decreased = np.mean(Q1 > Q2)
+    frac_decreased_list.append(frac_decreased)
+    processed_indices.append(data_idx)
 
-    if not((scheme!='rand_weight') and data_idx==4):
-        # Get null network
-        A_rand = network_processing.null_network(A, scheme=scheme, 
-                                                conn_type='cont' if data_idx==4 else 'disc', 
-                                                n_threshold=n_threshold)
-    
-        # Compute robustness and fraction with decreased robustness
-        Q1 = network_processing.compute_robustness(A, 1., norm)
-        Q2 = network_processing.compute_robustness(A_rand, 1., norm)
-        frac_decreased = np.mean(Q1 > Q2)  # fraction where shuffling decreased robustness
-        frac_decreased_list.append(frac_decreased)
-        processed_indices.append(data_idx)
-    
-        # Plot sensitivities
-        plot_robustness(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
-        plot_robustness_hist(data_idx, A, A_rand, 1., 'rand_weight', normalized=norm, log_axes=log_axes)
+    # Plot robustness comparisons
+    plot_robustness(data_idx, Q1, Q2, 'rand_weight', log_axes=log_axes)
+    plot_robustness_hist(data_idx, Q1, Q2, log_axes=log_axes)
 
 #------------------------------------------------------------------------------
 # BAR PLOT: FRACTION OF NEURONS WITH DECREASED ROBUSTNESS
@@ -329,34 +318,11 @@ plt.show()
 #------------------------------------------------------------------------------
 # FAFB BRAIN REGION ANALYSIS
 #------------------------------------------------------------------------------
-# Data directories
-data_dir = '../../raw_data/'
-processed_dir = '../processed_data/'
+# Load FAFB per-neuron robustness with brain-region annotations
+fafb_df = load_robustness_dataset('drosophila_whole_brain').dropna()
+if 'brain_region' not in fafb_df.columns:
+    raise ValueError("FAFB robustness dataset must include a 'brain_region' column.")
 
-# Load parquet data files
-conn_df = pd.read_parquet(processed_dir + 'connections_data.parquet')
-neuron_df = pd.read_parquet(processed_dir + 'neuron_data.parquet')
-
-# Build sparse matrix with index mapping
-nodes_index = pd.Index(
-    pd.unique(pd.concat([conn_df['pre_root_id'], conn_df['post_root_id']], ignore_index=True)),
-    name="root_id"
-)
-
-id_to_idx = pd.Series(np.arange(nodes_index.size), index=nodes_index)
-idx_to_id = nodes_index.to_numpy()
-
-# Map edges to integer rows/cols
-rows = id_to_idx.reindex(conn_df['pre_root_id']).to_numpy()
-cols = id_to_idx.reindex(conn_df['post_root_id']).to_numpy()
-data = conn_df['syn_count'].to_numpy()
-
-# Create sparse CSC matrix
-A_fafb = coo_matrix((data, (rows, cols)),
-                    shape=(nodes_index.size, nodes_index.size)).tocsc()
-N_fafb = A_fafb.shape[0]
-
-# Load region order
 with open(processed_dir + 'region_order.pkl', 'rb') as f:
     fafb_region_order = pickle.load(f)
 
@@ -364,50 +330,14 @@ with open(processed_dir + 'region_order.pkl', 'rb') as f:
 fafb_cmap = plt.get_cmap('viridis', len(fafb_region_order))
 fafb_region_colors = {r: fafb_cmap(i) for i, r in enumerate(fafb_region_order)}
 
-# Shuffle weights for the full FAFB matrix
-A_fafb_rand = network_processing.null_network(A_fafb, scheme='rand_weight', 
-                                               conn_type='disc', n_threshold=1)
-
-# Compute robustness for original and shuffled matrices
-# Note: compute_robustness returns values only for neurons with in-degree > 1
-k_fafb = A_fafb.getnnz(axis=0)
-mask_k_gt1 = k_fafb > 1  # Boolean mask for neurons with k > 1
-valid_indices = np.where(mask_k_gt1)[0]  # Matrix column indices with k > 1
-
-Q1_fafb = network_processing.compute_robustness(A_fafb, 1., norm)
-Q2_fafb = network_processing.compute_robustness(A_fafb_rand, 1., norm)
-
-# Create mapping from matrix index to Q array index (only for valid neurons)
-idx_to_q_idx = {col_idx: q_idx for q_idx, col_idx in enumerate(valid_indices)}
-
-# Filter neuron_df to exclude "Other Regions"
-neuron_df_filtered = neuron_df[neuron_df['brain_region'] != 'Other Regions']
-
-# Compute fraction with decreased robustness for each brain region
-fafb_frac_decreased = {}
-for region in fafb_region_order:
-    # Get root_ids for neurons in this region
-    region_root_ids = neuron_df_filtered[neuron_df_filtered['brain_region'] == region]['root_id'].values
-    
-    # Map root_ids to matrix column indices
-    region_col_indices = id_to_idx.reindex(region_root_ids).dropna().astype(int).values
-    
-    # Filter to only include neurons with k > 1 (those that have robustness computed)
-    valid_region_indices = [idx for idx in region_col_indices if idx in idx_to_q_idx]
-    
-    if len(valid_region_indices) == 0:
-        fafb_frac_decreased[region] = np.nan
-        continue
-    
-    # Get Q array indices for these neurons
-    q_indices = [idx_to_q_idx[idx] for idx in valid_region_indices]
-    
-    # Extract robustness values for this region
-    Q1_region = Q1_fafb[q_indices]
-    Q2_region = Q2_fafb[q_indices]
-    
-    # Compute fraction with decreased robustness
-    fafb_frac_decreased[region] = np.mean(Q1_region > Q2_region)
+# Compute fraction with decreased robustness for each FAFB brain region
+fafb_df_filtered = fafb_df[fafb_df['brain_region'] != 'Other Regions']
+fafb_frac_series = (
+    fafb_df_filtered.assign(decreased=fafb_df_filtered['robustness'] > fafb_df_filtered['shuffled_robustness'])
+    .groupby('brain_region', sort=False)['decreased']
+    .mean()
+)
+fafb_frac_decreased = {region: fafb_frac_series.get(region, np.nan) for region in fafb_region_order}
 
 #------------------------------------------------------------------------------
 # BAR PLOT: FRACTION OF NEURONS WITH DECREASED ROBUSTNESS BY FAFB BRAIN REGION

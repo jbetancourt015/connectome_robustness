@@ -42,40 +42,13 @@ def load_connectome(data_idx, thresholded=False, scheme=None):
     return A
 
 #------------------------------------------------------------------------------
-# SENSITIVITY CALCULATION
+# ROBUSTNESS CALCULATION
 #------------------------------------------------------------------------------
-def compute_sensitivity(A, eta=1., normalized=True):
+def compute_robustness(A, eta=1., k_min=2, normalized=True):
     # Compute 0th moment
     k = A.getnnz(axis=0)
     # Get higher moments
-    mask = k > 1
-    
-    # Get moments of columns
-    def col_moment(p, mask):
-        if p == 1:
-            return np.asarray(A.sum(axis=0)).ravel()[mask]
-        else:
-            B = A.copy()
-            B.data = np.power(B.data, p)
-            return np.asarray(B.sum(axis=0)).ravel()[mask]
-        
-    # Compute moments
-    s_0 = k[mask]
-    s_1 = col_moment(1., mask)
-    s_2 = col_moment(2., mask)
-    s_eta = col_moment(eta, mask)
-    
-    # Compute sensitivities
-    Q = s_eta/s_2
-    if normalized:
-        Q *= (s_1/s_0)**(2-eta)
-    return Q
-
-def compute_robustness(A, eta=1., normalized=True):
-    # Compute 0th moment
-    k = A.getnnz(axis=0)
-    # Get higher moments
-    mask = k > 1
+    mask = k >= k_min
     
     # Get moments of columns
     def col_moment(p, mask):

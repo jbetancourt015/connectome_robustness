@@ -9,15 +9,16 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 4 Feb 2026
+    Wed 25 Feb 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
     
-    1. FlyWire loss simulation -> raw_data/loss_data.parquet
-    2. Periphery scoring -> raw_data/periphery_data.parquet
+    1. FlyWire loss simulation -> simulation_results/loss_data.parquet
+    2. Periphery scoring -> simulation_results/periphery_data.parquet
     3. z/ztilde simulation -> simulation_results/z_ztilde_simulations.parquet
     4. Parametric distributions -> simulation_results/{dist}_sim_{n}.parquet
+    5. Network shuffling -> simulation_results/{name}_shuffled.parquet
     
     Estimated total runtime: 4-8 hours (dominated by FlyWire simulations)
     
@@ -33,7 +34,7 @@ import os
 import re
 import numpy as np
 import pandas as pd
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, load_npz
 from tqdm import tqdm
 
 #==============================================================================
@@ -54,6 +55,52 @@ sim_dir = '../simulation_results/'
 
 # Create output directories if they don't exist
 os.makedirs(sim_dir, exist_ok=True)
+
+#==============================================================================
+# CONNECTOME DATA
+#==============================================================================
+connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
+               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
+               'drosophila_banc', 'drosophila_manc']
+
+def load_connectome(data_idx, thresholded=False, scheme=None):
+    if not thresholded:
+        A = load_npz(f"{processed_dir}{connectomes[data_idx]}.npz")
+    else:
+        A = load_npz(f"{processed_dir}{connectomes[data_idx]}_thresholded.npz")
+        if scheme == 'remove':
+            A.data = A.data - 4
+        elif scheme == 'clump':
+            A.data = 5*(A.data//5)
+    return A
+
+
+def compute_robustness(A, eta=1., k_min=2, normalized=True):
+    k = A.getnnz(axis=0)
+    mask = k >= k_min
+
+    s_0 = k[mask]
+    s_1 = np.asarray(A.sum(axis=0)).ravel()[mask]
+
+    B = A.copy()
+    B.data = B.data ** 2
+    s_2 = np.asarray(B.sum(axis=0)).ravel()[mask]
+
+    if eta == 1.:
+        s_eta = s_1
+    elif eta == 2.:
+        s_eta = s_2
+    else:
+        C = A.copy()
+        C.data = C.data ** eta
+        s_eta = np.asarray(C.sum(axis=0)).ravel()[mask]
+
+    Q = (s_2 / s_eta) ** 0.5
+    if normalized:
+        Q *= (s_0 / s_1) ** (1. - eta / 2)
+        Q -= 1.
+    return Q
+
 
 #==============================================================================
 # SIMULATION FUNCTIONS
@@ -854,6 +901,146 @@ def run_parametric_simulations():
 
 
 #==============================================================================
+# SIMULATION 5: NETWORK SHUFFLING
+#==============================================================================
+def shuffled_neuron_robustness(weights, scheme, conn_type, n_threshold,
+                               eta=1.0, normalized=False):
+    """
+    Shuffle a single neuron's input weights and return its robustness.
+
+    Generates new weights that preserve in-degree and (approximately)
+    in-strength according to the given scheme, then computes the robustness
+    metric directly without constructing a full network.
+    """
+    k = len(weights)
+    strength = weights.sum()
+
+    if scheme == 'rand_weight':
+        if conn_type == 'cont':
+            wts_ext = np.zeros(k + 1)
+            r = np.sort(np.random.rand(k - 1))
+            wts_ext[1:-1] = r
+            wts_ext[-1] = 1.0
+            wts = np.diff(wts_ext) * strength
+        else:
+            rand_ints = np.random.randint(
+                0, int(strength - n_threshold * k) + 1, size=k - 1
+            )
+            rand_ints = np.append(rand_ints, [0, int(strength - n_threshold * k)])
+            rand_ints.sort()
+            wts = n_threshold + np.diff(rand_ints)
+    elif scheme == 'poisson':
+        wts = 1.0 + np.random.poisson(strength / k - 1.0, size=k)
+    elif scheme == 'concentrated':
+        wts = np.ones(k)
+        wts[0] = strength - k + 1
+
+    s_2 = np.sum(wts ** 2)
+    s_eta = np.sum(wts ** eta)
+    Q = (s_2 / s_eta) ** 0.5
+    if normalized:
+        Q *= (k / np.sum(wts)) ** (1.0 - eta / 2)
+        Q -= 1.0
+    return Q
+
+
+def run_network_shuffling():
+    """
+    Shuffle weights for all connectomes and save robustness comparisons.
+
+    For each connectome, compute per-neuron robustness for the original and
+    shuffled network. Each output has one row per neuron.
+    For FAFB (data_idx=5), include the FAFB brain_region metadata.
+
+    Output files:
+        simulation_results/{connectome_name}_shuffled.parquet  (all 8 connectomes)
+    """
+    print("\n" + "=" * 60)
+    print("SIMULATION 5: Network Shuffling")
+    print("=" * 60)
+    
+    k_min = 10
+
+    def robustness_per_neuron(A, eta=1.0, k_min=k_min, normalized=False):
+        """
+        Return per-neuron robustness with NaN for undefined cases.
+        """
+        k = A.getnnz(axis=0)
+        q = np.full(A.shape[0], np.nan, dtype=float)
+        print('Vector lengths:',len(k),len(q))
+        mask = k >= k_min
+        if mask.any():
+            q[mask] = compute_robustness(
+                A, eta=eta, k_min=k_min, normalized=normalized
+            )
+        return q
+    
+    for data_idx in range(len(connectomes)):
+        output_file = sim_dir + connectomes[data_idx] + '_shuffled.parquet'
+        
+        if SKIP_EXISTING_SIMULATIONS and os.path.exists(output_file):
+            print(f"Skipping: {output_file} already exists")
+            continue
+        
+        conn_type = 'cont' if data_idx == 4 else 'disc'
+        n_threshold = 3 if data_idx == 6 else 1
+        
+        if data_idx == 5:
+            print("Loading FAFB connections data...")
+            conn_df = pd.read_parquet(processed_dir + 'connections_data.parquet')
+            
+            nodes_index = pd.Index(
+                pd.unique(pd.concat([conn_df['pre_root_id'], conn_df['post_root_id']],
+                                     ignore_index=True)),
+                name="root_id"
+            )
+            id_to_idx = pd.Series(np.arange(nodes_index.size), index=nodes_index)
+            idx_to_id = nodes_index.to_numpy()
+            
+            rows = id_to_idx.reindex(conn_df['pre_root_id']).to_numpy()
+            cols = id_to_idx.reindex(conn_df['post_root_id']).to_numpy()
+            data_vals = conn_df['syn_count'].to_numpy()
+            
+            A = coo_matrix((data_vals, (rows, cols)),
+                           shape=(nodes_index.size, nodes_index.size)).tocsc()
+
+            neuron_df = pd.read_parquet(processed_dir + 'neuron_data.parquet')
+            region_by_id = (
+                neuron_df[['root_id', 'brain_region']]
+                .drop_duplicates(subset='root_id')
+                .set_index('root_id')['brain_region']
+            )
+        else:
+            A = load_connectome(data_idx)
+        
+        print(f"Shuffling {connectomes[data_idx]} (N={A.shape[0]})...")
+
+        q = robustness_per_neuron(A, eta=1.0, k_min=k_min, normalized=False)
+
+        q_rand = np.full(A.shape[0], np.nan, dtype=float)
+        for col in range(A.shape[0]):
+            start, end = A.indptr[col], A.indptr[col + 1]
+            if end - start < k_min:
+                continue
+            q_rand[col] = shuffled_neuron_robustness(
+                A.data[start:end].astype(float),
+                scheme='rand_weight', conn_type=conn_type,
+                n_threshold=n_threshold, eta=1.0, normalized=False,
+            )
+
+        sim_df = pd.DataFrame({
+            'robustness': q,
+            'shuffled_robustness': q_rand,
+        })
+
+        if data_idx == 5:
+            sim_df['brain_region'] = region_by_id.reindex(idx_to_id).to_numpy()
+
+        sim_df.to_parquet(output_file)
+        print(f"Saved: {output_file}")
+
+
+#==============================================================================
 # MAIN EXECUTION
 #==============================================================================
 print("\n" + "=" * 60)
@@ -868,15 +1055,17 @@ run_flywire_loss_simulation()
 run_flywire_periphery_scoring()
 run_zztilde_simulation()
 run_parametric_simulations()
+run_network_shuffling()
 
 print("\n" + "=" * 60)
 print("ALL SIMULATIONS COMPLETE!")
 print("=" * 60)
 print("\nOutput files generated:")
-print(f"  - {data_dir}loss_data.parquet")
-print(f"  - {data_dir}periphery_data.parquet")
+print(f"  - {sim_dir}loss_data.parquet")
+print(f"  - {sim_dir}periphery_data.parquet")
 print(f"  - {sim_dir}z_ztilde_simulations.parquet")
 print(f"  - {sim_dir}lognormal_sim_100.parquet")
 print(f"  - {sim_dir}lomax_sim_100.parquet")
 print(f"  - {sim_dir}gamma_sim_100.parquet")
+print(f"  - {sim_dir}*_shuffled.parquet (8 connectomes)")
 print("=" * 60)

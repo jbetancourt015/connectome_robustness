@@ -200,7 +200,7 @@ plt.show()
 # PREDICTED VS SIMULATED LOSS
 #------------------------------------------------------------------------------
 # Figure parameters
-log_axes = True
+log_axes = False
 log_prob = False
 n_bins = 30
 

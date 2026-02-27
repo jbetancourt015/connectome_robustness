@@ -18,6 +18,7 @@ contributors:
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import matplotlib as mpl
 import logging
 import re
@@ -150,6 +151,22 @@ def compute_cdf_np(data):
     cdf = cum_counts / cum_counts[-1]
     return unique_vals, cdf
 
+def log_format(ax):
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    
+    # --- Force major ticks at every decade ---
+    ax.yaxis.set_major_locator(
+        mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
+    )
+    
+    # --- Force minor ticks between decades ---
+    ax.yaxis.set_minor_locator(
+        mticker.LogLocator(base=10.0,
+                          subs=np.arange(2, 10) * 0.1,
+                          numticks=100)
+    )
+
 #------------------------------------------------------------------------------
 # FAFB DISTRIBUTIONS
 #------------------------------------------------------------------------------
@@ -161,8 +178,7 @@ s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
 fig, ax = plt.subplots(figsize=(width_large, height_large))
 
 ax.scatter(s_fafb, P_fafb, color=con_colors[0], s=10, rasterized=True)
-ax.set_xscale('log')
-ax.set_yscale('log')
+log_format(ax)
 
 plt.subplots_adjust(**fig_margins_large)
 plt.savefig(output_dir + 'fafb_distribution.svg', dpi=600)
@@ -237,10 +253,9 @@ s_banc, P_banc = empirical_hist_pd(banc_conn_df['syn_count'])
 fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_banc, P_banc, color=con_colors[1], s=10, rasterized=True)
-ax.set_xscale('log')
-ax.set_yscale('log')
-
+log_format(ax)
 plt.subplots_adjust(**fig_margins)
+
 plt.savefig(output_dir + 'banc_distribution.svg', dpi=600)
 plt.show()
 plt.close()
@@ -256,8 +271,7 @@ s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
 fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_manc, P_manc, color=con_colors[2], s=10, rasterized=True)
-ax.set_xscale('log')
-ax.set_yscale('log')
+log_format(ax)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(output_dir + 'manc_distribution.svg', dpi=600)
@@ -289,8 +303,7 @@ for data_idx in species_indices:
     fig, ax = plt.subplots(figsize=(width, height))
     
     ax.scatter(s_species, P_species, color=con_colors[species_color_idx[data_idx]], s=10, rasterized=True)
-    ax.set_xscale('log')
-    ax.set_yscale('log')
+    log_format(ax)
     
     plt.subplots_adjust(**fig_margins)
     plt.savefig(output_dir + species_filenames[data_idx], dpi=600)
