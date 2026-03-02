@@ -294,9 +294,7 @@ ax.plot(r_vals, (1./np.pi)*np.arccos((1.+(eps/r_vals)**2)**(-0.5)), c='k', ls='-
 
 # ax.set_xscale('log')
 ax.set_yscale('log')
-# ax.set_xlim([1.,10.])
-# ax.set_xticks([1.,10.])
-# ax.set_xticks([], minor=True)
+ax.set_xlim([0.,None])
 ax.set_ylim([1e-2,.2])
 
 plt.subplots_adjust(**fig_margins)
