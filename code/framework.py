@@ -75,8 +75,8 @@ sim_file = sim_dir + "z_ztilde_simulations.parquet"
 mm_to_in = 25.4
 width_sm = 32. / mm_to_in
 height_sm = 32. / mm_to_in
-width_md = 50. / mm_to_in
-height_md = 50. / mm_to_in
+width_md = 53. / mm_to_in
+height_md = 53. / mm_to_in
 width_lg = 65. / mm_to_in
 height_lg = 65. / mm_to_in
 
@@ -121,6 +121,7 @@ n_pred = 200
 
 # Colors for each parameter set (equally spaced from viridis)
 n_colors = len(param_sets)
+cmap = plt.get_cmap('viridis')
 sim_colors = [plt.cm.viridis(i / (n_colors - 1))[:3] for i in range(n_colors)]
 
 
@@ -169,7 +170,7 @@ def draw_ellipse(R, rho, ax, color, lim=3.):
     ax.contour(X, Y, Z, levels=[level], colors=[color], linewidths=2)
 
 
-def draw_principal_axes(R, rho, ax, color, lw=1):
+def draw_principal_axes(R, rho, ax, color_pos, color_neg, lw=1):
     """
     Draw dashed principal axes (y=x and y=-x) within ellipse bounds.
 
@@ -191,9 +192,12 @@ def draw_principal_axes(R, rho, ax, color, lw=1):
     level = R**2 * np.sqrt(1 - rho**2)
     x_pos = np.sqrt(level / (2*(1 - rho)))  # y=x line
     x_neg = np.sqrt(level / (2*(1 + rho)))  # y=-x line
+    
+    ax.annotate("", xytext=(0, 0), xy=(x_pos, x_pos), arrowprops=dict(color=color_pos, width=1, headwidth=5))
+    ax.annotate("", xytext=(0, 0), xy=(x_neg, -x_neg), arrowprops=dict(color=color_neg, width=1, headwidth=5))
 
-    ax.plot([-x_pos, x_pos], [-x_pos, x_pos], c=color, ls='--', lw=lw)
-    ax.plot([-x_neg, x_neg], [x_neg, -x_neg], c=color, ls='--', lw=lw)
+    ax.plot([0., x_pos], [0., x_pos], c=color_pos, lw=lw)
+    ax.plot([0., x_neg], [0., -x_neg], c=color_neg, lw=lw)
 
 
 def general_loss(mean, var):
@@ -854,10 +858,10 @@ ax.fill_betweenx(np.linspace(0, lim, 2), -lim, 0, color=con_colors[1], alpha=0.3
 ax.fill_betweenx(np.linspace(-lim, 0, 2), 0, lim, color=con_colors[1], alpha=0.3)
 
 # Draw ellipse (single level set)
-draw_ellipse(R, rho, ax, con_colors[2], lim=lim)
+draw_ellipse(R, rho, ax, cmap(0.5), lim=lim)
 
 # Draw principal axes (dashed lines within ellipse)
-draw_principal_axes(R, rho, ax, con_colors[2], lw=1)
+draw_principal_axes(R, rho, ax, con_colors[0], con_colors[1], lw=1)
 
 # Make axes coincide
 locator = ax.yaxis.get_major_locator()

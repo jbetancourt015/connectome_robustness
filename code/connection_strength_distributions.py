@@ -67,10 +67,10 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
 mm_to_in = 25.4
 width = 40./mm_to_in
 height = 40./mm_to_in
-width_large = 60./mm_to_in
-height_large = 60./mm_to_in
-width_grid = 100./mm_to_in
-height_grid = 60./mm_to_in
+width_large = 62./mm_to_in
+height_large = 62./mm_to_in
+width_grid = 102./mm_to_in
+height_grid = 62./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
@@ -167,6 +167,22 @@ def log_format(ax):
                           numticks=100)
     )
 
+def auto_corner(ax, xdata, ydata):
+    """ 
+    Chooses the emptier corner to put a label on.
+    """ 
+    xmid = (max(xdata) + min(xdata)) / 2
+    ymid = (max(ydata) + min(ydata)) / 2
+
+    # Count points in top-right quadrant
+    tr = sum((x > xmid) & (y > ymid) for x, y in zip(xdata, ydata))
+    bl = sum((x < xmid) & (y < ymid) for x, y in zip(xdata, ydata))
+
+    if tr < bl:
+        return 0.95, 'top', 'right'
+    else:
+        return 0.05, 'bottom', 'left'
+
 #------------------------------------------------------------------------------
 # FAFB DISTRIBUTIONS
 #------------------------------------------------------------------------------
@@ -223,8 +239,9 @@ for idx in tqdm(range(n_cols*n_rows)):
         ax.set_yscale('log')
         # Split two-word region names into two lines
         region_label = r.replace(' ', '\n')
-        ax.text(0.95, 0.95, region_label, transform=ax.transAxes, fontsize=6,
-                ha='right', va='top')
+        loc, va, ha = (0.05, 'bottom', 'left') if r=='Periesophageal' else (0.95, 'top', 'right')
+        ax.text(loc, loc, region_label, transform=ax.transAxes, fontsize=6,
+                ha=ha, va=va)
         # Advance region index
         region_idx += 1
 
