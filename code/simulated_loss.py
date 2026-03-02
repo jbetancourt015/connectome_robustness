@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import logging
 import matplotlib as mpl
 import matplotlib.colors as mcolors
+import matplotlib.ticker as mticker
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numba import njit
@@ -81,7 +82,10 @@ dark_cool = mcolors.LinearSegmentedColormap.from_list(
 )
 if "dark_cool" not in plt.colormaps:
     plt.colormaps.register(dark_cool)
-
+    
+#------------------------------------------------------------------------------
+# AUXILIARY FUNCTIONS
+#------------------------------------------------------------------------------
 def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
     top    = (*rgb, 1.0)
@@ -91,6 +95,32 @@ def general_loss(mean, var):
     """Compute predicted loss from mean and variance."""
     rob = np.sqrt(mean + var/mean)
     return (1/np.pi)*np.arccos((1.+(eps/rob)**2)**(-1/2))
+
+def log_format(ax, format_x=True, format_y=True):
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    if format_x:
+        # --- Force major ticks at every decade ---
+        ax.xaxis.set_major_locator(
+            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
+        )
+        # --- Force minor ticks between decades ---
+        ax.xaxis.set_minor_locator(
+            mticker.LogLocator(base=10.0,
+                              subs=np.arange(2, 10) * 0.1,
+                              numticks=100)
+        )
+    if format_y:
+        # --- Force major ticks at every decade ---
+        ax.yaxis.set_major_locator(
+            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
+        )
+        # --- Force minor ticks between decades ---
+        ax.yaxis.set_minor_locator(
+            mticker.LogLocator(base=10.0,
+                              subs=np.arange(2, 10) * 0.1,
+                              numticks=100)
+        )
 
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
@@ -183,12 +213,11 @@ for i in range(n_mean_bins):
     ax.scatter(grouped_var[valid_bins], grouped_loss[valid_bins], c='white', 
                edgecolors=cmap(i), s=20, rasterized=True)
 
-ax.set_xscale('log')
-ax.set_yscale('log')
 ax.set_ylim([1e-2,.2])
 ax.set_xlim([5e-1,1e4])
 
 plt.subplots_adjust(**fig_margins)
+log_format(ax)
 plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
 
 ax.set_xlabel('Variance')
