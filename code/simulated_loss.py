@@ -23,9 +23,6 @@ import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.ticker as mticker
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from numba import njit
-from tqdm import tqdm
 
 plt.rcParams.update({
     'text.usetex': False,  # keep LaTeX off globally

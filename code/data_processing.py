@@ -19,15 +19,8 @@ contributors:
 """
 import numpy as np
 import pandas as pd
-import networkx as nx
 import pickle
-from scipy.sparse import coo_matrix, csr_matrix, save_npz
-from time import time
-from tqdm import tqdm
-import pyarrow.feather as feather
-import io
-import bz2
-
+from scipy.sparse import coo_matrix, save_npz
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
 #------------------------------------------------------------------------------

@@ -575,15 +575,15 @@ def run_zztilde_simulation():
     
     # Parameter sets: (distribution, mean) or (distribution, mean, variance)
     param_sets = [
-        ('dirac', 1.75),
-        ('poisson', 1.75),
-        ('pareto', 1.75),
+        ('gamma', 1., 1.),
+        ('gamma', 1., 100.),
+        ('gamma', 1., 400.),
     ]
     
     # Simulation parameters
     n_inputs = int(1e4)
     eta = 1.0
-    eps = 1.0
+    eps = 10.0
     n_draws = int(1e3)
     n_perturb = int(1e3)
     
@@ -821,6 +821,7 @@ def run_parametric_simulations():
     print("SIMULATION 4: Parametric Distributions")
     print("=" * 60)
     
+    n_neurons = int(1e3)
     n_inputs = int(1e3)
     n_draws = int(1e3)
     n_perturb = int(1e3)
@@ -887,24 +888,24 @@ def run_parametric_simulations():
     
     rng = np.random.default_rng(RNG_SEED)
     
-    print("Running lognormal simulations...")
-    run_parametric_simulation('lognormal', mean_vals, var_vals, n_inputs=n_inputs,
-                               n_draws=n_draws, n_perturb=n_perturb, rng=rng)
+    # print("Running lognormal simulations...")
+    # run_parametric_simulation('lognormal', mean_vals, var_vals, n_inputs=n_inputs,
+    #                            n_neurons=n_neurons, n_draws=n_draws, n_perturb=n_perturb, rng=rng)
     
-    print("Running lomax simulations...")
-    run_parametric_simulation('lomax', mean_vals, var_vals, n_inputs=n_inputs,
-                               n_draws=n_draws, n_perturb=n_perturb, rng=rng)
+    # print("Running lomax simulations...")
+    # run_parametric_simulation('lomax', mean_vals, var_vals, n_inputs=n_inputs,
+    #                            n_neurons=n_neurons, n_draws=n_draws, n_perturb=n_perturb, rng=rng)
     
     print("Running gamma simulations...")
     run_parametric_simulation('gamma', mean_vals, var_vals, n_inputs=n_inputs,
-                               n_draws=n_draws, n_perturb=n_perturb, rng=rng)
+                               n_neurons=n_neurons, n_draws=n_draws, n_perturb=n_perturb, rng=rng)
 
 
 #==============================================================================
 # SIMULATION 5: NETWORK SHUFFLING
 #==============================================================================
 def shuffled_neuron_robustness(weights, scheme, conn_type, n_threshold,
-                               eta=1.0, normalized=False):
+                               eta=1.0, normalized=False, return_weights=False):
     """
     Shuffle a single neuron's input weights and return its robustness.
 
@@ -941,6 +942,8 @@ def shuffled_neuron_robustness(weights, scheme, conn_type, n_threshold,
     if normalized:
         Q *= (k / np.sum(wts)) ** (1.0 - eta / 2)
         Q -= 1.0
+    if return_weights:
+        return Q, wts
     return Q
 
 
@@ -1017,16 +1020,34 @@ def run_network_shuffling():
 
         q = robustness_per_neuron(A, eta=1.0, k_min=k_min, normalized=False)
 
+        save_fafb_weights = (data_idx == 5)
+        if save_fafb_weights:
+            shuffled_data = A.data.copy().astype(float)
+
         q_rand = np.full(A.shape[0], np.nan, dtype=float)
         for col in range(A.shape[0]):
             start, end = A.indptr[col], A.indptr[col + 1]
             if end - start < k_min:
                 continue
-            q_rand[col] = shuffled_neuron_robustness(
-                A.data[start:end].astype(float),
-                scheme='rand_weight', conn_type=conn_type,
-                n_threshold=n_threshold, eta=1.0, normalized=False,
-            )
+            if save_fafb_weights:
+                q_rand[col], wts = shuffled_neuron_robustness(
+                    A.data[start:end].astype(float),
+                    scheme='rand_weight', conn_type=conn_type,
+                    n_threshold=n_threshold, eta=1.0, normalized=False,
+                    return_weights=True,
+                )
+                shuffled_data[start:end] = wts
+            else:
+                q_rand[col] = shuffled_neuron_robustness(
+                    A.data[start:end].astype(float),
+                    scheme='rand_weight', conn_type=conn_type,
+                    n_threshold=n_threshold, eta=1.0, normalized=False,
+                )
+
+        if save_fafb_weights:
+            weights_file = sim_dir + 'drosophila_whole_brain_shuffled_weights.npz'
+            np.savez_compressed(weights_file, weights=shuffled_data)
+            print(f"Saved shuffled weights: {weights_file}")
 
         sim_df = pd.DataFrame({
             'robustness': q,

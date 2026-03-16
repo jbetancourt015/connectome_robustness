@@ -79,6 +79,7 @@ fig_margins_grid = dict(left=0.1, right=0.97, bottom=0.15, top=0.95)
 
 data_dir = '../../raw_data/'
 processed_dir = '../processed_data/'
+sim_dir = '../simulation_results/'
 output_dir = '../../paper_figures/connection_strength_distributions/'
 os.makedirs(output_dir, exist_ok=True)
 
@@ -128,11 +129,14 @@ def empirical_hist_np(data):
     if len(data) == 0:
         return np.array([]), np.array([])
     
-    bin_idx = np.ceil(data).astype(int) - 1
-    unique_bins, counts = np.unique(bin_idx, return_counts=True)
+    rounded_data = np.round(data).astype(int)
+    s_unique, counts = np.unique(rounded_data, return_counts=True)
     
-    s_unique = np.array([data[bin_idx == b].mean() for b in unique_bins])
-    Ps = counts / len(data)
+    # Get non-zero strengths
+    mask = s_unique > 0
+    s_unique, counts = s_unique[mask], counts[mask]
+    
+    Ps = counts / np.sum(counts)
     
     return s_unique, Ps
 
@@ -151,37 +155,31 @@ def compute_cdf_np(data):
     cdf = cum_counts / cum_counts[-1]
     return unique_vals, cdf
 
-def log_format(ax):
+def log_format(ax, format_x=True, format_y=True):
     ax.set_xscale('log')
     ax.set_yscale('log')
-    
-    # --- Force major ticks at every decade ---
-    ax.yaxis.set_major_locator(
-        mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
-    )
-    
-    # --- Force minor ticks between decades ---
-    ax.yaxis.set_minor_locator(
-        mticker.LogLocator(base=10.0,
-                          subs=np.arange(2, 10) * 0.1,
-                          numticks=100)
-    )
-
-def auto_corner(ax, xdata, ydata):
-    """ 
-    Chooses the emptier corner to put a label on.
-    """ 
-    xmid = (max(xdata) + min(xdata)) / 2
-    ymid = (max(ydata) + min(ydata)) / 2
-
-    # Count points in top-right quadrant
-    tr = sum((x > xmid) & (y > ymid) for x, y in zip(xdata, ydata))
-    bl = sum((x < xmid) & (y < ymid) for x, y in zip(xdata, ydata))
-
-    if tr < bl:
-        return 0.95, 'top', 'right'
-    else:
-        return 0.05, 'bottom', 'left'
+    if format_x:
+        # --- Force major ticks at every decade ---
+        ax.xaxis.set_major_locator(
+            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
+        )
+        # --- Force minor ticks between decades ---
+        ax.xaxis.set_minor_locator(
+            mticker.LogLocator(base=10.0,
+                              subs=np.arange(2, 10) * 0.1,
+                              numticks=100)
+        )
+    if format_y:
+        # --- Force major ticks at every decade ---
+        ax.yaxis.set_major_locator(
+            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
+        )
+        # --- Force minor ticks between decades ---
+        ax.yaxis.set_minor_locator(
+            mticker.LogLocator(base=10.0,
+                              subs=np.arange(2, 10) * 0.1,
+                              numticks=100)
+        )
 
 #------------------------------------------------------------------------------
 # FAFB DISTRIBUTIONS
@@ -189,12 +187,21 @@ def auto_corner(ax, xdata, ydata):
 # Get distribution of weights
 s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
 
+# Get distribution of shuffled weights
+fafb_shuffled_weights = np.load(sim_dir + 'drosophila_whole_brain_shuffled_weights.npy')
+
+s_shuffled, P_shuffled = empirical_hist_np(fafb_shuffled_weights)
+
 # FIGURE: Distribution of all connections in the FAFB dataset------------------
 # Set up figure
 fig, ax = plt.subplots(figsize=(width_large, height_large))
 
-ax.scatter(s_fafb, P_fafb, color=con_colors[0], s=10, rasterized=True)
+ax.scatter(s_shuffled, P_shuffled, color='grey', s=10, rasterized=True, clip_on=False, zorder=5)
+ax.scatter(s_fafb, P_fafb, color=con_colors[0], s=10, rasterized=True, clip_on=False, zorder=5)
 log_format(ax)
+
+ax.set_xlim(1.,None)
+ax.set_ylim(None,1.)
 
 plt.subplots_adjust(**fig_margins_large)
 plt.savefig(output_dir + 'fafb_distribution.svg', dpi=600)
@@ -234,7 +241,7 @@ for idx in tqdm(range(n_cols*n_rows)):
         r = region_order[region_idx]
         mask = region_df['brain_region'] == r
         s_region, P_region = empirical_hist_pd(region_df[mask]['syn_count'])
-        ax.scatter(s_region, P_region, color=region_colors[r], s=10, rasterized=True)
+        ax.scatter(s_region, P_region, color=region_colors[r], s=10, rasterized=True, clip_on=False, zorder=5)
         ax.set_xscale('log')
         ax.set_yscale('log')
         # Split two-word region names into two lines
@@ -245,6 +252,7 @@ for idx in tqdm(range(n_cols*n_rows)):
         # Advance region index
         region_idx += 1
 
+plt.setp(axes, xlim=(1.,None), ylim=(None,1.))
 plt.subplots_adjust(**fig_margins_grid, wspace=0.08, hspace=0.08)
 plt.savefig(output_dir + 'brain_region_grid.svg', dpi=600)
 plt.show()
@@ -269,8 +277,10 @@ s_banc, P_banc = empirical_hist_pd(banc_conn_df['syn_count'])
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
-ax.scatter(s_banc, P_banc, color=con_colors[1], s=10, rasterized=True)
+ax.scatter(s_banc, P_banc, color=con_colors[1], s=10, rasterized=True, clip_on=False, zorder=5)
 log_format(ax)
+ax.set_xlim(1.,None)
+ax.set_ylim(None,1.)
 plt.subplots_adjust(**fig_margins)
 
 plt.savefig(output_dir + 'banc_distribution.svg', dpi=600)
@@ -287,7 +297,7 @@ s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
-ax.scatter(s_manc, P_manc, color=con_colors[2], s=10, rasterized=True)
+ax.scatter(s_manc, P_manc, color=con_colors[2], s=10, rasterized=True, clip_on=False, zorder=5)
 log_format(ax)
 
 plt.subplots_adjust(**fig_margins)
@@ -311,16 +321,18 @@ species_color_idx = {2: 3, 3: 5, 4: 4}
 for data_idx in species_indices:
     # Load connectome and extract synapse counts
     A = network_processing.load_connectome(data_idx)
-    synapse_counts = A.data
+    conn_strength = A.data
     
     # Get distribution of weights
-    s_species, P_species = empirical_hist_np(synapse_counts)
+    s_species, P_species = empirical_hist_np(conn_strength)
     
     # FIGURE: Distribution of all connections----------------------------------
     fig, ax = plt.subplots(figsize=(width, height))
     
-    ax.scatter(s_species, P_species, color=con_colors[species_color_idx[data_idx]], s=10, rasterized=True)
+    ax.scatter(s_species, P_species, color=con_colors[species_color_idx[data_idx]], s=10, rasterized=True, clip_on=False, zorder=5)
     log_format(ax)
+    ax.set_xlim(1.,None)
+    ax.set_ylim(None,1.)
     
     plt.subplots_adjust(**fig_margins)
     plt.savefig(output_dir + species_filenames[data_idx], dpi=600)
