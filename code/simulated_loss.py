@@ -139,7 +139,7 @@ neuron_df['mean'] = neuron_df['in_strength']/neuron_df['in_deg']
 neuron_df['var'] = (neuron_df['sum_w2']/neuron_df['in_deg']) - neuron_df['mean']**2
 
 #------------------------------------------------------------------------------
-# LOSS BY NEURON STATISTICS
+# SIMULATED LOSS BY NEURON STATISTICS
 #------------------------------------------------------------------------------
 # Get range of statistics
 nonneg = neuron_df['var'] > 1e-5
@@ -186,29 +186,45 @@ for i in range(n_mean_bins):
 # Get prediction values spanning the full variance range
 var_pred = np.logspace(np.log10(var_min), np.log10(var_max), n_pred)
 
+# Pre-compute median average incoming weight per mean bin
+mean_mids = []
+for i in range(n_mean_bins):
+    mean_mask = df_nonneg['mean_bin'] == i
+    if mean_mask.sum() == 0:
+        mean_mids.append(np.nan)
+    else:
+        mean_mids.append(df_nonneg.loc[mean_mask, 'mean'].median())
+mean_mids = np.array(mean_mids)
+
+# Log-normalize for colormap (ignore NaN bins)
+valid_means = mean_mids[~np.isnan(mean_mids)]
+log_mean_min, log_mean_max = np.log10(valid_means.min()), np.log10(valid_means.max())
+def mean_to_norm(m):
+    return (np.log10(m) - log_mean_min) / (log_mean_max - log_mean_min)
+
 # Set up figure
-cmap = plt.get_cmap('dark_cool', n_mean_bins)
+cmap = plt.get_cmap('dark_cool')
 fig, ax = plt.subplots(figsize=(width, height))
 
 for i in range(n_mean_bins):
     mean_mask = df_nonneg['mean_bin'] == i
     if mean_mask.sum() == 0:
         continue
-    
-    # Get representative mean (median of neurons in this mean bin)
-    mean_mid = df_nonneg.loc[mean_mask, 'mean'].median()
-    
+
+    mean_mid = mean_mids[i]
+    color = cmap(mean_to_norm(mean_mid))
+
     # Compute median loss and median variance for each variance bin
     grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
     grouped_var = df_nonneg[mean_mask].groupby('var_bin')['var'].median()
-    
+
     # Plot prediction line
-    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=cmap(i), lw=2, zorder=0)
-    
+    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=2, zorder=0)
+
     # Plot scatter for bins with data (using median variance as x-position)
     valid_bins = grouped_loss.index.dropna().astype(int)
-    ax.scatter(grouped_var[valid_bins], grouped_loss[valid_bins], c='white', 
-               edgecolors=cmap(i), s=20, rasterized=True)
+    ax.scatter(grouped_var[valid_bins], grouped_loss[valid_bins], c='white',
+               edgecolors=color, s=20, rasterized=True)
 
 ax.set_ylim([1e-2,.2])
 ax.set_xlim([5e-1,1e4])
@@ -217,10 +233,22 @@ plt.subplots_adjust(**fig_margins)
 log_format(ax)
 plt.savefig('../../figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
 
+# Print colorbar range to console
+print(f"Colorbar range (avg incoming weight) — min: {valid_means.min():.4f}, max: {valid_means.max():.4f}")
+
+# Add colorbar for interactive display (not in saved file)
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max()))
+sm.set_array([])
+plt.colorbar(sm, ax=ax)
+
 ax.set_xlabel('Variance')
 ax.set_ylabel('Simulated loss')
 
 plt.show()
+
+#------------------------------------------------------------------------------
+# LOSS BY NEURON STATISTICS
+#------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
 # PREDICTED VS SIMULATED LOSS
@@ -298,21 +326,23 @@ fig, ax = plt.subplots(figsize=(width, height))
 for i in range(n_mean_bins):
     # Filter data for this mean bin
     mean_mask = df_nonneg['mean_bin'] == i
-    
-    # Get representative mean (median of neurons in this mean bin)
-    mean_mid = df_nonneg.loc[mean_mask, 'mean'].median()
-    
+    if mean_mask.sum() == 0:
+        continue
+
+    mean_mid = mean_mids[i]
+    color = cmap(mean_to_norm(mean_mid))
+
     # Compute median loss and median variance for each variance bin
     grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
     grouped_var = df_nonneg[mean_mask].groupby('var_bin')['var'].median()
-    
+
     # Compute robustness for each variance bin
     grouped_rob = np.sqrt(mean_mid + grouped_var / mean_mid)
-    
+
     # Plot scatter for bins with data
     valid_bins = grouped_loss.index.dropna().astype(int)
-    ax.scatter(grouped_rob[valid_bins], grouped_loss[valid_bins], c='white', 
-               edgecolors=cmap(i), s=20, zorder=2, rasterized=True)
+    ax.scatter(grouped_rob[valid_bins], grouped_loss[valid_bins], c='white',
+               edgecolors=color, s=20, zorder=2, rasterized=True)
 
 # Plot prediction line
 r_vals = np.linspace(rob_min, rob_max, 100)
@@ -325,6 +355,14 @@ ax.set_ylim([1e-2,.2])
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig('../../figures/simulated_loss/loss_vs_robustness_binned.svg', dpi=600)
+
+# Print colorbar range to console
+print(f"Colorbar range (avg incoming weight) — min: {valid_means.min():.4f}, max: {valid_means.max():.4f}")
+
+# Add colorbar for interactive display (not in saved file)
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max()))
+sm.set_array([])
+plt.colorbar(sm, ax=ax)
 
 # Add labels
 ax.set_xlabel('Robustness')

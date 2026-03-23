@@ -347,40 +347,44 @@ n_quantiles = 10
 # Add deciles to dataset
 neuron_df['reciprocity_q'] = pd.qcut(neuron_df['reciprocity'], q=n_quantiles, labels=False)
 
+# Pre-compute median reciprocity per decile
+reciprocities = [neuron_df[neuron_df['reciprocity_q'] == i]['reciprocity'].median()
+                 for i in range(n_quantiles)]
+rec_min, rec_max = min(reciprocities), max(reciprocities)
+
+# Normalize median reciprocities to [0, 1] for colormap lookup
+rec_norm = [(r - rec_min) / (rec_max - rec_min) for r in reciprocities]
+
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
 # Add population median line (behind data)
 ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
 
-cmap = plt.get_cmap('plasma', n_quantiles)
-
-reciprocities = []
+cmap = plt.get_cmap('plasma')
 
 for i in range(n_quantiles):
     mask = neuron_df['reciprocity_q'] == i
-    reciprocities.append(neuron_df[mask]['reciprocity'].median())
     rob, cdf = compute_cdf(neuron_df[mask]['norm_robustness'])
-    
-    # Plot CDF
-    ax.step(rob, cdf, where='post', lw=2, c=cmap(i), label=f"Reciprocity D{i+1}")
-    
-# ax.legend()
+    ax.step(rob, cdf, where='post', lw=2, c=cmap(rec_norm[i]))
 
 ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig('../../figures/drosophila_robustness/cdf_by_reciprocity_decile.svg', dpi=600)
-    
+
+# Print colorbar range to console
+print(f"Colorbar range — min median reciprocity: {rec_min:.4f}, max median reciprocity: {rec_max:.4f}")
+
+# Add colorbar for interactive display (not in saved file)
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=rec_min, vmax=rec_max))
+sm.set_array([])
+plt.colorbar(sm, ax=ax)
+
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
 
-plt.show()
-
-plt.plot(np.arange(n_quantiles) + 1, reciprocities)
-plt.xlabel('Reciprocity decile')
-plt.ylabel('Median reciprocity')
 plt.show()
 
 #------------------------------------------------------------------------------
