@@ -87,7 +87,7 @@ def log10_formatter(y, pos):
 #------------------------------------------------------------------------------
 # LOAD DATASETS
 #------------------------------------------------------------------------------
-data_dir = '../../raw_data/'
+data_dir = '../../data/'
 processed_dir = '../processed_data/'
 
 # Import neuron and connections data
@@ -177,7 +177,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/cdf_normalized_robustness.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/cdf_normalized_robustness.svg', dpi=600)
 
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
@@ -247,7 +247,7 @@ ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 plt.subplots_adjust(**wide_fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/violin_by_brain_region.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/violin_by_brain_region.svg', dpi=600)
 
 ax.set_ylabel("Normalized Robustness")
 plt.show()
@@ -330,7 +330,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/cdf_exc_vs_inh.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/cdf_exc_vs_inh.svg', dpi=600)
 
 ax.legend()
 
@@ -371,7 +371,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/cdf_by_reciprocity_decile.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/cdf_by_reciprocity_decile.svg', dpi=600)
     
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
@@ -481,7 +481,7 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_optic_peripherality.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/robustness_vs_optic_peripherality.svg', dpi=600)
 
 # Format figure
 ax_left.set_ylabel('Median robustness')
@@ -584,7 +584,7 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../paper_figures/drosophila_robustness/robustness_vs_olfactory_peripherality.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/robustness_vs_olfactory_peripherality.svg', dpi=600)
 
 # Format figure
 ax_left.set_ylabel('Median robustness')
@@ -649,7 +649,7 @@ ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/violin_visual_pathway.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/violin_visual_pathway.svg', dpi=600)
 
 ax.set_ylabel('Normalized Robustness')
 plt.show()
@@ -711,7 +711,7 @@ ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/drosophila_robustness/violin_olfactory_pathway.svg', dpi=600)
+plt.savefig('../../figures/drosophila_robustness/violin_olfactory_pathway.svg', dpi=600)
 
 ax.set_ylabel('Normalized Robustness')
 plt.show()

@@ -119,7 +119,7 @@ def log_format(ax, format_x=True, format_y=True):
                               numticks=100)
         )
 
-data_dir = '../../raw_data/'
+data_dir = '../../data/'
 processed_dir = '../processed_data/'
 sim_dir = '../simulation_results/'
 
@@ -215,7 +215,7 @@ ax.set_xlim([5e-1,1e4])
 
 plt.subplots_adjust(**fig_margins)
 log_format(ax)
-plt.savefig('../../paper_figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
+plt.savefig('../../figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
 
 ax.set_xlabel('Variance')
 ax.set_ylabel('Simulated loss')
@@ -276,7 +276,7 @@ ax.xaxis.set_major_locator(locator)
 ax.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
+plt.savefig('../../figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
 
 # Add labels
 ax.set_xlabel('Predicted loss')
@@ -324,7 +324,7 @@ ax.set_xlim([0.,None])
 ax.set_ylim([1e-2,.2])
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../paper_figures/simulated_loss/loss_vs_robustness_binned.svg', dpi=600)
+plt.savefig('../../figures/simulated_loss/loss_vs_robustness_binned.svg', dpi=600)
 
 # Add labels
 ax.set_xlabel('Robustness')

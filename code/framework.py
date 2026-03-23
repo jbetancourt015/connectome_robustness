@@ -66,7 +66,7 @@ con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0],
 
 # Directory paths
 sim_dir = '../simulation_results/'
-fig_dir = '../../paper_figures/framework/'
+fig_dir = '../../figures/framework/'
 
 # Single consolidated simulation file for z/ztilde
 sim_file = sim_dir + "z_ztilde_simulations.parquet"

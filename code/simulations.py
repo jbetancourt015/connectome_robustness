@@ -2,7 +2,7 @@
     Master script for running all simulations for the connectome robustness paper.
     This script consolidates simulations from final_code/ and simulation_code/.
     
-    Output files are saved to raw_data/ and simulation_results/ for use by
+    Output files are saved to data/ and simulation_results/ for use by
     the figure-generation script.
 -------------------------------------------------------------------------------
 created on:
@@ -49,7 +49,7 @@ RNG_SEED = 1764
 #------------------------------------------------------------------------------
 # DIRECTORIES
 #------------------------------------------------------------------------------
-data_dir = '../../raw_data/'
+data_dir = '../../data/'
 processed_dir = '../processed_data/'
 sim_dir = '../simulation_results/'
 
@@ -295,8 +295,8 @@ def run_flywire_loss_simulation():
     """
     Run Monte Carlo loss simulation for all FlyWire neurons.
     
-    Input: raw_data/connections_data.parquet
-    Output: raw_data/loss_data.parquet
+    Input: data/connections_data.parquet
+    Output: data/loss_data.parquet
     """
     print("=" * 60)
     print("SIMULATION 1: FlyWire Loss")
@@ -375,8 +375,8 @@ def run_flywire_periphery_scoring():
     """
     Run stochastic propagation to compute peripherality scores.
     
-    Input: raw_data/connections_data.parquet, raw_data/neuron_data.parquet
-    Output: raw_data/periphery_data.parquet
+    Input: data/connections_data.parquet, data/neuron_data.parquet
+    Output: data/periphery_data.parquet
     """
     print("\n" + "=" * 60)
     print("SIMULATION 2: FlyWire Periphery Scoring")

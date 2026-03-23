@@ -13,7 +13,7 @@ This repository contains the full computational pipeline used to preprocess conn
     │   ├── network_processing.py
     │   ├── framework.py
     │   ├── robustness_comparison.py
-    │   ├── flywire_loss_analysis.py
+    │   ├── simulated_loss.py
     │   ├── flywire_robustness_plots.py
     │   ├── connection_strength_distributions.py
     ├── processed_data/
@@ -29,22 +29,13 @@ This repository contains the full computational pipeline used to preprocess conn
 
 ## Setup
 
-It is recommended to run the code inside a virtual environment.
+It is recommended to use a conda environment.
 
-### Create and activate a virtual environment
-
-**macOS / Linux:**
+### Create and activate a conda environment
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-```
-
-**Windows:**
-
-```bash
-python -m venv venv
-venv\Scripts\activate
+conda create -n connectome_robustness python=3.11
+conda activate connectome_robustness
 ```
 
 ### Install dependencies
@@ -57,7 +48,7 @@ pip install -r dependencies.txt
 
 ## Reproducing the Results
 
-Run the scripts in the following order from the repository root.
+Run the scripts in the following order from the `repo/` directory.
 
 ### 1. Preprocess data
 
@@ -90,8 +81,9 @@ simulation_results/
 ### 3. Generate figures
 
 ```bash
+python code/framework.py
 python code/robustness_comparison.py
-python code/flywire_loss_analysis.py
+python code/simulated_loss.py
 python code/flywire_robustness_plots.py
 python code/connection_strength_distributions.py
 ```

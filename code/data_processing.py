@@ -24,7 +24,7 @@ from scipy.sparse import coo_matrix, save_npz
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
 #------------------------------------------------------------------------------
-data_dir = '../../raw_data/'
+data_dir = '../../data/'
 processed_dir = '../processed_data/'
 
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',

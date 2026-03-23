@@ -77,10 +77,10 @@ fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
 fig_margins_large = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
 fig_margins_grid = dict(left=0.1, right=0.97, bottom=0.15, top=0.95)
 
-data_dir = '../../raw_data/'
+data_dir = '../../data/'
 processed_dir = '../processed_data/'
 sim_dir = '../simulation_results/'
-output_dir = '../../paper_figures/connection_strength_distributions/'
+output_dir = '../../figures/connection_strength_distributions/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Import connections data

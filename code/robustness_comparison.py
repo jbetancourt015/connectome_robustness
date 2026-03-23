@@ -163,7 +163,7 @@ def plot_robustness(data_idx, Q1, Q2, null_net, log_axes=False):
         plt.subplots_adjust(**fig_margins)
     
     # Save plot without labels
-    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_scatter.svg", dpi=600)
+    plt.savefig(f"../../figures/robustness_comparison/{connectomes[data_idx]}_scatter.svg", dpi=600)
 
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
@@ -230,7 +230,7 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
         plt.subplots_adjust(**fig_margins)
     
     # Save plot without labels
-    plt.savefig(f"../../paper_figures/robustness_comparison/{connectomes[data_idx]}_hist.svg", dpi=600)
+    plt.savefig(f"../../figures/robustness_comparison/{connectomes[data_idx]}_hist.svg", dpi=600)
     
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
@@ -308,7 +308,7 @@ ax.set_xlim(-0.5, len(plot_indices) - 0.5)
 plt.subplots_adjust(**fig_bar_margins)
 
 # Save plot without labels
-plt.savefig("../../paper_figures/robustness_comparison/robustness_decrease_fraction.svg", dpi=600)
+plt.savefig("../../figures/robustness_comparison/robustness_decrease_fraction.svg", dpi=600)
 
 # Add labels
 ax.set_ylabel('Fraction with decreased robustness')
@@ -366,7 +366,7 @@ ax.set_xlim(-0.5, len(fafb_bar_labels) - 0.5)
 plt.subplots_adjust(**fig_bar_margins_region)
 
 # Save plot without labels
-plt.savefig("../../paper_figures/robustness_comparison/fafb_region_robustness_decrease.svg", dpi=600)
+plt.savefig("../../figures/robustness_comparison/fafb_region_robustness_decrease.svg", dpi=600)
 
 # Add labels
 ax.set_ylabel('Fraction with decreased robustness')
