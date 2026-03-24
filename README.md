@@ -16,8 +16,10 @@ This repository contains the full computational pipeline used to preprocess conn
     │   ├── simulated_loss.py
     │   ├── flywire_robustness_plots.py
     │   ├── connection_strength_distributions.py
+    │   ├── statistics.py
     ├── processed_data/
     ├── simulation_results/
+    ├── tables/
     ├── dependencies.txt
 
 - `code/` — All scripts for preprocessing, simulations, and figure generation.  
@@ -89,6 +91,20 @@ python code/connection_strength_distributions.py
 ```
 
 Each script saves its figures to disk (see script headers for output paths).
+
+---
+
+### 4. Generate tables
+
+```bash
+python code/statistics.py
+```
+
+This generates a LaTeX table of summary statistics (neuron counts, connection counts, degree and strength averages, fraction of high-degree neurons) for all eight connectomes, saved to:
+
+```
+tables/connectome_statistics.tex
+```
 
 ---
 
