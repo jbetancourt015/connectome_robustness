@@ -247,8 +247,66 @@ ax.set_ylabel('Simulated loss')
 plt.show()
 
 #------------------------------------------------------------------------------
-# LOSS BY NEURON STATISTICS
+# SEPARATE LOSS PLOTS
 #------------------------------------------------------------------------------
+for i in range(n_mean_bins):
+    fig, ax = plt.subplots(figsize=(.7*width, .7*height))
+
+    mean_mask = df_nonneg['mean_bin'] == i
+    if mean_mask.sum() == 0:
+        continue
+
+    mean_mid = mean_mids[i]
+    color = cmap(mean_to_norm(mean_mid))
+
+    # Compute median, Q1, Q3 for loss and variance per variance bin
+    grouped_loss    = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
+    grouped_loss_q1 = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].quantile(0.25)
+    grouped_loss_q3 = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].quantile(0.75)
+    grouped_var     = df_nonneg[mean_mask].groupby('var_bin')['var'].median()
+    grouped_var_q1  = df_nonneg[mean_mask].groupby('var_bin')['var'].quantile(0.25)
+    grouped_var_q3  = df_nonneg[mean_mask].groupby('var_bin')['var'].quantile(0.75)
+
+    # Plot prediction line
+    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=2, zorder=0)
+
+    # Plot scatter with IQR error bars for bins with data
+    valid_bins = grouped_loss.index.dropna().astype(int)
+    x_med = grouped_var[valid_bins].values
+    y_med = grouped_loss[valid_bins].values
+    xerr = np.array([
+        x_med - grouped_var_q1[valid_bins].values,
+        grouped_var_q3[valid_bins].values - x_med,
+    ])
+    yerr = np.array([
+        y_med - grouped_loss_q1[valid_bins].values,
+        grouped_loss_q3[valid_bins].values - y_med,
+    ])
+    ax.errorbar(x_med, y_med, xerr=xerr, yerr=yerr,
+                fmt='o', ms=np.sqrt(20), mfc='white', mec=color, mew=1,
+                ecolor=color, elinewidth=0.75, capsize=2, capthick=0.75,
+                rasterized=True, zorder=1)
+
+    ax.set_ylim([1e-3,.2])
+    ax.set_xlim([5e-1,1e4])
+    
+    plt.subplots_adjust(**fig_margins)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    if i > 0:
+        ax.set_yticks([])
+    plt.savefig(f"../../figures/simulated_loss/loss_vs_variance_separate_{i}.svg", dpi=600)
+    
+    # Add colorbar for interactive display (not in saved file)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max()))
+    sm.set_array([])
+    plt.colorbar(sm, ax=ax)
+    
+    ax.set_xlabel('Variance')
+    ax.set_ylabel('Simulated loss')
+    
+    plt.show()
+
 
 #------------------------------------------------------------------------------
 # PREDICTED VS SIMULATED LOSS
