@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.colors as mcolors
 from matplotlib.colors import LinearSegmentedColormap
+from scipy.stats import gamma as gamma_dist
 import logging
 
 #------------------------------------------------------------------------------
@@ -101,7 +102,7 @@ if "dark_cool" not in plt.colormaps:
 # - pareto: weights drawn from Pareto with x_m=1, shape derived from mean (requires mean > 1)
 # - gamma: weights drawn from Gamma with specified mean and variance
 param_sets = [
-    ('gamma', 1., 1.),
+    ('dirac', 1.),
     ('gamma', 1., 100.),
     ('gamma', 1., 400.),
 ]
@@ -119,10 +120,11 @@ n_bins = 20
 # Parametric loss parameters
 n_pred = 200
 
-# Colors for each parameter set (equally spaced from viridis)
+# Colors for each parameter set (equally spaced from viridis, capped at 80%)
 n_colors = len(param_sets)
 cmap = plt.get_cmap('viridis')
-sim_colors = [plt.cm.viridis(i / (n_colors - 1))[:3] for i in range(n_colors)]
+viridis_max = 0.8
+sim_colors = [plt.cm.viridis(i * viridis_max / (n_colors - 1))[:3] for i in range(n_colors)]
 
 
 #==============================================================================
@@ -766,6 +768,74 @@ def plot_parametric_loss(distribution, n_inputs):
 
 
 #==============================================================================
+# DISTRIBUTION PDF PLOT FUNCTIONS
+#==============================================================================
+def plot_distribution_pdf(distribution, mean, var, color, fname, x_range):
+    """
+    Plot the PDF of the weight distribution used in simulations.
+
+    For Dirac distributions, draws a vertical line with a scatter point (atom).
+    For continuous distributions, draws the PDF curve with a filled region beneath.
+
+    Parameters
+    ----------
+    distribution : str
+        Distribution type: 'dirac', 'poisson', 'pareto', or 'gamma'.
+    mean : float
+        Mean of the distribution.
+    var : float or None
+        Variance (required for 'gamma').
+    color : tuple
+        RGB color for the plot.
+    fname : str
+        Filename suffix for saving.
+    x_range : tuple
+        Shared (x_min, x_max) range for the x-axis.
+    """
+    fig, ax = plt.subplots(figsize=(.5*width_sm, .5*height_sm))
+
+    x_min, x_max = x_range
+
+    if distribution == 'dirac':
+        ax.plot([mean, mean], [0, 1], color=color, lw=2)
+        ax.scatter([mean], [1], color=color, s=30, zorder=5)
+        ax.set_ylim(bottom=0)
+
+    elif distribution == 'gamma':
+        theta = var / mean
+        shape = mean**2 / var
+        x = np.linspace(x_min, x_max, 500)
+        pdf = gamma_dist.pdf(x, a=shape, scale=theta)
+        ax.plot(x, pdf, color=color, lw=2)
+        ax.fill_between(x, pdf, alpha=0.2, color=color)
+
+    elif distribution == 'poisson':
+        from scipy.stats import poisson as poisson_dist
+        x_int = np.arange(max(0, int(x_min)), int(x_max) + 1)
+        pmf = poisson_dist.pmf(x_int, mean)
+        ax.bar(x_int, pmf, color=color, alpha=0.7, width=0.8)
+
+    elif distribution == 'pareto':
+        if mean > 1:
+            alpha_param = mean / (mean - 1)
+            x = np.linspace(max(1, x_min), x_max, 500)
+            pdf = alpha_param / (x ** (alpha_param + 1))
+            ax.plot(x, pdf, color=color, lw=2)
+            ax.fill_between(x, pdf, alpha=0.2, color=color)
+
+    ax.set_xlim(x_range)
+    ax.set_ylim(0.,None)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    ax.spines[['top', 'right']].set_visible(False)
+
+    plt.subplots_adjust(**fig_margins_sm)
+    plt.savefig(fig_dir + f"pdf_{fname}.svg", dpi=600)
+    plt.show()
+
+
+#==============================================================================
 # MAIN EXECUTION
 #==============================================================================
 
@@ -858,7 +928,7 @@ ax.fill_betweenx(np.linspace(0, lim, 2), -lim, 0, color=con_colors[1], alpha=0.3
 ax.fill_betweenx(np.linspace(-lim, 0, 2), 0, lim, color=con_colors[1], alpha=0.3)
 
 # Draw ellipse (single level set)
-draw_ellipse(R, rho, ax, cmap(0.5), lim=lim)
+draw_ellipse(R, rho, ax, cmap(viridis_max / 2), lim=lim)
 
 # Draw principal axes (dashed lines within ellipse)
 draw_principal_axes(R, rho, ax, con_colors[0], con_colors[1], lw=1)
@@ -1010,6 +1080,40 @@ print("STEP 5: PARAMETRIC LOSS PLOTS")
 print("=" * 60)
 
 plot_parametric_loss('gamma', 1000)
+
+#------------------------------------------------------------------------------
+# SECTION 9: DISTRIBUTION PDFs
+#------------------------------------------------------------------------------
+print("\n" + "=" * 60)
+print("STEP 6: DISTRIBUTION PDFs")
+print("=" * 60)
+
+# Compute shared x range across all parameter sets
+x_max_vals = []
+for param_set in param_sets:
+    distribution, mean, var = parse_param_set(param_set)
+    if distribution == 'dirac':
+        x_max_vals.append(mean * 2)
+    elif distribution == 'gamma':
+        theta = var / mean
+        shape = mean**2 / var
+        x_max_vals.append(gamma_dist.ppf(0.7, a=shape, scale=theta))
+    elif distribution == 'pareto':
+        from scipy.stats import pareto as pareto_dist
+        alpha_param = mean / (mean - 1) if mean > 1 else 2
+        x_max_vals.append(pareto_dist.ppf(0.7, alpha_param, scale=1))
+    elif distribution == 'poisson':
+        from scipy.stats import poisson as poisson_dist
+        x_max_vals.append(poisson_dist.ppf(0.7, mean))
+
+x_range_pdf = (0, max(x_max_vals))
+
+for i, param_set in enumerate(param_sets):
+    distribution, mean, var = parse_param_set(param_set)
+    print(f"Plotting PDF for distribution={distribution}, mean={mean}...")
+    plot_distribution_pdf(distribution, mean, var, sim_colors[i],
+                          fname=f"{distribution}_{i}", x_range=x_range_pdf)
+    print(f"  Generated PDF plot")
 
 print("\n" + "=" * 60)
 print("COMPLETE")

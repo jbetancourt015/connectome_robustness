@@ -575,7 +575,7 @@ def run_zztilde_simulation():
     
     # Parameter sets: (distribution, mean) or (distribution, mean, variance)
     param_sets = [
-        ('gamma', 1., 1.),
+        ('dirac', 1.),
         ('gamma', 1., 100.),
         ('gamma', 1., 400.),
     ]
