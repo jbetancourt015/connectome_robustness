@@ -951,7 +951,7 @@ def shuffled_neuron_robustness(weights, scheme, conn_type, n_threshold,
     return Q
 
 
-def global_weight_shuffle(A, n_threshold=1):
+def global_weight_shuffle(A, n_threshold=0):
     """
     Redistribute all synapses globally across existing connections.
 
@@ -971,7 +971,7 @@ def global_weight_shuffle(A, n_threshold=1):
     return (n_threshold + np.diff(rand_ints)).astype(float)
 
 
-def global_multinomial_weight_shuffle(A, n_threshold=1):
+def global_multinomial_weight_shuffle(A, n_threshold=0):
     """
     Redistribute all synapses globally across existing connections using
     a multinomial distribution with equal probabilities.
@@ -1028,7 +1028,7 @@ def run_network_shuffling():
             continue
         
         conn_type = 'cont' if data_idx == 4 else 'disc'
-        n_threshold = 3 if data_idx == 6 else 1
+        n_threshold = 3 if data_idx == 6 else 0
         
         if data_idx == 5:
             print("Loading FAFB connections data...")
@@ -1125,7 +1125,7 @@ def run_network_shuffling():
             continue
 
         conn_type = 'cont' if data_idx == 4 else 'disc'
-        n_threshold = 3 if data_idx == 6 else 1
+        n_threshold = 3 if data_idx == 6 else 0
 
         if data_idx == 5:
             print("Loading FAFB connections data...")

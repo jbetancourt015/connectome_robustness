@@ -259,7 +259,7 @@ for idx in tqdm(range(n_cols*n_rows)):
         # Split two-word region names into two lines
         region_label = r.replace(' ', '\n')
         loc, va, ha = (0.05, 'bottom', 'left') if r=='Periesophageal' else (0.95, 'top', 'right')
-        ax.text(loc, loc, region_label, transform=ax.transAxes, fontsize=6,
+        ax.text(loc, loc, region_label, transform=ax.transAxes, fontsize=5,
                 ha=ha, va=va)
         # Advance region index
         region_idx += 1
