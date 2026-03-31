@@ -34,7 +34,7 @@ import os
 import re
 import numpy as np
 import pandas as pd
-from scipy.sparse import coo_matrix, load_npz
+from scipy.sparse import coo_matrix, csc_matrix, load_npz
 from tqdm import tqdm
 
 #==============================================================================
@@ -930,6 +930,10 @@ def shuffled_neuron_robustness(weights, scheme, conn_type, n_threshold,
             rand_ints = np.append(rand_ints, [0, int(strength - n_threshold * k)])
             rand_ints.sort()
             wts = n_threshold + np.diff(rand_ints)
+    elif scheme == 'multinomial':
+        excess = int(strength - n_threshold * k)
+        extra = np.random.multinomial(excess, np.full(k, 1.0 / k))
+        wts = n_threshold + extra.astype(float)
     elif scheme == 'poisson':
         wts = 1.0 + np.random.poisson(strength / k - 1.0, size=k)
     elif scheme == 'concentrated':
@@ -945,6 +949,44 @@ def shuffled_neuron_robustness(weights, scheme, conn_type, n_threshold,
     if return_weights:
         return Q, wts
     return Q
+
+
+def global_weight_shuffle(A, n_threshold=1):
+    """
+    Redistribute all synapses globally across existing connections.
+
+    Unlike the per-neuron shuffle, this places synapses without any per-neuron
+    constraint: each of the A.nnz connections competes for the full synapse pool.
+    Topology (sparsity pattern) is preserved; total synapse count is preserved.
+    Uses the same stars-and-bars sampling as the per-neuron scheme.
+
+    Returns a new weight array of length A.nnz (same order as A.data).
+    """
+    E = A.nnz
+    S = int(A.data.sum())
+    S_adj = S - n_threshold * E          # synapses beyond the per-connection minimum
+    rand_ints = np.random.randint(0, S_adj + 1, size=E - 1)
+    rand_ints = np.append(rand_ints, [0, S_adj])
+    rand_ints.sort()
+    return (n_threshold + np.diff(rand_ints)).astype(float)
+
+
+def global_multinomial_weight_shuffle(A, n_threshold=1):
+    """
+    Redistribute all synapses globally across existing connections using
+    a multinomial distribution with equal probabilities.
+
+    Each excess synapse (above n_threshold per connection) is independently
+    assigned to a uniformly random connection, equivalent to a single
+    multinomial draw. Topology and total synapse count are preserved.
+
+    Returns a new weight array of length A.nnz (same order as A.data).
+    """
+    E = A.nnz
+    S = int(A.data.sum())
+    S_adj = S - n_threshold * E          # excess synapses above minimum
+    extra = np.random.multinomial(S_adj, np.full(E, 1.0 / E))
+    return (n_threshold + extra).astype(float)
 
 
 def run_network_shuffling():
@@ -1049,6 +1091,16 @@ def run_network_shuffling():
             np.savez_compressed(weights_file, weights=shuffled_data)
             print(f"Saved shuffled weights: {weights_file}")
 
+            global_data = global_weight_shuffle(A, n_threshold=n_threshold)
+            global_file = sim_dir + 'drosophila_whole_brain_global_shuffled_weights.npz'
+            np.savez_compressed(global_file, weights=global_data)
+            print(f"Saved global shuffled weights: {global_file}")
+
+            global_mn_data = global_multinomial_weight_shuffle(A, n_threshold=n_threshold)
+            global_mn_file = sim_dir + 'drosophila_whole_brain_global_shuffled_weights_multinomial.npz'
+            np.savez_compressed(global_mn_file, weights=global_mn_data)
+            print(f"Saved global multinomial shuffled weights: {global_mn_file}")
+
         sim_df = pd.DataFrame({
             'robustness': q,
             'shuffled_robustness': q_rand,
@@ -1058,6 +1110,113 @@ def run_network_shuffling():
             sim_df['brain_region'] = region_by_id.reindex(idx_to_id).to_numpy()
 
         sim_df.to_parquet(output_file)
+        print(f"Saved: {output_file}")
+
+    # ── Multinomial shuffle ────────────────────────────────────────────────────
+    for data_idx in range(len(connectomes)):
+        # Skip mouse retina
+        if data_idx == 4:
+            continue
+        
+        output_file = sim_dir + connectomes[data_idx] + '_shuffled_multinomial.parquet'
+
+        if SKIP_EXISTING_SIMULATIONS and os.path.exists(output_file):
+            print(f"Skipping: {output_file} already exists")
+            continue
+
+        conn_type = 'cont' if data_idx == 4 else 'disc'
+        n_threshold = 3 if data_idx == 6 else 1
+
+        if data_idx == 5:
+            print("Loading FAFB connections data...")
+            conn_df = pd.read_parquet(processed_dir + 'connections_data.parquet')
+
+            nodes_index = pd.Index(
+                pd.unique(pd.concat([conn_df['pre_root_id'], conn_df['post_root_id']],
+                                     ignore_index=True)),
+                name="root_id"
+            )
+            id_to_idx = pd.Series(np.arange(nodes_index.size), index=nodes_index)
+            idx_to_id = nodes_index.to_numpy()
+
+            rows = id_to_idx.reindex(conn_df['pre_root_id']).to_numpy()
+            cols = id_to_idx.reindex(conn_df['post_root_id']).to_numpy()
+            data_vals = conn_df['syn_count'].to_numpy()
+
+            A = coo_matrix((data_vals, (rows, cols)),
+                           shape=(nodes_index.size, nodes_index.size)).tocsc()
+
+            neuron_df = pd.read_parquet(processed_dir + 'neuron_data.parquet')
+            region_by_id = (
+                neuron_df[['root_id', 'brain_region']]
+                .drop_duplicates(subset='root_id')
+                .set_index('root_id')['brain_region']
+            )
+        else:
+            A = load_connectome(data_idx)
+
+        print(f"Shuffling (multinomial) {connectomes[data_idx]} (N={A.shape[0]})...")
+
+        q = robustness_per_neuron(A, eta=1.0, k_min=k_min, normalized=False)
+
+        save_fafb_weights = (data_idx == 5)
+        if save_fafb_weights:
+            shuffled_data_mn = A.data.copy().astype(float)
+
+        q_rand_mn = np.full(A.shape[0], np.nan, dtype=float)
+        for col in range(A.shape[0]):
+            start, end = A.indptr[col], A.indptr[col + 1]
+            if end - start < k_min:
+                continue
+            if save_fafb_weights:
+                q_rand_mn[col], wts = shuffled_neuron_robustness(
+                    A.data[start:end].astype(float),
+                    scheme='multinomial', conn_type=conn_type,
+                    n_threshold=n_threshold, eta=1.0, normalized=False,
+                    return_weights=True,
+                )
+                shuffled_data_mn[start:end] = wts
+            else:
+                q_rand_mn[col] = shuffled_neuron_robustness(
+                    A.data[start:end].astype(float),
+                    scheme='multinomial', conn_type=conn_type,
+                    n_threshold=n_threshold, eta=1.0, normalized=False,
+                )
+
+        if save_fafb_weights:
+            weights_file_mn = sim_dir + 'drosophila_whole_brain_shuffled_weights_multinomial.npz'
+            np.savez_compressed(weights_file_mn, weights=shuffled_data_mn)
+            print(f"Saved multinomial shuffled weights: {weights_file_mn}")
+
+            # Compute normalized shuffled robustness using same formula as
+            # drosophila_robustness_plots.py:
+            #   (sqrt(sum_w2/in_strength) - sqrt(mean_w)) / (sqrt(1+mean_w) - sqrt(mean_w))
+            A_mn = csc_matrix((shuffled_data_mn, A.indices, A.indptr), shape=A.shape)
+            in_deg_mn  = np.asarray(A_mn.getnnz(axis=0)).ravel()
+            in_str_mn  = np.asarray(A_mn.sum(axis=0)).ravel()
+            A_mn_sq    = A_mn.copy()
+            A_mn_sq.data **= 2
+            sum_w2_mn  = np.asarray(A_mn_sq.sum(axis=0)).ravel()
+
+            valid_mn   = in_deg_mn > 1
+            mean_w_mn  = np.where(valid_mn, in_str_mn / np.where(valid_mn, in_deg_mn, 1), 0.0)
+            norm_rob_mn = np.full(A.shape[0], np.nan)
+            num_mn = (np.sqrt(sum_w2_mn[valid_mn] / in_str_mn[valid_mn])
+                      - np.sqrt(mean_w_mn[valid_mn]))
+            den_mn = np.sqrt(1.0 + mean_w_mn[valid_mn]) - np.sqrt(mean_w_mn[valid_mn])
+            norm_rob_mn[valid_mn] = num_mn / den_mn
+
+        sim_df_mn = pd.DataFrame({
+            'robustness': q,
+            'shuffled_robustness': q_rand_mn,
+        })
+
+        if data_idx == 5:
+            sim_df_mn['brain_region']          = region_by_id.reindex(idx_to_id).to_numpy()
+            sim_df_mn['root_id']               = idx_to_id
+            sim_df_mn['norm_robustness_shuffled'] = norm_rob_mn
+
+        sim_df_mn.to_parquet(output_file)
         print(f"Saved: {output_file}")
 
 
@@ -1089,4 +1248,8 @@ print(f"  - {sim_dir}lognormal_sim_100.parquet")
 print(f"  - {sim_dir}lomax_sim_100.parquet")
 print(f"  - {sim_dir}gamma_sim_100.parquet")
 print(f"  - {sim_dir}*_shuffled.parquet (8 connectomes)")
+print(f"  - {sim_dir}*_shuffled_multinomial.parquet (8 connectomes)")
+print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights.npz")
+print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights_multinomial.npz")
+print(f"  - {sim_dir}drosophila_whole_brain_shuffled_weights_multinomial.npz")
 print("=" * 60)

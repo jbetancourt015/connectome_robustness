@@ -49,11 +49,12 @@ logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 
 # Nature figure size
 mm_to_in = 25.4
-width = 55./mm_to_in
-height = 55./mm_to_in
+width = 60./mm_to_in
+height = 60./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
-fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
+fig_margins = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
+fig_margins_small = dict(left=0.3, right=0.9, bottom=0.3, top=0.9)
 
 alpha_min = 0.
 
@@ -156,8 +157,8 @@ n_bins = 100
 df_nonneg = neuron_df[nonneg].copy()
 
 # Binning parameters
-n_mean_bins = 5
-n_var_bins = 5
+n_mean_bins = 4
+n_var_bins = 10
 n_pred = 200
 
 # Compute log-uniform mean bin boundaries
@@ -250,7 +251,7 @@ plt.show()
 # SEPARATE LOSS PLOTS
 #------------------------------------------------------------------------------
 for i in range(n_mean_bins):
-    fig, ax = plt.subplots(figsize=(.7*width, .7*height))
+    fig, ax = plt.subplots(figsize=(.5*width, .5*height))
 
     mean_mask = df_nonneg['mean_bin'] == i
     if mean_mask.sum() == 0:
@@ -274,25 +275,19 @@ for i in range(n_mean_bins):
     valid_bins = grouped_loss.index.dropna().astype(int)
     x_med = grouped_var[valid_bins].values
     y_med = grouped_loss[valid_bins].values
-    xerr = np.array([
-        x_med - grouped_var_q1[valid_bins].values,
-        grouped_var_q3[valid_bins].values - x_med,
-    ])
-    yerr = np.array([
-        y_med - grouped_loss_q1[valid_bins].values,
-        grouped_loss_q3[valid_bins].values - y_med,
-    ])
-    ax.errorbar(x_med, y_med, xerr=xerr, yerr=yerr,
-                fmt='o', ms=np.sqrt(20), mfc='white', mec=color, mew=1,
-                ecolor=color, elinewidth=0.75, capsize=2, capthick=0.75,
-                rasterized=True, zorder=1)
+    
+    ax.scatter(x_med, y_med, c='white',
+               edgecolors=color, s=20, rasterized=True)
 
-    ax.set_ylim([1e-3,.2])
+    ax.set_ylim([1e-2,.2])
     ax.set_xlim([5e-1,1e4])
+    
+    
     
     plt.subplots_adjust(**fig_margins)
     ax.set_xscale('log')
     ax.set_yscale('log')
+    ax.set_xticks([1e1,1e3])
     if i > 0:
         ax.set_yticks([])
     plt.savefig(f"../../figures/simulated_loss/loss_vs_variance_separate_{i}.svg", dpi=600)

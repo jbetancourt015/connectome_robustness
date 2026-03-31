@@ -100,13 +100,13 @@ p = 99.9
 processed_dir = '../processed_data/'
 sim_dir = '../simulation_results/'
 
-def load_robustness_dataset(connectome):
-    df = pd.read_parquet(sim_dir + f"{connectome}_shuffled.parquet")
+def load_robustness_dataset(connectome, suffix=''):
+    df = pd.read_parquet(sim_dir + f"{connectome}_shuffled{suffix}.parquet")
     required_cols = {"robustness", "shuffled_robustness"}
     missing = required_cols.difference(df.columns)
     if missing:
         raise ValueError(
-            f"Missing required columns {sorted(missing)} in {connectome}_shuffled.parquet"
+            f"Missing required columns {sorted(missing)} in {connectome}_shuffled{suffix}.parquet"
         )
     return df
 
@@ -254,8 +254,9 @@ frac_decreased_list = []
 processed_indices = []
 
 for data_idx in range(len(connectomes)):
-    # Load per-neuron robustness values directly from saved simulation results
-    robustness_df = load_robustness_dataset(connectomes[data_idx]).dropna()
+    # Use multinomial shuffle for all connectomes except mouse retina (data_idx=4)
+    suffix = '' if data_idx == 4 else '_multinomial'
+    robustness_df = load_robustness_dataset(connectomes[data_idx], suffix=suffix).dropna()
     Q1 = robustness_df["robustness"].to_numpy()
     Q2 = robustness_df["shuffled_robustness"].to_numpy()
     frac_decreased = np.mean(Q1 > Q2)
@@ -319,7 +320,7 @@ plt.show()
 # FAFB BRAIN REGION ANALYSIS
 #------------------------------------------------------------------------------
 # Load FAFB per-neuron robustness with brain-region annotations
-fafb_df = load_robustness_dataset('drosophila_whole_brain').dropna()
+fafb_df = load_robustness_dataset('drosophila_whole_brain', suffix='_multinomial').dropna()
 if 'brain_region' not in fafb_df.columns:
     raise ValueError("FAFB robustness dataset must include a 'brain_region' column.")
 

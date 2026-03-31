@@ -99,58 +99,13 @@ peri_df = pd.read_parquet(data_dir+'periphery_data.parquet')
 neuron_df = neuron_df.merge(peri_df, on="root_id")
 
 #------------------------------------------------------------------------------
-# BUILD FAFB SPARSE MATRIX AND SHUFFLED NETWORK
+# LOAD PRE-SAVED SHUFFLED NORMALIZED ROBUSTNESS
 #------------------------------------------------------------------------------
-# Build sparse matrix with index mapping
-nodes_index = pd.Index(
-    pd.unique(pd.concat([conn_df['pre_root_id'], conn_df['post_root_id']], ignore_index=True)),
-    name="root_id"
+sim_dir = '../simulation_results/'
+shuffled_rob_df = pd.read_parquet(
+    sim_dir + 'drosophila_whole_brain_shuffled_multinomial.parquet',
+    columns=['root_id', 'norm_robustness_shuffled']
 )
-
-id_to_idx = pd.Series(np.arange(nodes_index.size), index=nodes_index)
-idx_to_id = nodes_index.to_numpy()
-
-# Map edges to integer rows/cols
-rows = id_to_idx.reindex(conn_df['pre_root_id']).to_numpy()
-cols = id_to_idx.reindex(conn_df['post_root_id']).to_numpy()
-data = conn_df['syn_count'].to_numpy()
-
-# Create sparse CSC matrix
-A_fafb = coo_matrix((data, (rows, cols)),
-                    shape=(nodes_index.size, nodes_index.size)).tocsc()
-
-# Generate shuffled network
-A_fafb_shuffled = network_processing.null_network(A_fafb, scheme='rand_weight', 
-                                                   conn_type='disc', n_threshold=1)
-
-# Compute normalized robustness for shuffled network
-# Formula: (sqrt(sum_w2/in_strength) - sqrt(in_strength/in_deg)) / 
-#          (sqrt(1 + in_strength/in_deg) - sqrt(in_strength/in_deg))
-in_deg_shuf = np.asarray(A_fafb_shuffled.getnnz(axis=0)).ravel()
-in_strength_shuf = np.asarray(A_fafb_shuffled.sum(axis=0)).ravel()
-
-# Compute sum of squared weights for each column
-A_shuf_squared = A_fafb_shuffled.copy()
-A_shuf_squared.data = A_shuf_squared.data ** 2
-sum_w2_shuf = np.asarray(A_shuf_squared.sum(axis=0)).ravel()
-
-# Compute normalized robustness (only for neurons with in_deg > 1)
-mask_valid = in_deg_shuf > 1
-mean_weight_shuf = np.zeros(nodes_index.size)
-mean_weight_shuf[mask_valid] = in_strength_shuf[mask_valid] / in_deg_shuf[mask_valid]
-
-norm_rob_shuf = np.full(nodes_index.size, np.nan)
-numerator = np.sqrt(sum_w2_shuf[mask_valid] / in_strength_shuf[mask_valid]) - np.sqrt(mean_weight_shuf[mask_valid])
-denominator = np.sqrt(1.0 + mean_weight_shuf[mask_valid]) - np.sqrt(mean_weight_shuf[mask_valid])
-norm_rob_shuf[mask_valid] = numerator / denominator
-
-# Create dataframe with shuffled robustness mapped to root_ids
-shuffled_rob_df = pd.DataFrame({
-    'root_id': idx_to_id,
-    'norm_robustness_shuffled': norm_rob_shuf
-})
-
-# Merge with neuron_df to align indices
 neuron_df = neuron_df.merge(shuffled_rob_df, on='root_id', how='left')
 
 #------------------------------------------------------------------------------

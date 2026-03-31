@@ -27,6 +27,7 @@ import os
 import pickle
 from tqdm import tqdm
 from scipy.sparse import load_npz
+from scipy.stats import poisson as poisson_dist
 
 sys.path.append('../new_code')
 import network_processing
@@ -187,21 +188,32 @@ def log_format(ax, format_x=True, format_y=True):
 # Get distribution of weights
 s_fafb, P_fafb = empirical_hist_pd(conn_df['syn_count'])
 
-# Get distribution of shuffled weights
-fafb_shuffled_weights = np.load(sim_dir + 'drosophila_whole_brain_shuffled_weights.npy')
-
+# Get distribution of multinomial shuffled weights
+fafb_shuffled_weights = np.load(sim_dir + 'drosophila_whole_brain_shuffled_weights_multinomial.npz')['weights']
 s_shuffled, P_shuffled = empirical_hist_np(fafb_shuffled_weights)
+
+# Get distribution of global shuffled weights
+fafb_global_shuffled_weights = np.load(sim_dir + 'drosophila_whole_brain_global_shuffled_weights_multinomial.npz')['weights']
+s_global, P_global = empirical_hist_np(fafb_global_shuffled_weights)
+
+# Poisson PMF with lambda = total synapses / total connections
+lam = conn_df['syn_count'].sum() / len(conn_df)
+k_max = int(lam + 10 * np.sqrt(lam))          # a few std devs out is sufficient
+k_vals = np.arange(1, k_max + 1)
+pmf_vals = poisson_dist.pmf(k_vals, lam)
 
 # FIGURE: Distribution of all connections in the FAFB dataset------------------
 # Set up figure
 fig, ax = plt.subplots(figsize=(width_large, height_large))
 
-ax.scatter(s_shuffled, P_shuffled, color='grey', s=10, rasterized=True, clip_on=False, zorder=5)
-ax.scatter(s_fafb, P_fafb, color=con_colors[0], s=10, rasterized=True, clip_on=False, zorder=5)
+ax.plot(k_vals, pmf_vals, color='black', lw=1, zorder=1)
+ax.scatter(s_global,   P_global,   color='lightgrey', s=10, rasterized=True, clip_on=False, zorder=3)
+ax.scatter(s_shuffled, P_shuffled, color='grey',      s=10, rasterized=True, clip_on=False, zorder=4)
+ax.scatter(s_fafb,     P_fafb,     color=con_colors[0], s=10, rasterized=True, clip_on=False, zorder=5)
 log_format(ax)
 
 ax.set_xlim(1.,None)
-ax.set_ylim(None,1.)
+ax.set_ylim(1e-8,1.)
 
 plt.subplots_adjust(**fig_margins_large)
 plt.savefig(output_dir + 'fafb_distribution.svg', dpi=600)
@@ -299,6 +311,8 @@ fig, ax = plt.subplots(figsize=(width, height))
 
 ax.scatter(s_manc, P_manc, color=con_colors[2], s=10, rasterized=True, clip_on=False, zorder=5)
 log_format(ax)
+ax.set_xlim(1.,None)
+ax.set_ylim(None,1.)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(output_dir + 'manc_distribution.svg', dpi=600)
