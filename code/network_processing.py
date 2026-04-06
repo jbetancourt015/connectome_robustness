@@ -16,40 +16,49 @@ contributors:
         email:      jose.betancourtvalencia@yale.edu
 -------------------------------------------------------------------------------
 """
+
 import numpy as np
-import networkx as nx
 from scipy.sparse import load_npz, csc_matrix
 from numba import njit
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # IMPORTING DATA
-#------------------------------------------------------------------------------
-processed_dir = '../processed_data/'
+# ------------------------------------------------------------------------------
+processed_dir = "../processed_data/"
 
-connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
-               'drosophila_banc', 'drosophila_manc']
+connectomes = [
+    "drosophila_central_brain",
+    "drosophila_optic_medulla",
+    "c_elegans",
+    "platynereis_sensory_motor",
+    "mouse_retina",
+    "drosophila_whole_brain",
+    "drosophila_banc",
+    "drosophila_manc",
+]
+
 
 def load_connectome(data_idx, thresholded=False, scheme=None):
     if not thresholded:
         A = load_npz(f"{processed_dir}{connectomes[data_idx]}.npz")
     else:
         A = load_npz(f"{processed_dir}{connectomes[data_idx]}_thresholded.npz")
-        if scheme == 'remove':
+        if scheme == "remove":
             A.data = A.data - 4
-        elif scheme == 'clump':
-            A.data = 5*(A.data//5)
+        elif scheme == "clump":
+            A.data = 5 * (A.data // 5)
     return A
 
-#------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 # ROBUSTNESS CALCULATION
-#------------------------------------------------------------------------------
-def compute_robustness(A, eta=1., k_min=2, normalized=True):
+# ------------------------------------------------------------------------------
+def compute_robustness(A, eta=1.0, k_min=2, normalized=True):
     # Compute 0th moment
     k = A.getnnz(axis=0)
     # Get higher moments
     mask = k >= k_min
-    
+
     # Get moments of columns
     def col_moment(p, mask):
         if p == 1:
@@ -58,75 +67,74 @@ def compute_robustness(A, eta=1., k_min=2, normalized=True):
             B = A.copy()
             B.data = np.power(B.data, p)
             return np.asarray(B.sum(axis=0)).ravel()[mask]
-        
+
     # Compute moments
     s_0 = k[mask]
-    s_1 = col_moment(1., mask)
-    s_2 = col_moment(2., mask)
+    s_1 = col_moment(1.0, mask)
+    s_2 = col_moment(2.0, mask)
     s_eta = col_moment(eta, mask)
-    
+
     # Compute sensitivities
-    Q = (s_2/s_eta)**0.5
+    Q = (s_2 / s_eta) ** 0.5
     if normalized:
-        Q *= (s_0/s_1)**(1.-eta/2)
-        Q -= 1.
+        Q *= (s_0 / s_1) ** (1.0 - eta / 2)
+        Q -= 1.0
     return Q
 
-#------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 # NULL NETWORK GENERATION
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # @njit
-def null_network(A, scheme='rand_weight', conn_type='disc', n_threshold=1):
+def null_network(A, scheme="rand_weight", conn_type="disc", n_threshold=1):
     indptr, indices, data = A.indptr, A.indices, A.data
     n = A.shape[0]
     # Create new data array
     M_data = np.empty_like(data)
     # Loop over neurons
     for col in range(n):
-        start, end = indptr[col], indptr[col+1]
+        start, end = indptr[col], indptr[col + 1]
         # Total in-degree and strength
         k = end - start
-        if k == 0: continue
-        strength = 0.
+        if k == 0:
+            continue
+        strength = 0.0
         for j in range(start, end):
             strength += data[j]
         # Sample new weights
-        if scheme == 'rand_weight':
-            if conn_type == 'cont':
+        if scheme == "rand_weight":
+            if conn_type == "cont":
                 # Sample form the L-dimensional simplex
-                wts_ext = np.zeros(int(k)+1)
-                r = np.random.rand(int(k)-1)
+                wts_ext = np.zeros(int(k) + 1)
+                r = np.random.rand(int(k) - 1)
                 r = np.sort(r)
                 wts_ext[1:-1] = r
-                wts_ext[-1] = 1.
+                wts_ext[-1] = 1.0
                 # Get connection strengths
-                wts = np.diff(wts_ext)*strength
+                wts = np.diff(wts_ext) * strength
             else:
                 # Sample weight distribution uniformly
-                rand_ints = np.random.randint(0, int(strength-n_threshold*k) + 1, size=int(k)-1)
-                rand_ints = np.append(rand_ints, [0, int(strength-n_threshold*k)])
+                rand_ints = np.random.randint(
+                    0, int(strength - n_threshold * k) + 1, size=int(k) - 1
+                )
+                rand_ints = np.append(rand_ints, [0, int(strength - n_threshold * k)])
                 rand_ints.sort()
-                wts = n_threshold+np.diff(rand_ints)
-        elif scheme=='poisson':
+                wts = n_threshold + np.diff(rand_ints)
+        elif scheme == "poisson":
             # Sample weight distribution uniformly
-            rand_ints = np.random.poisson(strength/k - 1., size=int(k))
-            wts = 1.+rand_ints
-        elif scheme=='concentrated':
-            # 
+            rand_ints = np.random.poisson(strength / k - 1.0, size=int(k))
+            wts = 1.0 + rand_ints
+        elif scheme == "concentrated":
+            #
             wts = np.ones(int(k))
-            wts[0] = strength-k+1
+            wts[0] = strength - k + 1
         else:
-            print('Error')
+            print("Error")
         # Store to data matrix
         M_data[start:end] = wts
     # Build sparse matrix
     A_null = csc_matrix((M_data, indices, indptr))
     return A_null
-
-
-
-
-
 
 
 # # OLD FUNCTIONS
