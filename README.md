@@ -20,30 +20,30 @@ This repository contains the full computational pipeline used to preprocess conn
     ├── processed_data/
     ├── simulation_results/
     ├── tables/
-    ├── dependencies.txt
+    ├── requirements.txt
 
 - `code/` — All scripts for preprocessing, simulations, and figure generation.  
 - `processed_data/` — Intermediate outputs from preprocessing.  
 - `simulation_results/` — Outputs from simulation runs.  
-- `dependencies.txt` — Python dependencies required to run the pipeline.
+- `requirements.txt` — Python dependencies required to run the pipeline.
 
 ---
 
 ## Setup
 
-It is recommended to use a conda environment.
+Requires **Python 3.14.3**. It is recommended to use a virtual environment.
 
-### Create and activate a conda environment
+### Create and activate a virtual environment
 
 ```bash
-conda create -n connectome_robustness python=3.11
-conda activate connectome_robustness
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
 ### Install dependencies
 
 ```bash
-pip install -r dependencies.txt
+pip install -r requirements.txt
 ```
 
 ---
