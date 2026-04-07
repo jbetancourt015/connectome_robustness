@@ -92,15 +92,17 @@ pg_width = 165  # mm
 mm_to_in = 25.4
 
 # Panel dimensions in inches (scaled from mm reference)
-width_sm = 0.2 * pg_width / mm_to_in
-height_sm = 0.2 * pg_width / mm_to_in
+width_sm = 0.22 * pg_width / mm_to_in
+height_sm = 0.22 * pg_width / mm_to_in
 width_md = 0.25 * pg_width / mm_to_in
 height_md = 0.25 * pg_width / mm_to_in
+width_lg = (1 / 3.0) * pg_width / mm_to_in
+height_lg = (1 / 3.0) * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins_sm = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
 fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
-fig_margins_lg = dict(left=0.12, right=0.95, bottom=0.12, top=0.95)
+fig_margins_lg = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
 
 # Dark-cool colormap for parametric loss plots
 dark_cool = mcolors.LinearSegmentedColormap.from_list(
@@ -615,7 +617,7 @@ def plot_ellipse_cartoon(means, vars_, colors, fname, lim=3.0, R=1.5):
     R : float
         Radius scaling factor.
     """
-    fig, ax = plt.subplots(figsize=(width_md, height_md))
+    fig, ax = plt.subplots(figsize=(width_lg, height_lg))
 
     # Draw coordinate axes (lines through origin)
     ax.plot([-lim, lim], [0.0, 0.0], c="k", alpha=0.5, lw=1)
@@ -639,7 +641,7 @@ def plot_ellipse_cartoon(means, vars_, colors, fname, lim=3.0, R=1.5):
     ax.set_yticks([-2, 0, 2])
 
     # Save raw figure
-    plt.subplots_adjust(**fig_margins_md)
+    plt.subplots_adjust(**fig_margins_lg)
     plt.savefig(fig_dir + f"ellipse_{fname}.svg", dpi=600)
 
     # Labels
@@ -762,7 +764,7 @@ def plot_parametric_loss(distribution, n_inputs):
     # --------------------------------------------------------------------------
     cmap = plt.get_cmap("dark_cool", len(mean_vals))
 
-    fig, ax = plt.subplots(figsize=(width_md, height_md))
+    fig, ax = plt.subplots(figsize=(width_lg, height_lg))
 
     for i, mean in enumerate(mean_vals):
         mask = df["mean"] == mean
@@ -796,13 +798,157 @@ def plot_parametric_loss(distribution, n_inputs):
     # Hide the right and top spines
     ax.spines[["right", "top"]].set_visible(False)
 
-    plt.subplots_adjust(**fig_margins_md)
+    plt.subplots_adjust(**fig_margins_lg)
     plt.savefig(fig_dir + f"{distribution}_simulation_var.svg", dpi=600)
 
     ax.legend()
 
     ax.set_xlabel("Variance")
     ax.set_ylabel("Simulated loss")
+
+    plt.show()
+
+
+# ==============================================================================
+# Z-PLANE GAUSSIAN FIGURE
+# ==============================================================================
+def plot_z_plane_gaussians(
+    param_sets,
+    colors,
+    n_inputs,
+    fname="z_plane_gaussians",
+    gaussian_scale=0.1,
+    lim_factor=1.5,
+):
+    """
+    Plot two rotated (vertical) Gaussians per parameter set in the (z, z_tilde) plane.
+
+    For each parameter set, sigma_z is derived analytically as
+        sigma_z = sqrt(n_inputs * (var(w) + mean(w)**2))
+    Two Gaussians are drawn, centered at (sigma_z, sigma_z) and (-sigma_z, sigma_z),
+    each extending outward (away from the origin) in the x direction.
+
+    Parameters
+    ----------
+    param_sets : list of tuples
+        Each tuple is (distribution, mean) or (distribution, mean, var).
+    colors : list of tuple
+        RGB colors, one per parameter set.
+    n_inputs : int
+        Number of inputs used to compute sigma_z.
+    fname : str
+        Filename suffix for saving.
+    gaussian_scale : float
+        Horizontal amplitude scale for the Gaussian bump.
+    lim_factor : float
+        Plot limits as a multiple of the maximum sigma_z.
+    """
+    from scipy.stats import norm as norm_dist
+
+    fig, ax = plt.subplots(figsize=(width_md, height_md))
+
+    # Compute sigma_z for each param set
+    sigma_zs = []
+    for param_set in param_sets:
+        distribution, mean, var = parse_param_set(param_set)
+        sigma_z = np.sqrt(n_inputs * ((var or 0.0) + mean**2))
+        sigma_zs.append(sigma_z)
+
+    lim = lim_factor * max(sigma_zs)
+
+    # Shade Q2 (x<0, y>0) and Q4 (x>0, y<0) red
+    ax.fill_betweenx(np.linspace(0, lim, 2), -lim, 0, color=con_colors[1], alpha=0.3)
+    ax.fill_betweenx(np.linspace(-lim, 0, 2), 0, lim, color=con_colors[1], alpha=0.3)
+
+    unnorm_gaussian_scale = gaussian_scale * lim
+    for sigma_z, color in zip(sigma_zs, colors):
+        # Gaussian centered at (+sigma_z, +sigma_z): extends rightward
+        y_pos = np.linspace(
+            sigma_z - 3.0 * unnorm_gaussian_scale,
+            sigma_z + 3.0 * unnorm_gaussian_scale,
+            500,
+        )
+        pdf_pos = norm_dist.pdf(y_pos, loc=sigma_z, scale=unnorm_gaussian_scale)
+        bump_pos = unnorm_gaussian_scale * pdf_pos / pdf_pos.max()
+        ax.plot(sigma_z + bump_pos, y_pos, color=color, lw=1.5)
+        ax.fill_betweenx(y_pos, sigma_z, sigma_z + bump_pos, color=color, alpha=0.3)
+
+        # Gaussian centered at (-sigma_z, -sigma_z): extends leftward
+        y_neg = np.linspace(
+            -sigma_z - 3.0 * unnorm_gaussian_scale,
+            -sigma_z + 3.0 * unnorm_gaussian_scale,
+            500,
+        )
+        pdf_neg = norm_dist.pdf(y_neg, loc=-sigma_z, scale=unnorm_gaussian_scale)
+        bump_neg = unnorm_gaussian_scale * pdf_neg / pdf_neg.max()
+        ax.plot(-sigma_z - bump_neg, y_neg, color=color, lw=1.5)
+        ax.fill_betweenx(y_neg, -sigma_z - bump_neg, -sigma_z, color=color, alpha=0.3)
+
+    # Coordinate axes
+    ax.axhline(0, color="k", alpha=0.5, lw=1)
+    ax.axvline(0, color="k", alpha=0.5, lw=1)
+
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.set_xticks([0])
+    ax.set_yticks([0])
+    ax.spines[["top", "right"]].set_visible(False)
+
+    plt.subplots_adjust(**fig_margins_md)
+    plt.savefig(fig_dir + f"{fname}.svg", dpi=600)
+
+    ax.set_xlabel(r"$z$")
+    ax.set_ylabel(r"$\tilde{z}$")
+
+    plt.show()
+
+    return lim
+
+
+def plot_z_densities(param_sets, colors, n_inputs, lim, fname="z_densities"):
+    """
+    Plot overlaid Gaussian densities N(0, sigma_z^2) for each parameter set.
+
+    Parameters
+    ----------
+    param_sets : list of tuples
+        Each tuple is (distribution, mean) or (distribution, mean, var).
+    colors : list of tuple
+        RGB colors, one per parameter set.
+    n_inputs : int
+        Number of inputs used to compute sigma_z.
+    lim : float
+        x-axis limit (shared with the z-plane figure).
+    fname : str
+        Filename suffix for saving.
+    """
+    from scipy.stats import norm as norm_dist
+
+    fig, ax = plt.subplots(figsize=(width_md, height_md))
+
+    x = np.linspace(-lim, lim, 1000)
+
+    for param_set, color in zip(param_sets, colors):
+        distribution, mean, var = parse_param_set(param_set)
+        sigma_z = np.sqrt(n_inputs * ((var or 0.0) + mean**2))
+        pdf = norm_dist.pdf(x, loc=0.0, scale=sigma_z)
+        ax.plot(x, pdf, color=color, lw=1.5)
+        ax.fill_between(x, pdf, alpha=0.3, color=color)
+
+    ax.axvline(0, color="k", alpha=0.5, lw=1)
+
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(bottom=0)
+    ax.set_xticks([0])
+    ax.set_yticks([])
+    ax.spines[["top", "right"]].set_visible(False)
+
+    plt.subplots_adjust(**fig_margins_md)
+    plt.savefig(fig_dir + f"{fname}.svg", dpi=600)
+
+    ax.set_xlabel(r"$z$")
+    ax.set_ylabel("Density")
 
     plt.show()
 
@@ -848,7 +994,7 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
     elif distribution == "gamma":
         theta = var / mean
         shape = mean**2 / var
-        x = np.linspace(x_min, x_max, 500)
+        x = np.logspace(np.log10(x_min), np.log10(x_max), 500)
         pdf = gamma_dist.pdf(x, a=shape, scale=theta)
         ax.plot(x, pdf, color=color, lw=2)
         ax.fill_between(x, pdf, alpha=0.2, color=color)
@@ -872,6 +1018,7 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
             ax.fill_between(x, pdf, alpha=0.2, color=color)
 
     ax.set_xlim(x_range)
+    ax.set_xscale("log")
     ax.set_xticks([])
     ax.set_yticks([])
 
@@ -1177,7 +1324,7 @@ for param_set in param_sets:
 
         x_max_vals.append(poisson_dist.ppf(0.7, mean))
 
-x_range_pdf = (0, max(x_max_vals))
+x_range_pdf = (1e-2, 10 * max(x_max_vals))
 
 # Compute shared y range for gamma distributions (log scale)
 gamma_y_min, gamma_y_max = np.inf, -np.inf
@@ -1200,10 +1347,28 @@ for i, param_set in enumerate(param_sets):
     print(f"Plotting PDF for distribution={distribution}, mean={mean}...")
     y_range = gamma_y_range if distribution == "gamma" else None
     plot_distribution_pdf(
-        distribution, mean, var, sim_colors[i],
-        fname=f"{distribution}_{i}", x_range=x_range_pdf, y_range=y_range,
+        distribution,
+        mean,
+        var,
+        sim_colors[i],
+        fname=f"{distribution}_{i}",
+        x_range=x_range_pdf,
+        y_range=y_range,
     )
     print("  Generated PDF plot")
+
+# ------------------------------------------------------------------------------
+# SECTION 10: Z-PLANE GAUSSIANS
+# ------------------------------------------------------------------------------
+print("\n" + "=" * 60)
+print("STEP 7: Z-PLANE GAUSSIANS")
+print("=" * 60)
+
+z_lim = plot_z_plane_gaussians(param_sets, sim_colors, n_inputs)
+print("  Generated z-plane Gaussian figure")
+
+plot_z_densities(param_sets, sim_colors, n_inputs, lim=z_lim)
+print("  Generated z density figure")
 
 print("\n" + "=" * 60)
 print("COMPLETE")
