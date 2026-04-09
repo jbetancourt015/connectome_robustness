@@ -120,13 +120,13 @@ if "dark_cool" not in plt.colormaps:
 # - gamma: weights drawn from Gamma with specified mean and variance
 param_sets = [
     ("dirac", 1.0),
-    ("gamma", 1.0, 100.0),
-    ("gamma", 1.0, 400.0),
+    ("gamma", 1.0, 0.6),
+    ("gamma", 1.0, 5.0),
 ]
 
 n_inputs = int(1e4)
 eta = 1.0
-eps = 10.0
+eps = 1.6874
 n_draws = int(1e3)
 n_perturb = int(1e3)
 
@@ -861,6 +861,18 @@ def plot_z_plane_gaussians(
     ax.fill_betweenx(np.linspace(-lim, 0, 2), 0, lim, color=con_colors[1], alpha=0.3)
 
     unnorm_gaussian_scale = gaussian_scale * lim
+
+    # Grey stripe along y=x with half-width = unnorm_gaussian_scale
+    x_diag = np.array([-lim, lim])
+    ax.fill_between(
+        x_diag,
+        x_diag - unnorm_gaussian_scale,
+        x_diag + unnorm_gaussian_scale,
+        color="grey",
+        alpha=0.3,
+        zorder=0,
+    )
+
     for sigma_z, color in zip(sigma_zs, colors):
         # Gaussian centered at (+sigma_z, +sigma_z): extends rightward
         y_pos = np.linspace(
@@ -929,17 +941,28 @@ def plot_z_densities(param_sets, colors, n_inputs, lim, fname="z_densities"):
 
     x = np.linspace(-lim, lim, 1000)
 
+    y_bottom = None
+    pdfs = []
     for param_set, color in zip(param_sets, colors):
         distribution, mean, var = parse_param_set(param_set)
         sigma_z = np.sqrt(n_inputs * ((var or 0.0) + mean**2))
         pdf = norm_dist.pdf(x, loc=0.0, scale=sigma_z)
+        pdfs.append(pdf)
+
+    # Set y limits from data before plotting
+    all_pdf = np.concatenate(pdfs)
+    y_top = all_pdf.max() * 2.0
+    y_bottom = 1e-4  # Set a minimum y limit for log scale
+
+    for pdf, color in zip(pdfs, colors):
         ax.plot(x, pdf, color=color, lw=1.5)
-        ax.fill_between(x, pdf, alpha=0.3, color=color)
+        ax.fill_between(x, np.maximum(pdf, y_bottom), y_bottom, alpha=0.3, color=color)
 
     ax.axvline(0, color="k", alpha=0.5, lw=1)
 
     ax.set_xlim(-lim, lim)
-    ax.set_ylim(bottom=0)
+    ax.set_yscale("log")
+    ax.set_ylim(y_bottom, y_top)
     ax.set_xticks([0])
     ax.set_yticks([])
     ax.spines[["top", "right"]].set_visible(False)

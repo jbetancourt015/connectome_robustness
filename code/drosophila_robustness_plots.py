@@ -552,16 +552,16 @@ fig.supxlabel('Peripherality percentile', fontsize=9)
 plt.show()
 
 #------------------------------------------------------------------------------
-# PLOT 7: VIOLIN PLOTS – VISUAL PATHWAY (R1-6, L1, Tm3, T4)
+# PLOT 7: VIOLIN PLOTS – VISUAL PATHWAY (R1-6, L1, Mi9, T4)
 #------------------------------------------------------------------------------
 # Define visual pathway steps in biological order (periphery → deeper processing)
-visual_pathway_order = ['R1-6', 'L1', 'Tm3', 'T4']
+visual_pathway_order = ['R1-6', 'L1', 'Mi9', 'T4']
 
 # Assign each neuron to its visual pathway step
 visual_masks = {
     'R1-6': neuron_df['primary_type'] == 'R1-6',
     'L1':   neuron_df['primary_type'] == 'L1',
-    'Tm3':  neuron_df['primary_type'] == 'Tm3',
+    'Mi9':  neuron_df['primary_type'] == 'Mi9',
     'T4':   neuron_df['primary_type'].str.startswith('T4', na=False),
 }
 
