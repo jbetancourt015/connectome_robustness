@@ -34,6 +34,7 @@ import matplotlib as mpl
 import matplotlib.colors as mcolors
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import gamma as gamma_dist
+from scipy.stats import lognorm as lognorm_dist
 import logging
 
 # ------------------------------------------------------------------------------
@@ -112,27 +113,31 @@ if "dark_cool" not in plt.colormaps:
     plt.colormaps.register(dark_cool)
 
 # z/ztilde simulation parameters
-# Parameter sets: (distribution, mean) or (distribution, mean, variance) for gamma
-# Supported distributions: 'dirac', 'poisson', 'pareto', 'gamma'
+# Parameter sets: (distribution, mean) or (distribution, mean, variance) for gamma/lognormal
+# Supported distributions: 'dirac', 'poisson', 'pareto', 'gamma', 'lognormal'
 # - dirac: all weights equal to mean (variance = 0)
 # - poisson: weights drawn from Poisson(mean) (variance = mean)
 # - pareto: weights drawn from Pareto with x_m=1, shape derived from mean (requires mean > 1)
 # - gamma: weights drawn from Gamma with specified mean and variance
+# - lognormal: weights drawn from LogNormal with specified mean and variance
 param_sets = [
     ("dirac", 1.0),
-    ("gamma", 1.0, 0.6),
-    ("gamma", 1.0, 5.0),
+    ("lognormal", 1.0, 5.0),
+    ("lognormal", 1.0, 20.0)
 ]
 
 n_inputs = int(1e4)
 eta = 1.0
-eps = 1.6874
+eps = 2.0
 n_draws = int(1e3)
 n_perturb = int(1e3)
 
 # Histogram parameters
 alpha_min = 0.2
 n_bins = 20
+
+# Distribution PDF plot parameters
+pdf_log_x = False
 
 # Parametric loss parameters
 n_pred = 200
@@ -247,7 +252,7 @@ def generate_weights(distribution, mean, n_inputs, rng, var=None):
     Parameters
     ----------
     distribution : str
-        Distribution type: 'dirac', 'poisson', 'pareto', or 'gamma'.
+        Distribution type: 'dirac', 'poisson', 'pareto', 'gamma', or 'lognormal'.
     mean : float
         Mean of the distribution.
     n_inputs : int
@@ -255,7 +260,7 @@ def generate_weights(distribution, mean, n_inputs, rng, var=None):
     rng : numpy.random.Generator
         Random number generator.
     var : float, optional
-        Variance (required only for 'gamma').
+        Variance (required for 'gamma' and 'lognormal').
 
     Returns
     -------
@@ -307,6 +312,16 @@ def generate_weights(distribution, mean, n_inputs, rng, var=None):
         w = rng.gamma(alpha, theta, n_inputs)
         computed_var = var
 
+    elif distribution == "lognormal":
+        if var is None:
+            raise ValueError("Lognormal distribution requires variance parameter")
+        # Lognormal: E[X] = exp(mu + sigma^2/2), Var[X] = (exp(sigma^2) - 1) * exp(2*mu + sigma^2)
+        # Solving for underlying normal parameters:
+        sigma2 = np.log(1 + var / mean**2)
+        mu = np.log(mean) - sigma2 / 2
+        w = rng.lognormal(mu, np.sqrt(sigma2), n_inputs)
+        computed_var = var
+
     else:
         raise ValueError(f"Unknown distribution: {distribution}")
 
@@ -330,7 +345,7 @@ def compute_z_ztilde(
     Parameters
     ----------
     distribution : str
-        Distribution type: 'dirac', 'poisson', 'pareto', or 'gamma'.
+        Distribution type: 'dirac', 'poisson', 'pareto', 'gamma', or 'lognormal'.
     mean : float
         Mean of the distribution for weights.
     n_inputs : int
@@ -346,7 +361,7 @@ def compute_z_ztilde(
     rng : numpy.random.Generator, optional
         Random number generator. If None, creates a new one.
     var : float, optional
-        Variance (required only for 'gamma' distribution).
+        Variance (required for 'gamma' and 'lognormal' distributions).
 
     Returns
     -------
@@ -454,20 +469,18 @@ def get_missing_params(param_sets, existing_df=None):
         return list(param_sets)
 
     # Build set of existing (distribution, mean) combinations
-    # For gamma, we also need to check variance
+    # For gamma/lognormal, we also need to check variance
     missing = []
     for param_set in param_sets:
         distribution, mean, var = parse_param_set(param_set)
 
-        if distribution == "gamma":
-            # For gamma, check distribution + mean + variance
+        if distribution in ("gamma", "lognormal"):
             mask = (
                 (existing_df["distribution"] == distribution)
                 & (existing_df["mean"] == mean)
                 & (existing_df["variance"] == var)
             )
         else:
-            # For other distributions, check distribution + mean
             mask = (existing_df["distribution"] == distribution) & (
                 existing_df["mean"] == mean
             )
@@ -494,7 +507,7 @@ def load_and_normalize(df_all, distribution, mean, var=None):
     mean : float
         Mean parameter to filter by.
     var : float, optional
-        Variance parameter to filter by (only used for gamma).
+        Variance parameter to filter by (used for gamma and lognormal).
 
     Returns
     -------
@@ -505,7 +518,7 @@ def load_and_normalize(df_all, distribution, mean, var=None):
     computed_var : float
         The variance of the filtered data (from the DataFrame).
     """
-    if distribution == "gamma" and var is not None:
+    if distribution in ("gamma", "lognormal") and var is not None:
         df = df_all[
             (df_all["distribution"] == distribution)
             & (df_all["mean"] == mean)
@@ -979,7 +992,9 @@ def plot_z_densities(param_sets, colors, n_inputs, lim, fname="z_densities"):
 # ==============================================================================
 # DISTRIBUTION PDF PLOT FUNCTIONS
 # ==============================================================================
-def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_range=None):
+def plot_distribution_pdf(
+    distribution, mean, var, color, fname, x_range, y_range=None, log_x=False
+):
     """
     Plot the PDF of the weight distribution used in simulations.
 
@@ -989,11 +1004,11 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
     Parameters
     ----------
     distribution : str
-        Distribution type: 'dirac', 'poisson', 'pareto', or 'gamma'.
+        Distribution type: 'dirac', 'poisson', 'pareto', 'gamma', or 'lognormal'.
     mean : float
         Mean of the distribution.
     var : float or None
-        Variance (required for 'gamma').
+        Variance (required for 'gamma' and 'lognormal').
     color : tuple
         RGB color for the plot.
     fname : str
@@ -1002,10 +1017,17 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
         Shared (x_min, x_max) range for the x-axis.
     y_range : tuple or None
         Shared (y_min, y_max) range for the y-axis. If None, uses matplotlib default.
+    log_x : bool
+        If True, use a logarithmic x-axis.
     """
     fig, ax = plt.subplots(figsize=(0.5 * width_sm, 0.5 * height_sm))
 
     x_min, x_max = x_range
+
+    def _xspace(lo, hi, n=500):
+        if log_x:
+            return np.logspace(np.log10(lo), np.log10(hi), n)
+        return np.linspace(lo, hi, n)
 
     if distribution == "dirac":
         ax.plot([mean, mean], [0, 1], color=color, lw=2)
@@ -1017,11 +1039,10 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
     elif distribution == "gamma":
         theta = var / mean
         shape = mean**2 / var
-        x = np.logspace(np.log10(x_min), np.log10(x_max), 500)
+        x = _xspace(x_min, x_max)
         pdf = gamma_dist.pdf(x, a=shape, scale=theta)
         ax.plot(x, pdf, color=color, lw=2)
         ax.fill_between(x, pdf, alpha=0.2, color=color)
-        ax.set_yscale("log")
         if y_range is not None:
             ax.set_ylim(y_range)
 
@@ -1032,16 +1053,30 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
         pmf = poisson_dist.pmf(x_int, mean)
         ax.bar(x_int, pmf, color=color, alpha=0.7, width=0.8)
 
+    elif distribution == "lognormal":
+        if var is None:
+            raise ValueError("Lognormal distribution requires variance parameter")
+        sigma2 = np.log(1 + var / mean**2)
+        sigma = np.sqrt(sigma2)
+        mu = np.log(mean) - sigma2 / 2
+        x = _xspace(max(x_min, 1e-6), x_max)
+        pdf = lognorm_dist.pdf(x, s=sigma, scale=np.exp(mu))
+        ax.plot(x, pdf, color=color, lw=2)
+        ax.fill_between(x, pdf, alpha=0.2, color=color)
+        if y_range is not None:
+            ax.set_ylim(y_range)
+
     elif distribution == "pareto":
         if mean > 1:
             alpha_param = mean / (mean - 1)
-            x = np.linspace(max(1, x_min), x_max, 500)
+            x = _xspace(max(1, x_min), x_max)
             pdf = alpha_param / (x ** (alpha_param + 1))
             ax.plot(x, pdf, color=color, lw=2)
             ax.fill_between(x, pdf, alpha=0.2, color=color)
 
     ax.set_xlim(x_range)
-    ax.set_xscale("log")
+    if log_x:
+        ax.set_xscale("log")
     ax.set_xticks([])
     ax.set_yticks([])
 
@@ -1342,15 +1377,20 @@ for param_set in param_sets:
 
         alpha_param = mean / (mean - 1) if mean > 1 else 2
         x_max_vals.append(pareto_dist.ppf(0.7, alpha_param, scale=1))
+    elif distribution == "lognormal":
+        sigma2 = np.log(1 + var / mean**2)
+        sigma = np.sqrt(sigma2)
+        mu = np.log(mean) - sigma2 / 2
+        x_max_vals.append(lognorm_dist.ppf(0.7, s=sigma, scale=np.exp(mu)))
     elif distribution == "poisson":
         from scipy.stats import poisson as poisson_dist
 
         x_max_vals.append(poisson_dist.ppf(0.7, mean))
 
-x_range_pdf = (1e-2, 10 * max(x_max_vals))
+x_range_pdf = (1e-2 if pdf_log_x else 0, max(x_max_vals))
 
-# Compute shared y range for gamma distributions (log scale)
-gamma_y_min, gamma_y_max = np.inf, -np.inf
+# Compute shared y range for continuous distributions that use (mean, var)
+continuous_y_max = -np.inf
 for param_set in param_sets:
     distribution, mean, var = parse_param_set(param_set)
     if distribution == "gamma":
@@ -1358,17 +1398,24 @@ for param_set in param_sets:
         shape = mean**2 / var
         x = np.linspace(x_range_pdf[0], x_range_pdf[1], 500)
         pdf = gamma_dist.pdf(x, a=shape, scale=theta)
-        pdf_finite = pdf[np.isfinite(pdf) & (pdf > 0)]
-        if len(pdf_finite) > 0:
-            gamma_y_min = min(gamma_y_min, pdf_finite.min())
-            gamma_y_max = max(gamma_y_max, pdf_finite.max())
+    elif distribution == "lognormal":
+        sigma2 = np.log(1 + var / mean**2)
+        sigma = np.sqrt(sigma2)
+        mu = np.log(mean) - sigma2 / 2
+        x = np.linspace(max(x_range_pdf[0], 1e-6), x_range_pdf[1], 500)
+        pdf = lognorm_dist.pdf(x, s=sigma, scale=np.exp(mu))
+    else:
+        continue
+    pdf_finite = pdf[np.isfinite(pdf) & (pdf > 0)]
+    if len(pdf_finite) > 0:
+        continuous_y_max = max(continuous_y_max, pdf_finite.max())
 
-gamma_y_range = (gamma_y_min, gamma_y_max) if np.isfinite(gamma_y_min) else None
+continuous_y_range = (0, continuous_y_max * 1.05) if np.isfinite(continuous_y_max) else None
 
 for i, param_set in enumerate(param_sets):
     distribution, mean, var = parse_param_set(param_set)
     print(f"Plotting PDF for distribution={distribution}, mean={mean}...")
-    y_range = gamma_y_range if distribution == "gamma" else None
+    y_range = continuous_y_range if distribution in ("gamma", "lognormal") else None
     plot_distribution_pdf(
         distribution,
         mean,
@@ -1377,6 +1424,7 @@ for i, param_set in enumerate(param_sets):
         fname=f"{distribution}_{i}",
         x_range=x_range_pdf,
         y_range=y_range,
+        log_x=pdf_log_x,
     )
     print("  Generated PDF plot")
 
