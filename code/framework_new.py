@@ -86,18 +86,19 @@ fig_dir = "../../figures/framework/"
 
 # Single consolidated simulation file for z/ztilde
 sim_file = sim_dir + "z_ztilde_simulations.parquet"
+xi_sim_file = sim_dir + "xi_simulations.parquet"
 
 # Reference size (page width in mm) for scaling figure dimensions
 pg_width = 165  # mm
 mm_to_in = 25.4
 
 # Panel dimensions in inches (scaled from mm reference)
-width_sm = 0.22 * pg_width / mm_to_in
-height_sm = 0.22 * pg_width / mm_to_in
-width_md = 0.25 * pg_width / mm_to_in
-height_md = 0.25 * pg_width / mm_to_in
-width_lg = (1 / 3.0) * pg_width / mm_to_in
-height_lg = (1 / 3.0) * pg_width / mm_to_in
+width_sm = 0.15 * pg_width / mm_to_in
+height_sm = 0.15 * pg_width / mm_to_in
+width_md = (1/3.) * pg_width / mm_to_in
+height_md = (1/3.) * pg_width / mm_to_in
+width_lg = 0.4 * pg_width / mm_to_in
+height_lg = 0.4 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins_sm = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
@@ -319,16 +320,19 @@ def compute_z_ztilde(
     perturb_idx = np.repeat(np.arange(n_perturb), n_draws)
     z_flat = np.tile(z, n_perturb)
     ztilde_flat = ztilde.ravel()
+    xi_flat = ztilde_flat - z_flat
 
     df = pd.DataFrame(
         {
             "distribution": distribution,
             "mean": mean,
             "variance": computed_var,
+            "eps": eps,
             "draw_idx": draw_idx,
             "perturb_idx": perturb_idx,
             "z": z_flat,
             "ztilde": ztilde_flat,
+            "xi": xi_flat,
         }
     )
 
@@ -347,8 +351,8 @@ def parse_param_set(param_set):
     return distribution, mean, var
 
 
-def get_missing_params(param_sets, existing_df=None):
-    """Return parameter sets not already in the file."""
+def get_missing_params(param_sets, eps, existing_df=None):
+    """Return parameter sets not already in the file, checking eps too."""
     if existing_df is None:
         return list(param_sets)
 
@@ -361,10 +365,13 @@ def get_missing_params(param_sets, existing_df=None):
                 (existing_df["distribution"] == distribution)
                 & (existing_df["mean"] == mean)
                 & (existing_df["variance"] == var)
+                & (existing_df["eps"] == eps)
             )
         else:
-            mask = (existing_df["distribution"] == distribution) & (
-                existing_df["mean"] == mean
+            mask = (
+                (existing_df["distribution"] == distribution)
+                & (existing_df["mean"] == mean)
+                & (existing_df["eps"] == eps)
             )
 
         if not mask.any():
@@ -376,7 +383,7 @@ def get_missing_params(param_sets, existing_df=None):
 # ==============================================================================
 # PLOT FUNCTIONS
 # ==============================================================================
-def load_and_normalize(df_all, distribution, mean, var=None):
+def load_and_normalize(df_all, distribution, mean, var=None, eps=None):
     """
     Filter and normalize data for a specific parameter set.
 
@@ -395,6 +402,9 @@ def load_and_normalize(df_all, distribution, mean, var=None):
     else:
         df = df_all[(df_all["distribution"] == distribution) & (df_all["mean"] == mean)]
 
+    if eps is not None:
+        df = df[df["eps"] == eps]
+
     z = df["z"].values
     ztilde = df["ztilde"].values
     computed_var = df["variance"].iloc[0]
@@ -407,32 +417,34 @@ def load_and_normalize(df_all, distribution, mean, var=None):
     return z_norm, ztilde_norm, computed_var
 
 
-def plot_local_field_hist(z_norm, ztilde_norm, color, fname, index=0):
+def plot_local_field_hist(z, xi, color, fname, last=False, xlim=300.0, ylim=600.0):
     """
-    Create a 2D heatmap histogram of normalized local field values.
+    Create a 2D heatmap histogram of (z, xi) values.
 
     Parameters
     ----------
-    z_norm, ztilde_norm : np.ndarray
-        Normalized local field values.
+    z : np.ndarray
+        Raw (unnormalized) local field values.
+    xi : np.ndarray
+        Raw perturbation values (ztilde - z).
     color : np.ndarray
         RGB color array for the colormap.
     fname : str
         Filename suffix for saving.
-    index : int
-        Plot index. Only the first plot (index=0) will have y ticks.
+    last : bool
+        If True, this is the highest-variance panel: show x ticks (bottom spine).
+        No y ticks are shown on any panel.
+    xlim, ylim : float
+        Symmetric axis limits; shared across all panels.
     """
-    data_min = -3.0
-    data_max = 3.0
-
     fig, ax_scatter = plt.subplots(figsize=(width_sm, height_sm))
 
-    xbins = np.linspace(data_min, data_max, n_bins)
-    ybins = xbins.copy()
+    xbins = np.linspace(-xlim, xlim, n_bins)
+    ybins = np.linspace(-ylim, ylim, n_bins)
 
     ax_scatter.hist2d(
-        z_norm,
-        ztilde_norm,
+        z,
+        xi,
         bins=[xbins, ybins],
         density=True,
         cmap=fade_to_color_cmap(color, alpha_min=0.0),
@@ -442,51 +454,63 @@ def plot_local_field_hist(z_norm, ztilde_norm, color, fname, index=0):
         ax_scatter.spines[loc].set_visible(True)
     ax_scatter.set_frame_on(True)
 
-    ax_scatter.plot([0.0, 0.0], [data_min, data_max], c="k", alpha=0.5, lw=1)
-    ax_scatter.plot([data_min, data_max], [0.0, 0.0], c="k", alpha=0.5, lw=1)
+    # Error shading: region between y-axis and y=-x (equivalent to Q2/Q4 in z-ztilde space)
+    x_r = np.array([0.0, xlim])
+    ax_scatter.fill_between(x_r, -ylim, -x_r, color=con_colors[1], alpha=0.1)
+    x_l = np.array([-xlim, 0.0])
+    ax_scatter.fill_between(x_l, -x_l, ylim, color=con_colors[1], alpha=0.1)
 
-    ax_scatter.set_xticks([-2, 0, 2])
-    if index == 0:
-        ax_scatter.set_yticks([-2, 0, 2])
-    else:
-        ax_scatter.set_yticks([])
+    ax_scatter.plot([0.0, 0.0], [-ylim, ylim], c="k", alpha=0.5, lw=1)
+    ax_scatter.plot([-xlim, xlim], [0.0, 0.0], c="k", alpha=0.5, lw=1)
+    ax_scatter.plot([-xlim, xlim], [xlim, -xlim], c="k", alpha=0.5, lw=1)
 
-    ax_scatter.set_aspect("equal")
+    ax_scatter.set_xlim(-xlim, xlim)
+    ax_scatter.set_ylim(-ylim, ylim)
+    ax_scatter.set_yticks([])
+    ax_scatter.set_xticks([0] if last else [])
 
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"hist_{fname}.svg", dpi=600)
 
-    ax_scatter.set_xlabel(r"Local field $z/\sigma_z$")
-    ax_scatter.set_ylabel(r"Perturbed local field $\tilde{z}/\sigma_{\tilde{z}}$")
+    ax_scatter.set_xlabel(r"$z$")
+    ax_scatter.set_ylabel(r"$\xi$")
 
     plt.show()
 
 
-def plot_gaussian_heatmap(rho, color, fname, index=0, lim=3.0, n_grid=100):
+def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
+                          xlim=300.0, ylim=600.0, n_grid=200):
     """
-    Plot an analytical 2D Gaussian density heatmap with unit variances and correlation rho.
+    Plot an analytical 2D Gaussian heatmap for (z, xi) with zero covariance.
+
+    The density is N(0, diag(sigma_x^2, sigma_y^2)), where:
+        sigma_x^2 = sum_i w_i^2  (analytically: n_inputs * E[w^2])
+        sigma_y^2 = eps^2 * sum_i w_i  (analytically: eps^2 * n_inputs * E[w])
 
     Parameters
     ----------
-    rho : float
-        Correlation parameter between the two variables.
+    sigma_x, sigma_y : float
+        Standard deviations along the z and xi axes respectively.
     color : np.ndarray
         RGB color array for the colormap.
     fname : str
         Filename suffix for saving.
-    index : int
-        Plot index. Only the first plot (index=0) will have y ticks.
-    lim : float
-        Plot limits (symmetric around origin).
+    last : bool
+        If True, this is the highest-variance panel: show x ticks (bottom spine).
+        All panels always show y ticks (left spine).
+    xlim, ylim : float
+        Symmetric axis limits; shared across all panels.
     n_grid : int
         Number of grid points in each dimension.
     """
-    x = np.linspace(-lim, lim, n_grid)
-    y = np.linspace(-lim, lim, n_grid)
+    x = np.linspace(-xlim, xlim, n_grid)
+    y = np.linspace(-ylim, ylim, n_grid)
     X, Y = np.meshgrid(x, y)
 
-    Q = X**2 + Y**2 - 2 * rho * X * Y
-    Z = np.exp(-Q / (2 * (1 - rho**2))) / (2 * np.pi * np.sqrt(1 - rho**2))
+    Z = (
+        np.exp(-X**2 / (2 * sigma_x**2) - Y**2 / (2 * sigma_y**2))
+        / (2 * np.pi * sigma_x * sigma_y)
+    )
 
     fig, ax = plt.subplots(figsize=(width_sm, height_sm))
 
@@ -503,25 +527,27 @@ def plot_gaussian_heatmap(rho, color, fname, index=0, lim=3.0, n_grid=100):
         ax.spines[loc].set_visible(True)
     ax.set_frame_on(True)
 
-    ax.plot([0.0, 0.0], [-lim, lim], c="k", alpha=0.5, lw=1)
-    ax.plot([-lim, lim], [0.0, 0.0], c="k", alpha=0.5, lw=1)
+    # Error shading: region between y-axis and y=-x (equivalent to Q2/Q4 in z-ztilde space)
+    x_r = np.array([0.0, xlim])
+    ax.fill_between(x_r, -ylim, -x_r, color=con_colors[1], alpha=0.1)
+    x_l = np.array([-xlim, 0.0])
+    ax.fill_between(x_l, -x_l, ylim, color=con_colors[1], alpha=0.1)
 
-    ax.set_xlim(-lim, lim)
-    ax.set_ylim(-lim, lim)
+    ax.plot([0.0, 0.0], [-ylim, ylim], c="k", alpha=0.5, lw=1)
+    ax.plot([-xlim, xlim], [0.0, 0.0], c="k", alpha=0.5, lw=1)
+    ax.plot([-xlim, xlim], [xlim, -xlim], c="k", alpha=0.5, lw=1)
 
-    ax.set_xticks([])
-    if index == 0:
-        ax.set_yticks([-2, 0, 2])
-    else:
-        ax.set_yticks([])
+    ax.set_xlim(-xlim, xlim)
+    ax.set_ylim(-ylim, ylim)
 
-    ax.set_aspect("equal")
+    ax.set_yticks([0])
+    ax.set_xticks([0] if last else [])
 
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"gaussian_{fname}.svg", dpi=600)
 
-    ax.set_xlabel(r"Local field $z/\sigma_z$")
-    ax.set_ylabel(r"Perturbed local field $\tilde{z}/\sigma_{\tilde{z}}$")
+    ax.set_xlabel(r"$z$")
+    ax.set_ylabel(r"$\xi$")
 
     plt.show()
 
@@ -615,7 +641,7 @@ def plot_distribution_pdf(
     log_x : bool
         If True, use a logarithmic x-axis.
     """
-    fig, ax = plt.subplots(figsize=(0.5 * width_sm, 0.5 * height_sm))
+    fig, ax = plt.subplots(figsize=(0.4 * width_sm, 0.4 * height_sm))
 
     x_min, x_max = x_range
 
@@ -738,33 +764,56 @@ plt.show()
 print("  Generated decision boundary cartoon")
 
 # ------------------------------------------------------------------------------
-# SECTION 2: ELLIPSE CARTOON WITH PRINCIPAL AXES
+# SECTION 2: ELLIPSE CARTOON WITH PRINCIPAL AXES (z, xi plane)
 # ------------------------------------------------------------------------------
 print("\n" + "=" * 60)
 print("STEP 2: ELLIPSE CARTOON WITH PRINCIPAL AXES")
 print("=" * 60)
 
-rho = 0.7
-R = 2.0
-lim = 3.0
+# Analytical sigma values for the intermediate param set (index 1)
+_, mean_mid, var_mid = parse_param_set(param_sets[1])
+sigma_x_mid = np.sqrt(n_inputs * (var_mid + mean_mid**2))
+sigma_y_mid = eps * np.sqrt(n_inputs * mean_mid)
+
+R = 1.5        # level-set radius
+lim = 1.5 * R * max(sigma_x_mid, sigma_y_mid)
+bar_half = 0.08 * lim
 
 fig, ax = plt.subplots(figsize=(width_md, height_md))
 
+# Error shading: wedge between the y-axis and y = -x
+x_r = np.array([0.0, lim])
+ax.fill_between(x_r, -lim, -x_r, color=con_colors[1], alpha=0.3)
+x_l = np.array([-lim, 0.0])
+ax.fill_between(x_l, -x_l, lim, color=con_colors[1], alpha=0.3)
+
+# Coordinate axes
 ax.plot([-lim, lim], [0.0, 0.0], c="k", lw=1)
 ax.plot([0.0, 0.0], [-lim, lim], c="k", lw=1)
 
-ax.fill_betweenx(np.linspace(0, lim, 2), -lim, 0, color=con_colors[1], alpha=0.3)
-ax.fill_betweenx(np.linspace(-lim, 0, 2), 0, lim, color=con_colors[1], alpha=0.3)
+# y = -x boundary line
+ax.plot([-lim, lim], [lim, -lim], c="k", alpha=0.5, lw=1)
 
-draw_ellipse(R, rho, ax, cmap(viridis_max / 2), lim=lim)
-draw_principal_axes(R, rho, ax, con_colors[0], con_colors[1], lw=1)
+# Ellipse: x = R*sigma_x*cos(t), y = R*sigma_y*sin(t)
+t = np.linspace(0, 2 * np.pi, 500)
+x_ell = R * sigma_x_mid * np.cos(t)
+y_ell = R * sigma_y_mid * np.sin(t)
+ax.fill(x_ell, y_ell, color=sim_colors[1], alpha=0.3)
+ax.plot(x_ell, y_ell, color=sim_colors[1], lw=2)
 
-locator = ax.yaxis.get_major_locator()
-ax.xaxis.set_major_locator(locator)
+# Principal axis along z: from origin to (R*sigma_x, 0), bar perpendicular (vertical)
+ax.plot([0, R * sigma_x_mid], [0, 0], c=con_colors[0], lw=3)
+ax.plot([R * sigma_x_mid, R * sigma_x_mid], [-bar_half, bar_half], c=con_colors[0], lw=3)
+
+# Principal axis along xi: from origin to (0, R*sigma_y), bar perpendicular (horizontal)
+ax.plot([0, 0], [0, R * sigma_y_mid], c=con_colors[1], lw=3)
+ax.plot([-bar_half, bar_half], [R * sigma_y_mid, R * sigma_y_mid], c=con_colors[1], lw=3)
 
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
 ax.set_aspect("equal")
+ax.set_xticks([0])
+ax.set_yticks([0])
 
 plt.subplots_adjust(**fig_margins_md)
 plt.savefig(fig_dir + "2d_local_field_distribution.svg", dpi=600)
@@ -772,8 +821,8 @@ plt.savefig(fig_dir + "2d_local_field_distribution.svg", dpi=600)
 ax.text(0.77, 0.23, "Error", ha="center", va="center", transform=ax.transAxes)
 ax.text(0.23, 0.77, "Error", ha="center", va="center", transform=ax.transAxes)
 
-ax.set_xlabel("Local field $z$")
-ax.set_ylabel("Perturbed local field $\\tilde{z}$")
+ax.set_xlabel(r"$z$")
+ax.set_ylabel(r"$\xi$")
 
 plt.show()
 print("  Generated ellipse cartoon with principal axes")
@@ -794,7 +843,7 @@ else:
     df_all = None
     print("No existing simulation file found")
 
-missing = get_missing_params(param_sets, df_all)
+missing = get_missing_params(param_sets, eps, df_all)
 
 if missing:
     print(f"Running simulations for {len(missing)} parameter sets...")
@@ -832,6 +881,39 @@ if missing:
 else:
     print("All parameter sets already simulated, skipping simulation step")
 
+df_xi = df_all[["distribution", "mean", "variance", "eps", "draw_idx", "perturb_idx", "xi"]]
+df_xi.to_parquet(xi_sim_file)
+print(f"Saved xi to {xi_sim_file}")
+
+# ------------------------------------------------------------------------------
+# SHARED AXIS LIMITS FOR SECTIONS 4 & 5
+# Analytical sigma values: sigma_x^2 = n_inputs*(var+mean^2), sigma_y^2 = eps^2*n_inputs*mean
+# Use ±3 sigma (taking the max across all param sets) so all six panels share the same range.
+# ------------------------------------------------------------------------------
+sigma_xs, sigma_ys = [], []
+for param_set in param_sets:
+    distribution, mean, var = parse_param_set(param_set)
+    if distribution in ("gamma", "lognormal") and var is not None:
+        df_tmp = df_all[
+            (df_all["distribution"] == distribution)
+            & (df_all["mean"] == mean)
+            & (df_all["variance"] == var)
+            & (df_all["eps"] == eps)
+        ]
+    else:
+        df_tmp = df_all[
+            (df_all["distribution"] == distribution)
+            & (df_all["mean"] == mean)
+            & (df_all["eps"] == eps)
+        ]
+    computed_var = df_tmp["variance"].iloc[0]
+    sigma_xs.append(np.sqrt(n_inputs * (computed_var + mean**2)))
+    sigma_ys.append(eps * np.sqrt(n_inputs * mean))
+
+hist_lim = 3.0 * max(max(sigma_xs), max(sigma_ys))
+hist_xlim = hist_lim
+hist_ylim = hist_lim
+
 # ------------------------------------------------------------------------------
 # SECTION 4: SIMULATED 2D HISTOGRAMS
 # ------------------------------------------------------------------------------
@@ -843,12 +925,27 @@ for i, param_set in enumerate(param_sets):
     distribution, mean, var = parse_param_set(param_set)
     print(f"Processing histogram for distribution={distribution}, mean={mean}...")
 
-    z_norm, ztilde_norm, computed_var = load_and_normalize(
-        df_all, distribution, mean, var
-    )
+    if distribution in ("gamma", "lognormal") and var is not None:
+        df_subset = df_all[
+            (df_all["distribution"] == distribution)
+            & (df_all["mean"] == mean)
+            & (df_all["variance"] == var)
+            & (df_all["eps"] == eps)
+        ]
+    else:
+        df_subset = df_all[
+            (df_all["distribution"] == distribution)
+            & (df_all["mean"] == mean)
+            & (df_all["eps"] == eps)
+        ]
+
+    z_vals = df_subset["z"].values
+    xi_vals = df_subset["xi"].values
 
     plot_local_field_hist(
-        z_norm, ztilde_norm, color=sim_colors[i], fname=f"{distribution}_{i}", index=i
+        z_vals, xi_vals, color=sim_colors[i], fname=f"{distribution}_{i}",
+        last=(i == len(param_sets) - 1),
+        xlim=hist_xlim, ylim=hist_ylim,
     )
 
     print("  Generated histogram")
@@ -862,18 +959,16 @@ print("=" * 60)
 
 for i, param_set in enumerate(param_sets):
     distribution, mean, var = parse_param_set(param_set)
-    _, _, computed_var = load_and_normalize(df_all, distribution, mean, var)
-
-    if np.isinf(computed_var):
-        rho = 1.0
-    else:
-        rho = (1.0 + (eps**2) * mean / (computed_var + mean**2)) ** (-0.5)
     print(
         f"Generating Gaussian heatmap for distribution={distribution}, mean={mean}, "
-        f"variance={computed_var}, rho={rho:.4f}..."
+        f"sigma_x={sigma_xs[i]:.1f}, sigma_y={sigma_ys[i]:.1f}..."
     )
 
-    plot_gaussian_heatmap(rho, sim_colors[i], fname=f"{distribution}_{i}", index=i)
+    plot_gaussian_heatmap(
+        sigma_xs[i], sigma_ys[i], sim_colors[i], fname=f"{distribution}_{i}",
+        last=(i == len(param_sets) - 1),
+        xlim=hist_xlim, ylim=hist_ylim,
+    )
 
     print("  Generated heatmap")
 

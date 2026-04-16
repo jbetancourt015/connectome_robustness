@@ -87,6 +87,7 @@ fig_dir = "../../figures/supplement/"
 
 # Single consolidated simulation file for z/ztilde
 sim_file = sim_dir + "z_ztilde_simulations.parquet"
+xi_sim_file = sim_dir + "xi_simulations.parquet"
 
 # Reference size (page width in mm) for scaling figure dimensions
 pg_width = 165  # mm
@@ -405,16 +406,19 @@ def compute_z_ztilde(
     perturb_idx = np.repeat(np.arange(n_perturb), n_draws)
     z_flat = np.tile(z, n_perturb)
     ztilde_flat = ztilde.ravel()
+    xi_flat = ztilde_flat - z_flat
 
     df = pd.DataFrame(
         {
             "distribution": distribution,
             "mean": mean,
             "variance": computed_var,
+            "eps": eps,
             "draw_idx": draw_idx,
             "perturb_idx": perturb_idx,
             "z": z_flat,
             "ztilde": ztilde_flat,
+            "xi": xi_flat,
         }
     )
 
@@ -449,7 +453,7 @@ def parse_param_set(param_set):
     return distribution, mean, var
 
 
-def get_missing_params(param_sets, existing_df=None):
+def get_missing_params(param_sets, eps, existing_df=None):
     """
     Return parameter sets not already in the file.
 
@@ -457,6 +461,8 @@ def get_missing_params(param_sets, existing_df=None):
     ----------
     param_sets : list of tuples
         List of (distribution, mean) or (distribution, mean, variance) tuples.
+    eps : float
+        Perturbation magnitude; included in the existence check.
     existing_df : pd.DataFrame, optional
         Existing simulation data. If None, all params are missing.
 
@@ -468,8 +474,6 @@ def get_missing_params(param_sets, existing_df=None):
     if existing_df is None:
         return list(param_sets)
 
-    # Build set of existing (distribution, mean) combinations
-    # For gamma/lognormal, we also need to check variance
     missing = []
     for param_set in param_sets:
         distribution, mean, var = parse_param_set(param_set)
@@ -479,10 +483,13 @@ def get_missing_params(param_sets, existing_df=None):
                 (existing_df["distribution"] == distribution)
                 & (existing_df["mean"] == mean)
                 & (existing_df["variance"] == var)
+                & (existing_df["eps"] == eps)
             )
         else:
-            mask = (existing_df["distribution"] == distribution) & (
-                existing_df["mean"] == mean
+            mask = (
+                (existing_df["distribution"] == distribution)
+                & (existing_df["mean"] == mean)
+                & (existing_df["eps"] == eps)
             )
 
         if not mask.any():
@@ -494,7 +501,7 @@ def get_missing_params(param_sets, existing_df=None):
 # ==============================================================================
 # HISTOGRAM / HEATMAP PLOT FUNCTIONS
 # ==============================================================================
-def load_and_normalize(df_all, distribution, mean, var=None):
+def load_and_normalize(df_all, distribution, mean, var=None, eps=None):
     """
     Filter and normalize data for a specific parameter set.
 
@@ -508,6 +515,8 @@ def load_and_normalize(df_all, distribution, mean, var=None):
         Mean parameter to filter by.
     var : float, optional
         Variance parameter to filter by (used for gamma and lognormal).
+    eps : float, optional
+        Perturbation magnitude to filter by.
 
     Returns
     -------
@@ -526,6 +535,9 @@ def load_and_normalize(df_all, distribution, mean, var=None):
         ]
     else:
         df = df_all[(df_all["distribution"] == distribution) & (df_all["mean"] == mean)]
+
+    if eps is not None:
+        df = df[df["eps"] == eps]
 
     z = df["z"].values
     ztilde = df["ztilde"].values
@@ -1335,7 +1347,7 @@ else:
     print("No existing simulation file found")
 
 # Check which parameter sets need to be simulated
-missing = get_missing_params(param_sets, df_all)
+missing = get_missing_params(param_sets, eps, df_all)
 
 if missing:
     print(f"Running simulations for {len(missing)} parameter sets...")
@@ -1376,6 +1388,10 @@ if missing:
 else:
     print("All parameter sets already simulated, skipping simulation step")
 
+df_xi = df_all[["distribution", "mean", "variance", "eps", "draw_idx", "perturb_idx", "xi"]]
+df_xi.to_parquet(xi_sim_file)
+print(f"Saved xi to {xi_sim_file}")
+
 # ------------------------------------------------------------------------------
 # SECTION 5: HISTOGRAMS
 # ------------------------------------------------------------------------------
@@ -1409,7 +1425,7 @@ print("=" * 60)
 ellipse_means, ellipse_vars = [], []
 for i, param_set in enumerate(param_sets):
     distribution, mean, var = parse_param_set(param_set)
-    _, _, computed_var = load_and_normalize(df_all, distribution, mean, var)
+    _, _, computed_var = load_and_normalize(df_all, distribution, mean, var, eps)
     print(
         f"Collecting ellipse params for distribution={distribution}, mean={mean}, variance={computed_var}..."
     )
@@ -1430,7 +1446,7 @@ print("=" * 60)
 for i, param_set in enumerate(param_sets):
     distribution, mean, var = parse_param_set(param_set)
     # Load data to get computed variance (needed for rho calculation)
-    _, _, computed_var = load_and_normalize(df_all, distribution, mean, var)
+    _, _, computed_var = load_and_normalize(df_all, distribution, mean, var, eps)
 
     # Compute rho from parameters (same formula as in plot_ellipse_cartoon)
     # Handle infinite variance (for Pareto with mean <= 2)

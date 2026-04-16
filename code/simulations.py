@@ -581,16 +581,19 @@ def compute_z_ztilde(
     perturb_idx = np.repeat(np.arange(n_perturb), n_draws)
     z_flat = np.tile(z, n_perturb)
     ztilde_flat = ztilde.ravel()
+    xi_flat = ztilde_flat - z_flat
 
     df = pd.DataFrame(
         {
             "distribution": distribution,
             "mean": mean,
             "variance": computed_var,
+            "eps": eps,
             "draw_idx": draw_idx,
             "perturb_idx": perturb_idx,
             "z": z_flat,
             "ztilde": ztilde_flat,
+            "xi": xi_flat,
         }
     )
 
@@ -645,10 +648,13 @@ def run_zztilde_simulation():
                     (df_all["distribution"] == distribution)
                     & (df_all["mean"] == mean)
                     & (df_all["variance"] == var)
+                    & (df_all["eps"] == eps)
                 )
             else:
-                mask = (df_all["distribution"] == distribution) & (
-                    df_all["mean"] == mean
+                mask = (
+                    (df_all["distribution"] == distribution)
+                    & (df_all["mean"] == mean)
+                    & (df_all["eps"] == eps)
                 )
             if not mask.any():
                 missing.append(param_set)
@@ -689,6 +695,11 @@ def run_zztilde_simulation():
         print(f"Saved {len(df_all)} total rows to {output_file}")
     else:
         print("All parameter sets already simulated, skipping simulation step")
+
+    xi_file = sim_dir + "xi_simulations.parquet"
+    df_xi = df_all[["distribution", "mean", "variance", "eps", "draw_idx", "perturb_idx", "xi"]]
+    df_xi.to_parquet(xi_file)
+    print(f"Saved xi to {xi_file}")
 
 
 # ==============================================================================
@@ -1357,6 +1368,7 @@ print("\nOutput files generated:")
 print(f"  - {sim_dir}loss_data.parquet")
 print(f"  - {sim_dir}periphery_data.parquet")
 print(f"  - {sim_dir}z_ztilde_simulations.parquet")
+print(f"  - {sim_dir}xi_simulations.parquet")
 print(f"  - {sim_dir}lognormal_sim_100.parquet")
 print(f"  - {sim_dir}lomax_sim_100.parquet")
 print(f"  - {sim_dir}gamma_sim_100.parquet")
