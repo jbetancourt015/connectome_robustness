@@ -13,7 +13,9 @@ __pycache__/
 .env.*
 .ipynb_checkpoints/
 processed_data/*
+!processed_data/.gitkeep
 simulation_results/*
+!simulation_results/.gitkeep
 supplement_code/
 
 # R
