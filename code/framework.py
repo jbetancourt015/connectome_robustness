@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 16 Apr 2026
+    Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -35,6 +35,10 @@ from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import gamma as gamma_dist
 from scipy.stats import lognorm as lognorm_dist
 import logging
+from params import (
+    rng_seed, eta,
+    zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
+)
 
 # ------------------------------------------------------------------------------
 # MATPLOTLIB CONFIGURATION
@@ -113,18 +117,12 @@ dark_cool = mcolors.LinearSegmentedColormap.from_list(
 if "dark_cool" not in plt.colormaps:
     plt.colormaps.register(dark_cool)
 
-# z/ztilde simulation parameters
-param_sets = [
-    ("dirac", 1.0),
-    ("lognormal", 1.0, 5.0),
-    ("lognormal", 1.0, 20.0)
-]
-
-n_inputs = int(1e4)
-eta = 1.0
-eps = 2.0
-n_draws = int(1e3)
-n_perturb = int(1e3)
+# z/ztilde simulation parameters (defined in params.py)
+param_sets = zztilde_param_sets
+n_inputs   = zztilde_n_inputs
+eps        = zztilde_eps
+n_draws    = zztilde_n_draws
+n_perturb  = zztilde_n_perturb
 
 # Histogram parameters
 alpha_min = 0.2
@@ -831,7 +829,7 @@ print("  Generated ellipse cartoon with principal axes")
 # ------------------------------------------------------------------------------
 # SECTION 3: LOAD / RUN z/ztilde SIMULATIONS
 # ------------------------------------------------------------------------------
-rng = np.random.default_rng(1764)
+rng = np.random.default_rng(rng_seed)
 
 print("\n" + "=" * 60)
 print("STEP 3: SIMULATION")

@@ -36,15 +36,21 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix, csc_matrix, load_npz
 from tqdm import tqdm
+from params import (
+    rng_seed, eta, block_perturb,
+    loss_eps, loss_n_draws, loss_n_perturb,
+    periphery_n_sim, periphery_threshold, periphery_repeats,
+    zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
+    parametric_n_neurons, parametric_n_inputs, parametric_n_draws, parametric_n_perturb,
+    parametric_n_mean, parametric_n_var,
+    shuffle_k_min, shuffle_n_threshold_default, shuffle_n_threshold_banc,
+)
 
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
 # Set to True to skip simulations if output files already exist
 SKIP_EXISTING_SIMULATIONS = True
-
-# Random seed for reproducibility
-RNG_SEED = 1764
 
 # ------------------------------------------------------------------------------
 # DIRECTORIES
@@ -355,14 +361,8 @@ def run_flywire_loss_simulation():
     print("Extracting incoming weights...")
     incoming_weights = [A.data[A.indptr[j] : A.indptr[j + 1]] for j in range(N)]
 
-    # Simulation parameters
-    n_draws = int(1e3)
-    n_perturb = int(1e3)
-    eta = 1.0
-    eps = 1.0
-
     loss = np.full(N, np.nan, dtype=float)
-    rng = np.random.default_rng(RNG_SEED)
+    rng = np.random.default_rng(rng_seed)
 
     print(f"Simulating loss for {N} neurons...")
     for i, w in enumerate(tqdm(incoming_weights, desc="FlyWire loss")):
@@ -373,10 +373,10 @@ def run_flywire_loss_simulation():
         l_hat = average_error_fast(
             w,
             eta=eta,
-            eps=eps,
-            n_draws=n_draws,
-            n_perturb=n_perturb,
-            block_perturb=128,
+            eps=loss_eps,
+            n_draws=loss_n_draws,
+            n_perturb=loss_n_perturb,
+            block_perturb=block_perturb,
             rng=rng,
         )
         loss[i] = l_hat
@@ -453,8 +453,6 @@ def run_flywire_periphery_scoring():
     masks = [optic_mask, olfactory_mask, joint_mask]
     labels = ["optic", "olfactory", "joint"]
 
-    # Run simulations
-    n_sim = 100
     sim_df = pd.DataFrame({"root_id": idx_to_id})
 
     for i, mask in enumerate(masks):
@@ -464,7 +462,10 @@ def run_flywire_periphery_scoring():
             [id_to_idx[rid] for rid in selected_ids if rid in id_to_idx]
         )
 
-        avg_dist, frac_reached = average_propagation(A, seed_set, n_sim, seed=RNG_SEED)
+        avg_dist, frac_reached = average_propagation(
+            A, seed_set, periphery_n_sim,
+            threshold=periphery_threshold, repeats=periphery_repeats, seed=rng_seed,
+        )
         print(f"Fraction reached from {labels[i]} seed: {np.mean(frac_reached):.3f}")
 
         sim_df[f"distance_{labels[i]}"] = avg_dist
@@ -611,21 +612,7 @@ def run_zztilde_simulation():
 
     output_file = sim_dir + "z_ztilde_simulations.parquet"
 
-    # Parameter sets: (distribution, mean) or (distribution, mean, variance)
-    param_sets = [
-        ("dirac", 1.0),
-        ("gamma", 1.0, 100.0),
-        ("gamma", 1.0, 400.0),
-    ]
-
-    # Simulation parameters
-    n_inputs = int(1e4)
-    eta = 1.0
-    eps = 10.0
-    n_draws = int(1e3)
-    n_perturb = int(1e3)
-
-    rng = np.random.default_rng(RNG_SEED)
+    rng = np.random.default_rng(rng_seed)
 
     # Check existing data
     if SKIP_EXISTING_SIMULATIONS and os.path.exists(output_file):
@@ -636,7 +623,7 @@ def run_zztilde_simulation():
 
     # Determine which parameters need to be simulated
     missing = []
-    for param_set in param_sets:
+    for param_set in zztilde_param_sets:
         distribution = param_set[0]
         mean = param_set[1]
         var = param_set[2] if len(param_set) == 3 else None
@@ -647,13 +634,13 @@ def run_zztilde_simulation():
                     (df_all["distribution"] == distribution)
                     & (df_all["mean"] == mean)
                     & (df_all["variance"] == var)
-                    & (df_all["eps"] == eps)
+                    & (df_all["eps"] == zztilde_eps)
                 )
             else:
                 mask = (
                     (df_all["distribution"] == distribution)
                     & (df_all["mean"] == mean)
-                    & (df_all["eps"] == eps)
+                    & (df_all["eps"] == zztilde_eps)
                 )
             if not mask.any():
                 missing.append(param_set)
@@ -672,11 +659,11 @@ def run_zztilde_simulation():
             df, w = compute_z_ztilde(
                 distribution=distribution,
                 mean=mean,
-                n_inputs=n_inputs,
+                n_inputs=zztilde_n_inputs,
                 eta=eta,
-                eps=eps,
-                n_draws=n_draws,
-                n_perturb=n_perturb,
+                eps=zztilde_eps,
+                n_draws=zztilde_n_draws,
+                n_perturb=zztilde_n_perturb,
                 rng=rng,
                 var=var,
             )
@@ -887,18 +874,10 @@ def run_parametric_simulations():
     print("SIMULATION 4: Parametric Distributions")
     print("=" * 60)
 
-    n_neurons = int(1e3)
-    n_inputs = int(1e3)
-    n_draws = int(1e3)
-    n_perturb = int(1e3)
-    n_mean = 4
-    n_var = 10
-    k_min = 10  # minimum in-degree filter (same as flywire_loss_analysis.py)
-
     # --- Derive mean/variance grids from FlyWire neuron data -----------------
     print("Loading neuron data to determine mean/variance ranges...")
     neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
-    neuron_df = neuron_df[neuron_df["in_deg"] >= k_min]
+    neuron_df = neuron_df[neuron_df["in_deg"] >= shuffle_k_min]
 
     neuron_df["mean"] = neuron_df["in_strength"] / neuron_df["in_deg"]
     neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df[
@@ -912,7 +891,7 @@ def run_parametric_simulations():
 
     # Log-uniform mean bin edges (n_mean + 1 edges -> n_mean bins),
     # matching the binning in flywire_loss_analysis.py
-    mean_edges = np.logspace(np.log10(mu_min), np.log10(mu_max), n_mean + 1)
+    mean_edges = np.logspace(np.log10(mu_min), np.log10(mu_max), parametric_n_mean + 1)
 
     # --- Derive variance grid via quantile binning within mean bins ----------
     # Bin neurons by mean using log-uniform edges
@@ -924,24 +903,24 @@ def run_parametric_simulations():
     mean_vals = np.array(
         [
             neuron_df.loc[neuron_df["mean_bin"] == i, "mean"].median()
-            for i in range(n_mean)
+            for i in range(parametric_n_mean)
         ]
     )
 
     # Within each mean bin, split variances into quantile bins and take medians
     all_var_medians = []
-    for i in range(n_mean):
+    for i in range(parametric_n_mean):
         mean_mask = neuron_df["mean_bin"] == i
         subset_var = neuron_df.loc[mean_mask, "var"]
         if len(subset_var) == 0:
             continue
 
         # Quantile bin edges for variance within this mean bin
-        var_q = np.percentile(subset_var, np.linspace(0, 100, n_var + 1))
+        var_q = np.percentile(subset_var, np.linspace(0, 100, parametric_n_var + 1))
         var_bin_idx = pd.cut(subset_var, bins=var_q, labels=False, include_lowest=True)
 
         # Median variance in each quantile bin
-        for j in range(n_var):
+        for j in range(parametric_n_var):
             bin_vals = subset_var[var_bin_idx == j]
             if len(bin_vals) > 0:
                 all_var_medians.append(bin_vals.median())
@@ -949,36 +928,36 @@ def run_parametric_simulations():
     # Pool medians and set var_vals as n_var log-uniform points over that range
     all_var_medians = np.array(all_var_medians)
     var_pool_min, var_pool_max = all_var_medians.min(), all_var_medians.max()
-    var_vals = np.logspace(np.log10(var_pool_min), np.log10(var_pool_max), n_var)
+    var_vals = np.logspace(np.log10(var_pool_min), np.log10(var_pool_max), parametric_n_var)
 
     print(
-        f"  Mean  range: [{mu_min:.2f}, {mu_max:.2f}]  ->  {n_mean} log-spaced points"
+        f"  Mean  range: [{mu_min:.2f}, {mu_max:.2f}]  ->  {parametric_n_mean} log-spaced points"
     )
     print(
-        f"  Var   range: [{var_pool_min:.2f}, {var_pool_max:.2f}]  ->  {n_var} log-spaced points (from quantile medians)"
+        f"  Var   range: [{var_pool_min:.2f}, {var_pool_max:.2f}]  ->  {parametric_n_var} log-spaced points (from quantile medians)"
     )
     print(f"  mean_vals = {np.array2string(mean_vals, precision=2)}")
     print(f"  var_vals  = {np.array2string(var_vals, precision=2)}")
 
-    rng = np.random.default_rng(RNG_SEED)
+    rng = np.random.default_rng(rng_seed)
 
     # print("Running lognormal simulations...")
-    # run_parametric_simulation('lognormal', mean_vals, var_vals, n_inputs=n_inputs,
-    #                            n_neurons=n_neurons, n_draws=n_draws, n_perturb=n_perturb, rng=rng)
+    # run_parametric_simulation('lognormal', mean_vals, var_vals, n_inputs=parametric_n_inputs,
+    #                            n_neurons=parametric_n_neurons, n_draws=parametric_n_draws, n_perturb=parametric_n_perturb, rng=rng)
 
     # print("Running lomax simulations...")
-    # run_parametric_simulation('lomax', mean_vals, var_vals, n_inputs=n_inputs,
-    #                            n_neurons=n_neurons, n_draws=n_draws, n_perturb=n_perturb, rng=rng)
+    # run_parametric_simulation('lomax', mean_vals, var_vals, n_inputs=parametric_n_inputs,
+    #                            n_neurons=parametric_n_neurons, n_draws=parametric_n_draws, n_perturb=parametric_n_perturb, rng=rng)
 
     print("Running gamma simulations...")
     run_parametric_simulation(
         "gamma",
         mean_vals,
         var_vals,
-        n_inputs=n_inputs,
-        n_neurons=n_neurons,
-        n_draws=n_draws,
-        n_perturb=n_perturb,
+        n_inputs=parametric_n_inputs,
+        n_neurons=parametric_n_neurons,
+        n_draws=parametric_n_draws,
+        n_perturb=parametric_n_perturb,
         rng=rng,
     )
 
@@ -1093,9 +1072,7 @@ def run_network_shuffling():
     print("SIMULATION 5: Network Shuffling")
     print("=" * 60)
 
-    k_min = 10
-
-    def robustness_per_neuron(A, eta=1.0, k_min=k_min, normalized=False):
+    def robustness_per_neuron(A, eta=eta, k_min=shuffle_k_min, normalized=False):
         """
         Return per-neuron robustness with NaN for undefined cases.
         """
@@ -1115,7 +1092,7 @@ def run_network_shuffling():
             continue
 
         conn_type = "cont" if data_idx == 4 else "disc"
-        n_threshold = 3 if data_idx == 6 else 0
+        n_threshold = shuffle_n_threshold_banc if data_idx == 6 else shuffle_n_threshold_default
 
         if data_idx == 5:
             print("Loading FAFB connections data...")
@@ -1152,7 +1129,7 @@ def run_network_shuffling():
 
         print(f"Shuffling {connectomes[data_idx]} (N={A.shape[0]})...")
 
-        q = robustness_per_neuron(A, eta=1.0, k_min=k_min, normalized=False)
+        q = robustness_per_neuron(A)
 
         save_fafb_weights = data_idx == 5
         if save_fafb_weights:
@@ -1161,7 +1138,7 @@ def run_network_shuffling():
         q_rand = np.full(A.shape[0], np.nan, dtype=float)
         for col in range(A.shape[0]):
             start, end = A.indptr[col], A.indptr[col + 1]
-            if end - start < k_min:
+            if end - start < shuffle_k_min:
                 continue
             if save_fafb_weights:
                 q_rand[col], wts = shuffled_neuron_robustness(
@@ -1169,7 +1146,7 @@ def run_network_shuffling():
                     scheme="rand_weight",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=1.0,
+                    eta=eta,
                     normalized=False,
                     return_weights=True,
                 )
@@ -1180,7 +1157,7 @@ def run_network_shuffling():
                     scheme="rand_weight",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=1.0,
+                    eta=eta,
                     normalized=False,
                 )
 
@@ -1230,7 +1207,7 @@ def run_network_shuffling():
             continue
 
         conn_type = "cont" if data_idx == 4 else "disc"
-        n_threshold = 3 if data_idx == 6 else 0
+        n_threshold = shuffle_n_threshold_banc if data_idx == 6 else shuffle_n_threshold_default
 
         if data_idx == 5:
             print("Loading FAFB connections data...")
@@ -1267,7 +1244,7 @@ def run_network_shuffling():
 
         print(f"Shuffling (multinomial) {connectomes[data_idx]} (N={A.shape[0]})...")
 
-        q = robustness_per_neuron(A, eta=1.0, k_min=k_min, normalized=False)
+        q = robustness_per_neuron(A)
 
         save_fafb_weights = data_idx == 5
         if save_fafb_weights:
@@ -1276,7 +1253,7 @@ def run_network_shuffling():
         q_rand_mn = np.full(A.shape[0], np.nan, dtype=float)
         for col in range(A.shape[0]):
             start, end = A.indptr[col], A.indptr[col + 1]
-            if end - start < k_min:
+            if end - start < shuffle_k_min:
                 continue
             if save_fafb_weights:
                 q_rand_mn[col], wts = shuffled_neuron_robustness(
@@ -1284,7 +1261,7 @@ def run_network_shuffling():
                     scheme="multinomial",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=1.0,
+                    eta=eta,
                     normalized=False,
                     return_weights=True,
                 )
@@ -1295,7 +1272,7 @@ def run_network_shuffling():
                     scheme="multinomial",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=1.0,
+                    eta=eta,
                     normalized=False,
                 )
 
@@ -1351,7 +1328,7 @@ if __name__ == "__main__":
     print("CONNECTOME ROBUSTNESS: MASTER SIMULATION SCRIPT")
     print("=" * 60)
     print(f"Skip existing simulations: {SKIP_EXISTING_SIMULATIONS}")
-    print(f"Random seed: {RNG_SEED}")
+    print(f"Random seed: {rng_seed}")
     print("=" * 60)
 
     # Run all simulations
