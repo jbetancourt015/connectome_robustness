@@ -1,5 +1,7 @@
 """
-    This script calculates statistics of single-neuron robustnesses
+    This script generates figures comparing per-neuron robustness against
+    shuffled null networks across all connectomes (scatter plots, histograms,
+    and region-level breakdowns). Outputs to figures/robustness_comparison/.
 -------------------------------------------------------------------------------
 created on:
     Tue 18 Feb 2025

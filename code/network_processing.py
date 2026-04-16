@@ -1,6 +1,6 @@
 """
-    This script implements auxiliary functions for analysis of connectome data
-    and computation sensitivity analysis.
+    Shared utility library for connectome analysis: loading sparse matrices,
+    computing per-neuron robustness, and generating shuffled null networks.
 -------------------------------------------------------------------------------
 created on:
     Tue 28 May 2024

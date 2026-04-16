@@ -1,5 +1,5 @@
 """
-    This script plots the distribution of strengths for Drosophila datasets.
+    This script plots the distribution of connection strengths for all connectomes.
 -------------------------------------------------------------------------------
 created on:
     Mon 15 Dec 2025
