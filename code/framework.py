@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 16 Apr 2026
+    Thu 17 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -39,6 +39,7 @@ from params import (
     rng_seed, eta,
     zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
 )
+from simulations import run_zztilde_simulation
 
 # ------------------------------------------------------------------------------
 # MATPLOTLIB CONFIGURATION
@@ -91,7 +92,7 @@ fig_dir = "../../figures/framework/"
 
 # Single consolidated simulation file for z/ztilde
 sim_file = sim_dir + "z_ztilde_simulations.parquet"
-xi_sim_file = sim_dir + "xi_simulations.parquet"
+zhat_sim_file = sim_dir + "zhat_simulations.parquet"
 
 # Reference size (page width in mm) for scaling figure dimensions
 pg_width = 165  # mm
@@ -319,7 +320,7 @@ def compute_z_ztilde(
     perturb_idx = np.repeat(np.arange(n_perturb), n_draws)
     z_flat = np.tile(z, n_perturb)
     ztilde_flat = ztilde.ravel()
-    xi_flat = ztilde_flat - z_flat
+    zhat_flat = ztilde_flat - z_flat
 
     df = pd.DataFrame(
         {
@@ -331,7 +332,7 @@ def compute_z_ztilde(
             "perturb_idx": perturb_idx,
             "z": z_flat,
             "ztilde": ztilde_flat,
-            "xi": xi_flat,
+            "zhat": zhat_flat,
         }
     )
 
@@ -416,15 +417,15 @@ def load_and_normalize(df_all, distribution, mean, var=None, eps=None):
     return z_norm, ztilde_norm, computed_var
 
 
-def plot_local_field_hist(z, xi, color, fname, last=False, xlim=300.0, ylim=600.0):
+def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=600.0):
     """
-    Create a 2D heatmap histogram of (z, xi) values.
+    Create a 2D heatmap histogram of (z, zhat) values.
 
     Parameters
     ----------
     z : np.ndarray
         Raw (unnormalized) local field values.
-    xi : np.ndarray
+    zhat : np.ndarray
         Raw perturbation values (ztilde - z).
     color : np.ndarray
         RGB color array for the colormap.
@@ -443,7 +444,7 @@ def plot_local_field_hist(z, xi, color, fname, last=False, xlim=300.0, ylim=600.
 
     ax_scatter.hist2d(
         z,
-        xi,
+        zhat,
         bins=[xbins, ybins],
         density=True,
         cmap=fade_to_color_cmap(color, alpha_min=0.0),
@@ -472,7 +473,7 @@ def plot_local_field_hist(z, xi, color, fname, last=False, xlim=300.0, ylim=600.
     plt.savefig(fig_dir + f"hist_{fname}.svg", dpi=600)
 
     ax_scatter.set_xlabel(r"$z$")
-    ax_scatter.set_ylabel(r"$\xi$")
+    ax_scatter.set_ylabel(r"$\hat{z}$")
 
     plt.show()
 
@@ -480,7 +481,7 @@ def plot_local_field_hist(z, xi, color, fname, last=False, xlim=300.0, ylim=600.
 def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
                           xlim=300.0, ylim=600.0, n_grid=200):
     """
-    Plot an analytical 2D Gaussian heatmap for (z, xi) with zero covariance.
+    Plot an analytical 2D Gaussian heatmap for (z, zhat) with zero covariance.
 
     The density is N(0, diag(sigma_x^2, sigma_y^2)), where:
         sigma_x^2 = sum_i w_i^2  (analytically: n_inputs * E[w^2])
@@ -489,7 +490,7 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
     Parameters
     ----------
     sigma_x, sigma_y : float
-        Standard deviations along the z and xi axes respectively.
+        Standard deviations along the z and zhat axes respectively.
     color : np.ndarray
         RGB color array for the colormap.
     fname : str
@@ -546,7 +547,7 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
     plt.savefig(fig_dir + f"gaussian_{fname}.svg", dpi=600)
 
     ax.set_xlabel(r"$z$")
-    ax.set_ylabel(r"$\xi$")
+    ax.set_ylabel(r"$\hat{z}$")
 
     plt.show()
 
@@ -763,7 +764,7 @@ plt.show()
 print("  Generated decision boundary cartoon")
 
 # ------------------------------------------------------------------------------
-# SECTION 2: ELLIPSE CARTOON WITH PRINCIPAL AXES (z, xi plane)
+# SECTION 2: ELLIPSE CARTOON WITH PRINCIPAL AXES (z, zhat plane)
 # ------------------------------------------------------------------------------
 print("\n" + "=" * 60)
 print("STEP 2: ELLIPSE CARTOON WITH PRINCIPAL AXES")
@@ -804,7 +805,7 @@ ax.plot(x_ell, y_ell, color=sim_colors[1], lw=2)
 ax.plot([0, R * sigma_x_mid], [0, 0], c=con_colors[0], lw=3)
 ax.plot([R * sigma_x_mid, R * sigma_x_mid], [-bar_half, bar_half], c=con_colors[0], lw=3)
 
-# Principal axis along xi: from origin to (0, R*sigma_y), bar perpendicular (horizontal)
+# Principal axis along z_hat: from origin to (0, R*sigma_y), bar perpendicular (horizontal)
 ax.plot([0, 0], [0, R * sigma_y_mid], c=con_colors[1], lw=3)
 ax.plot([-bar_half, bar_half], [R * sigma_y_mid, R * sigma_y_mid], c=con_colors[1], lw=3)
 
@@ -821,7 +822,7 @@ ax.text(0.77, 0.23, "Error", ha="center", va="center", transform=ax.transAxes)
 ax.text(0.23, 0.77, "Error", ha="center", va="center", transform=ax.transAxes)
 
 ax.set_xlabel(r"$z$")
-ax.set_ylabel(r"$\xi$")
+ax.set_ylabel(r"$\hat{z}$")
 
 plt.show()
 print("  Generated ellipse cartoon with principal axes")
@@ -829,60 +830,13 @@ print("  Generated ellipse cartoon with principal axes")
 # ------------------------------------------------------------------------------
 # SECTION 3: LOAD / RUN z/ztilde SIMULATIONS
 # ------------------------------------------------------------------------------
-rng = np.random.default_rng(rng_seed)
-
 print("\n" + "=" * 60)
 print("STEP 3: SIMULATION")
 print("=" * 60)
 
-if os.path.exists(sim_file):
-    df_all = pd.read_parquet(sim_file)
-    print(f"Loaded existing file with {len(df_all)} rows")
-else:
-    df_all = None
-    print("No existing simulation file found")
-
-missing = get_missing_params(param_sets, eps, df_all)
-
-if missing:
-    print(f"Running simulations for {len(missing)} parameter sets...")
-    new_dfs = []
-    for param_set in missing:
-        distribution, mean, var = parse_param_set(param_set)
-        print(
-            f"  Simulating distribution={distribution}, mean={mean}"
-            + (f", variance={var}" if var is not None else "")
-            + "..."
-        )
-        df, w = compute_z_ztilde(
-            distribution=distribution,
-            mean=mean,
-            n_inputs=n_inputs,
-            eta=eta,
-            eps=eps,
-            n_draws=n_draws,
-            n_perturb=n_perturb,
-            rng=rng,
-            var=var,
-        )
-        new_dfs.append(df)
-        print(f"    Generated {len(df)} rows")
-
-    df_new = pd.concat(new_dfs, ignore_index=True)
-
-    if df_all is not None:
-        df_all = pd.concat([df_all, df_new], ignore_index=True)
-    else:
-        df_all = df_new
-
-    df_all.to_parquet(sim_file)
-    print(f"Saved {len(df_all)} total rows to {sim_file}")
-else:
-    print("All parameter sets already simulated, skipping simulation step")
-
-df_xi = df_all[["distribution", "mean", "variance", "eps", "draw_idx", "perturb_idx", "xi"]]
-df_xi.to_parquet(xi_sim_file)
-print(f"Saved xi to {xi_sim_file}")
+run_zztilde_simulation()
+df_all = pd.read_parquet(sim_file)
+print(f"Loaded {len(df_all)} rows from {sim_file}")
 
 # ------------------------------------------------------------------------------
 # SHARED AXIS LIMITS FOR SECTIONS 4 & 5
@@ -939,10 +893,10 @@ for i, param_set in enumerate(param_sets):
         ]
 
     z_vals = df_subset["z"].values
-    xi_vals = df_subset["xi"].values
+    zhat_vals = df_subset["zhat"].values
 
     plot_local_field_hist(
-        z_vals, xi_vals, color=sim_colors[i], fname=f"{distribution}_{i}",
+        z_vals, zhat_vals, color=sim_colors[i], fname=f"{distribution}_{i}",
         last=(i == len(param_sets) - 1),
         xlim=hist_xlim, ylim=hist_ylim,
     )

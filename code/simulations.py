@@ -8,7 +8,7 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 16 Apr 2026
+    Thu 17 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
@@ -16,6 +16,7 @@ notes:
     1. FlyWire loss simulation -> simulation_results/loss_data.parquet
     2. Periphery scoring -> simulation_results/periphery_data.parquet
     3. z/ztilde simulation -> simulation_results/z_ztilde_simulations.parquet
+                              simulation_results/zhat_simulations.parquet
     4. Parametric distributions -> simulation_results/{dist}_sim_{n}.parquet
     5. Network shuffling -> simulation_results/{name}_shuffled.parquet
 
@@ -485,7 +486,7 @@ def generate_weights_zztilde(distribution, mean, n_inputs, rng, var=None):
     Parameters
     ----------
     distribution : str
-        One of 'dirac', 'poisson', 'pareto', or 'gamma'.
+        One of 'dirac', 'poisson', 'pareto', 'gamma', or 'lognormal'.
     mean : float
         Mean of the distribution.
     n_inputs : int
@@ -523,6 +524,13 @@ def generate_weights_zztilde(distribution, mean, n_inputs, rng, var=None):
         theta = var / mean
         alpha = mean / theta
         w = rng.gamma(alpha, theta, n_inputs)
+        computed_var = var
+    elif distribution == "lognormal":
+        if var is None:
+            raise ValueError("Lognormal distribution requires variance parameter")
+        sigma2 = np.log(1.0 + var / mean**2)
+        mu = np.log(mean) - sigma2 / 2.0
+        w = rng.lognormal(mu, np.sqrt(sigma2), n_inputs)
         computed_var = var
     else:
         raise ValueError(f"Unknown distribution: {distribution}")
@@ -581,7 +589,7 @@ def compute_z_ztilde(
     perturb_idx = np.repeat(np.arange(n_perturb), n_draws)
     z_flat = np.tile(z, n_perturb)
     ztilde_flat = ztilde.ravel()
-    xi_flat = ztilde_flat - z_flat
+    zhat_flat = ztilde_flat - z_flat
 
     df = pd.DataFrame(
         {
@@ -593,7 +601,7 @@ def compute_z_ztilde(
             "perturb_idx": perturb_idx,
             "z": z_flat,
             "ztilde": ztilde_flat,
-            "xi": xi_flat,
+            "zhat": zhat_flat,
         }
     )
 
@@ -682,10 +690,10 @@ def run_zztilde_simulation():
     else:
         print("All parameter sets already simulated, skipping simulation step")
 
-    xi_file = sim_dir + "xi_simulations.parquet"
-    df_xi = df_all[["distribution", "mean", "variance", "eps", "draw_idx", "perturb_idx", "xi"]]
-    df_xi.to_parquet(xi_file)
-    print(f"Saved xi to {xi_file}")
+    zhat_file = sim_dir + "zhat_simulations.parquet"
+    df_zhat = df_all[["distribution", "mean", "variance", "eps", "draw_idx", "perturb_idx", "zhat"]]
+    df_zhat.to_parquet(zhat_file)
+    print(f"Saved zhat to {zhat_file}")
 
 
 # ==============================================================================
@@ -1345,7 +1353,7 @@ if __name__ == "__main__":
     print(f"  - {sim_dir}loss_data.parquet")
     print(f"  - {sim_dir}periphery_data.parquet")
     print(f"  - {sim_dir}z_ztilde_simulations.parquet")
-    print(f"  - {sim_dir}xi_simulations.parquet")
+    print(f"  - {sim_dir}zhat_simulations.parquet")
     print(f"  - {sim_dir}lognormal_sim_100.parquet")
     print(f"  - {sim_dir}lomax_sim_100.parquet")
     print(f"  - {sim_dir}gamma_sim_100.parquet")
