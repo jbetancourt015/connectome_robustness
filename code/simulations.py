@@ -1,15 +1,14 @@
 """
     Master script for running all simulations for the connectome robustness paper.
-    This script consolidates simulations from final_code/ and simulation_code/.
 
-    Output files are saved to data/ and simulation_results/ for use by
-    the figure-generation script.
+    Can be run directly to execute all simulations, or imported by figure scripts
+    to access individual simulation functions without triggering execution.
 -------------------------------------------------------------------------------
 created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 25 Feb 2026
+    Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
@@ -1347,34 +1346,35 @@ def run_network_shuffling():
 # ==============================================================================
 # MAIN EXECUTION
 # ==============================================================================
-print("\n" + "=" * 60)
-print("CONNECTOME ROBUSTNESS: MASTER SIMULATION SCRIPT")
-print("=" * 60)
-print(f"Skip existing simulations: {SKIP_EXISTING_SIMULATIONS}")
-print(f"Random seed: {RNG_SEED}")
-print("=" * 60)
+if __name__ == "__main__":
+    print("\n" + "=" * 60)
+    print("CONNECTOME ROBUSTNESS: MASTER SIMULATION SCRIPT")
+    print("=" * 60)
+    print(f"Skip existing simulations: {SKIP_EXISTING_SIMULATIONS}")
+    print(f"Random seed: {RNG_SEED}")
+    print("=" * 60)
 
-# Run all simulations
-run_flywire_loss_simulation()
-run_flywire_periphery_scoring()
-run_zztilde_simulation()
-run_parametric_simulations()
-run_network_shuffling()
+    # Run all simulations
+    run_flywire_loss_simulation()
+    run_flywire_periphery_scoring()
+    run_zztilde_simulation()
+    run_parametric_simulations()
+    run_network_shuffling()
 
-print("\n" + "=" * 60)
-print("ALL SIMULATIONS COMPLETE!")
-print("=" * 60)
-print("\nOutput files generated:")
-print(f"  - {sim_dir}loss_data.parquet")
-print(f"  - {sim_dir}periphery_data.parquet")
-print(f"  - {sim_dir}z_ztilde_simulations.parquet")
-print(f"  - {sim_dir}xi_simulations.parquet")
-print(f"  - {sim_dir}lognormal_sim_100.parquet")
-print(f"  - {sim_dir}lomax_sim_100.parquet")
-print(f"  - {sim_dir}gamma_sim_100.parquet")
-print(f"  - {sim_dir}*_shuffled.parquet (8 connectomes)")
-print(f"  - {sim_dir}*_shuffled_multinomial.parquet (8 connectomes)")
-print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights.npz")
+    print("\n" + "=" * 60)
+    print("ALL SIMULATIONS COMPLETE!")
+    print("=" * 60)
+    print("\nOutput files generated:")
+    print(f"  - {sim_dir}loss_data.parquet")
+    print(f"  - {sim_dir}periphery_data.parquet")
+    print(f"  - {sim_dir}z_ztilde_simulations.parquet")
+    print(f"  - {sim_dir}xi_simulations.parquet")
+    print(f"  - {sim_dir}lognormal_sim_100.parquet")
+    print(f"  - {sim_dir}lomax_sim_100.parquet")
+    print(f"  - {sim_dir}gamma_sim_100.parquet")
+    print(f"  - {sim_dir}*_shuffled.parquet (8 connectomes)")
+    print(f"  - {sim_dir}*_shuffled_multinomial.parquet (8 connectomes)")
+    print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights.npz")
 print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights_multinomial.npz")
 print(f"  - {sim_dir}drosophila_whole_brain_shuffled_weights_multinomial.npz")
 print("=" * 60)
