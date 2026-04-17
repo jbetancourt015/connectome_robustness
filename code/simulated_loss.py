@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 20 Jan 2026
+    Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -197,11 +197,9 @@ for i in range(n_mean_bins):
         mean_mids.append(df_nonneg.loc[mean_mask, 'mean'].median())
 mean_mids = np.array(mean_mids)
 
-# Log-normalize for colormap (ignore NaN bins)
+# Log-normalize for colormap using the bin-median range
 valid_means = mean_mids[~np.isnan(mean_mids)]
-log_mean_min, log_mean_max = np.log10(valid_means.min()), np.log10(valid_means.max())
-def mean_to_norm(m):
-    return (np.log10(m) - log_mean_min) / (log_mean_max - log_mean_min)
+mean_norm = mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max())
 
 # Set up figure
 cmap = plt.get_cmap('dark_cool')
@@ -213,7 +211,7 @@ for i in range(n_mean_bins):
         continue
 
     mean_mid = mean_mids[i]
-    color = cmap(mean_to_norm(mean_mid))
+    color = cmap(mean_norm(mean_mid))
 
     # Compute median loss and median variance for each variance bin
     grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
@@ -238,12 +236,12 @@ plt.savefig('../../figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
 print(f"Colorbar range (avg incoming weight) — min: {valid_means.min():.4f}, max: {valid_means.max():.4f}")
 
 # Add colorbar for interactive display (not in saved file)
-sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max()))
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=mean_norm)
 sm.set_array([])
 plt.colorbar(sm, ax=ax)
 
 ax.set_xlabel('Variance')
-ax.set_ylabel('Simulated loss')
+ax.set_ylabel('Simulated error probability')
 
 plt.show()
 
@@ -258,7 +256,7 @@ for i in range(n_mean_bins):
         continue
 
     mean_mid = mean_mids[i]
-    color = cmap(mean_to_norm(mean_mid))
+    color = cmap(mean_norm(mean_mid))
 
     # Compute median, Q1, Q3 for loss and variance per variance bin
     grouped_loss    = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
@@ -293,13 +291,13 @@ for i in range(n_mean_bins):
     plt.savefig(f"../../figures/simulated_loss/loss_vs_variance_separate_{i}.svg", dpi=600)
     
     # Add colorbar for interactive display (not in saved file)
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max()))
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=mean_norm)
     sm.set_array([])
     plt.colorbar(sm, ax=ax)
     
     ax.set_xlabel('Variance')
-    ax.set_ylabel('Simulated loss')
-    
+    ax.set_ylabel('Simulated error probability')
+
     plt.show()
 
 
@@ -360,8 +358,8 @@ plt.subplots_adjust(**fig_margins)
 plt.savefig('../../figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
 
 # Add labels
-ax.set_xlabel('Predicted loss')
-ax.set_ylabel('Simulated loss')
+ax.set_xlabel('Predicted error probability')
+ax.set_ylabel('Simulated error probability')
 
 # Add colorbar after saving (only shows in plt.show(), not in PDF)
 cb = fig.colorbar(im, ax=ax)
@@ -383,7 +381,7 @@ for i in range(n_mean_bins):
         continue
 
     mean_mid = mean_mids[i]
-    color = cmap(mean_to_norm(mean_mid))
+    color = cmap(mean_norm(mean_mid))
 
     # Compute median loss and median variance for each variance bin
     grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
@@ -413,12 +411,12 @@ plt.savefig('../../figures/simulated_loss/loss_vs_robustness_binned.svg', dpi=60
 print(f"Colorbar range (avg incoming weight) — min: {valid_means.min():.4f}, max: {valid_means.max():.4f}")
 
 # Add colorbar for interactive display (not in saved file)
-sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max()))
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=mean_norm)
 sm.set_array([])
 plt.colorbar(sm, ax=ax)
 
 # Add labels
 ax.set_xlabel('Robustness')
-ax.set_ylabel('Simulated loss')
+ax.set_ylabel('Simulated error probability')
 
 plt.show()

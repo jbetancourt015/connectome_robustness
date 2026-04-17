@@ -47,7 +47,7 @@ parametric_n_neurons = int(1e3)
 parametric_n_inputs  = int(1e3)
 parametric_n_draws   = int(1e3)
 parametric_n_perturb = int(1e3)
-parametric_n_mean    = 4
+parametric_mean_vals = [2.0, 4.0, 8.0, 16.0]   # manually chosen mean values for parametric sims
 parametric_n_var     = 10
 
 # ── Network shuffling ──────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 17 Apr 2026
+    Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -38,6 +38,7 @@ import logging
 from params import (
     rng_seed, eta,
     zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
+    shuffle_k_min,
 )
 from simulations import run_zztilde_simulation
 
@@ -87,8 +88,9 @@ con_colors = (
 )
 
 # Directory paths
-sim_dir = "../simulation_results/"
-fig_dir = "../../figures/framework/"
+sim_dir       = "../simulation_results/"
+processed_dir = "../processed_data/"
+fig_dir       = "../../figures/framework/"
 
 # Single consolidated simulation file for z/ztilde
 sim_file = sim_dir + "z_ztilde_simulations.parquet"
@@ -103,8 +105,8 @@ width_sm = 0.15 * pg_width / mm_to_in
 height_sm = 0.15 * pg_width / mm_to_in
 width_md = (1/3.) * pg_width / mm_to_in
 height_md = (1/3.) * pg_width / mm_to_in
-width_lg = 0.4 * pg_width / mm_to_in
-height_lg = 0.4 * pg_width / mm_to_in
+width_lg = 0.45 * pg_width / mm_to_in
+height_lg = 0.45 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins_sm = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
@@ -152,6 +154,29 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
     top = (*rgb, 1.0)
     return LinearSegmentedColormap.from_list(name, [bottom, top], N=256)
+
+
+def mean_bin_median_norm(n_mean_bins=4):
+    """
+    Compute LogNorm anchored to bin-median mean values from FlyWire neuron data.
+    Matches the colorbar range used in simulated_loss.py.
+    """
+    neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
+    neuron_df = neuron_df[neuron_df["in_deg"] >= shuffle_k_min]
+    neuron_df["mean"] = neuron_df["in_strength"] / neuron_df["in_deg"]
+    neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df["mean"] ** 2
+    df_nonneg = neuron_df[neuron_df["var"] > 1e-5].copy()
+
+    mean_bins = np.logspace(
+        np.log10(df_nonneg["mean"].min()), np.log10(df_nonneg["mean"].max()), n_mean_bins + 1
+    )
+    df_nonneg["mean_bin"] = pd.cut(df_nonneg["mean"], bins=mean_bins, labels=False, include_lowest=True)
+    mean_mids = np.array([
+        df_nonneg.loc[df_nonneg["mean_bin"] == i, "mean"].median()
+        for i in range(n_mean_bins)
+    ])
+    valid_means = mean_mids[~np.isnan(mean_mids)]
+    return mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max())
 
 
 def draw_ellipse(R, rho, ax, color, lim=3.0):
@@ -442,7 +467,7 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
     xbins = np.linspace(-xlim, xlim, n_bins)
     ybins = np.linspace(-ylim, ylim, n_bins)
 
-    ax_scatter.hist2d(
+    _, _, _, hist_img = ax_scatter.hist2d(
         z,
         zhat,
         bins=[xbins, ybins],
@@ -472,6 +497,7 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"hist_{fname}.svg", dpi=600)
 
+    fig.colorbar(hist_img, ax=ax_scatter).set_label("Probability density")
     ax_scatter.set_xlabel(r"$z$")
     ax_scatter.set_ylabel(r"$\hat{z}$")
 
@@ -514,7 +540,7 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
 
     fig, ax = plt.subplots(figsize=(width_sm, height_sm))
 
-    ax.pcolormesh(
+    mesh = ax.pcolormesh(
         X,
         Y,
         Z,
@@ -546,6 +572,7 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"gaussian_{fname}.svg", dpi=600)
 
+    fig.colorbar(mesh, ax=ax).set_label("Probability density")
     ax.set_xlabel(r"$z$")
     ax.set_ylabel(r"$\hat{z}$")
 
@@ -565,23 +592,26 @@ def plot_parametric_loss(distribution, n_inputs):
     """
     df = pd.read_parquet(sim_dir + f"{distribution}_sim_{n_inputs}.parquet")
 
-    mean_vals = df["mean"].unique()
+    mean_vals = np.sort(df["mean"].unique())
     var_vals = df["var"].unique()
 
     var_min, var_max = np.min(var_vals), np.max(var_vals)
     var_pred = np.logspace(np.log10(var_min) - 0.3, np.log10(var_max) + 0.3, n_pred)
 
-    cmap = plt.get_cmap("dark_cool", len(mean_vals))
+    # Color range anchored to bin-median range from FlyWire data (matches simulated_loss.py)
+    cmap = plt.get_cmap("dark_cool")
+    norm = mean_bin_median_norm()
 
     fig, ax = plt.subplots(figsize=(width_lg, height_lg))
 
-    for i, mean in enumerate(mean_vals):
+    for mean in mean_vals:
         mask = df["mean"] == mean
+        color = cmap(norm(mean))
 
         ax.plot(
             var_pred,
             general_loss(mean, var_pred),
-            c=cmap(i),
+            c=color,
             lw=2,
             label=f"Mean$={mean}$",
             zorder=0,
@@ -590,7 +620,7 @@ def plot_parametric_loss(distribution, n_inputs):
             df[mask]["var"],
             df[mask]["sim_loss"],
             c="white",
-            edgecolors=cmap(i),
+            edgecolors=color,
             s=20,
             rasterized=True,
         )
@@ -605,10 +635,12 @@ def plot_parametric_loss(distribution, n_inputs):
     plt.subplots_adjust(**fig_margins_lg)
     plt.savefig(fig_dir + f"{distribution}_simulation_var.svg", dpi=600)
 
-    ax.legend()
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    fig.colorbar(sm, ax=ax).set_label("Mean")
 
     ax.set_xlabel("Variance")
-    ax.set_ylabel("Simulated loss")
+    ax.set_ylabel("Simulated error probability")
 
     plt.show()
 

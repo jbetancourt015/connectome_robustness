@@ -8,7 +8,7 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 17 Apr 2026
+    Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
@@ -43,7 +43,7 @@ from params import (
     periphery_n_sim, periphery_threshold, periphery_repeats,
     zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
     parametric_n_neurons, parametric_n_inputs, parametric_n_draws, parametric_n_perturb,
-    parametric_n_mean, parametric_n_var,
+    parametric_mean_vals, parametric_n_var,
     shuffle_k_min, shuffle_n_threshold_default, shuffle_n_threshold_banc,
 )
 
@@ -897,27 +897,18 @@ def run_parametric_simulations():
 
     mu_min, mu_max = neuron_df["mean"].min(), neuron_df["mean"].max()
 
-    # Log-uniform mean bin edges (n_mean + 1 edges -> n_mean bins),
-    # matching the binning in flywire_loss_analysis.py
-    mean_edges = np.logspace(np.log10(mu_min), np.log10(mu_max), parametric_n_mean + 1)
+    mean_vals = np.array(parametric_mean_vals)
 
     # --- Derive variance grid via quantile binning within mean bins ----------
-    # Bin neurons by mean using log-uniform edges
+    # Bin neurons by mean using log-uniform edges matched to the data range
+    mean_edges = np.logspace(np.log10(mu_min), np.log10(mu_max), len(mean_vals) + 1)
     neuron_df["mean_bin"] = pd.cut(
         neuron_df["mean"], bins=mean_edges, labels=False, include_lowest=True
     )
 
-    # Representative mean for each bin: median of neurons in that bin
-    mean_vals = np.array(
-        [
-            neuron_df.loc[neuron_df["mean_bin"] == i, "mean"].median()
-            for i in range(parametric_n_mean)
-        ]
-    )
-
     # Within each mean bin, split variances into quantile bins and take medians
     all_var_medians = []
-    for i in range(parametric_n_mean):
+    for i in range(len(mean_vals)):
         mean_mask = neuron_df["mean_bin"] == i
         subset_var = neuron_df.loc[mean_mask, "var"]
         if len(subset_var) == 0:
@@ -939,7 +930,7 @@ def run_parametric_simulations():
     var_vals = np.logspace(np.log10(var_pool_min), np.log10(var_pool_max), parametric_n_var)
 
     print(
-        f"  Mean  range: [{mu_min:.2f}, {mu_max:.2f}]  ->  {parametric_n_mean} log-spaced points"
+        f"  Mean  range: [{mu_min:.2f}, {mu_max:.2f}]  (data)  ->  manual values: {mean_vals}"
     )
     print(
         f"  Var   range: [{var_pool_min:.2f}, {var_pool_max:.2f}]  ->  {parametric_n_var} log-spaced points (from quantile medians)"
