@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 16 Apr 2026
+    Thu 17 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -154,6 +154,13 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
     top = (*rgb, 1.0)
     return LinearSegmentedColormap.from_list(name, [bottom, top], N=256)
+
+
+def _outer_tick(lim):
+    """Sig fig just below 75% of lim (e.g. lim=23.4 → 0.75*23.4=17.6 → 10)."""
+    val = 0.75 * lim
+    exp = int(np.floor(np.log10(val)))
+    return int(np.floor(val / 10**exp) * 10**exp)
 
 
 def mean_bin_median_norm(n_mean_bins=4):
@@ -487,12 +494,14 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
 
     ax_scatter.plot([0.0, 0.0], [-ylim, ylim], c="k", alpha=0.5, lw=1)
     ax_scatter.plot([-xlim, xlim], [0.0, 0.0], c="k", alpha=0.5, lw=1)
-    ax_scatter.plot([-xlim, xlim], [xlim, -xlim], c="k", alpha=0.5, lw=1)
+    _diag = max(xlim, ylim)
+    ax_scatter.plot([-_diag, _diag], [_diag, -_diag], c="k", alpha=0.5, lw=1)
 
     ax_scatter.set_xlim(-xlim, xlim)
     ax_scatter.set_ylim(-ylim, ylim)
     ax_scatter.set_yticks([])
-    ax_scatter.set_xticks([0] if last else [])
+    _xt = _outer_tick(xlim)
+    ax_scatter.set_xticks([-_xt, 0, _xt] if last else [])
 
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"hist_{fname}.svg", dpi=600)
@@ -561,13 +570,16 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
 
     ax.plot([0.0, 0.0], [-ylim, ylim], c="k", alpha=0.5, lw=1)
     ax.plot([-xlim, xlim], [0.0, 0.0], c="k", alpha=0.5, lw=1)
-    ax.plot([-xlim, xlim], [xlim, -xlim], c="k", alpha=0.5, lw=1)
+    _diag = max(xlim, ylim)
+    ax.plot([-_diag, _diag], [_diag, -_diag], c="k", alpha=0.5, lw=1)
 
     ax.set_xlim(-xlim, xlim)
     ax.set_ylim(-ylim, ylim)
 
-    ax.set_yticks([0])
-    ax.set_xticks([0] if last else [])
+    _yt = _outer_tick(ylim)
+    ax.set_yticks([-_yt, 0, _yt])
+    _xt = _outer_tick(xlim)
+    ax.set_xticks([-_xt, 0, _xt] if last else [])
 
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"gaussian_{fname}.svg", dpi=600)
@@ -802,14 +814,13 @@ print("\n" + "=" * 60)
 print("STEP 2: ELLIPSE CARTOON WITH PRINCIPAL AXES")
 print("=" * 60)
 
-# Analytical sigma values for the intermediate param set (index 1)
+# Analytical sigma values for the intermediate param set (index 1), normalized by sqrt(n_inputs)
 _, mean_mid, var_mid = parse_param_set(param_sets[1])
-sigma_x_mid = np.sqrt(n_inputs * (var_mid + mean_mid**2))
-sigma_y_mid = eps * np.sqrt(n_inputs * mean_mid)
+sigma_x_mid = np.sqrt(var_mid + mean_mid**2)
+sigma_y_mid = eps * np.sqrt(mean_mid)
 
 R = 1.5        # level-set radius
 lim = 1.5 * R * max(sigma_x_mid, sigma_y_mid)
-bar_half = 0.08 * lim
 
 fig, ax = plt.subplots(figsize=(width_md, height_md))
 
@@ -833,19 +844,20 @@ y_ell = R * sigma_y_mid * np.sin(t)
 ax.fill(x_ell, y_ell, color=sim_colors[1], alpha=0.3)
 ax.plot(x_ell, y_ell, color=sim_colors[1], lw=2)
 
-# Principal axis along z: from origin to (R*sigma_x, 0), bar perpendicular (vertical)
-ax.plot([0, R * sigma_x_mid], [0, 0], c=con_colors[0], lw=3)
-ax.plot([R * sigma_x_mid, R * sigma_x_mid], [-bar_half, bar_half], c=con_colors[0], lw=3)
+# Principal axis along z: arrow from origin to (R*sigma_x, 0)
+ax.annotate("", xy=(R * sigma_x_mid, 0), xytext=(0, 0),
+            arrowprops=dict(arrowstyle="-|>", color=con_colors[0], lw=2, mutation_scale=12))
 
-# Principal axis along z_hat: from origin to (0, R*sigma_y), bar perpendicular (horizontal)
-ax.plot([0, 0], [0, R * sigma_y_mid], c=con_colors[1], lw=3)
-ax.plot([-bar_half, bar_half], [R * sigma_y_mid, R * sigma_y_mid], c=con_colors[1], lw=3)
+# Principal axis along z_hat: arrow from origin to (0, R*sigma_y)
+ax.annotate("", xy=(0, R * sigma_y_mid), xytext=(0, 0),
+            arrowprops=dict(arrowstyle="-|>", color=con_colors[1], lw=2, mutation_scale=12))
 
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
 ax.set_aspect("equal")
-ax.set_xticks([0])
-ax.set_yticks([0])
+_t = _outer_tick(lim)
+ax.set_xticks([-_t, 0, _t])
+ax.set_yticks([-_t, 0, _t])
 
 plt.subplots_adjust(**fig_margins_md)
 plt.savefig(fig_dir + "2d_local_field_distribution.svg", dpi=600)
@@ -872,8 +884,9 @@ print(f"Loaded {len(df_all)} rows from {sim_file}")
 
 # ------------------------------------------------------------------------------
 # SHARED AXIS LIMITS FOR SECTIONS 4 & 5
-# Analytical sigma values: sigma_x^2 = n_inputs*(var+mean^2), sigma_y^2 = eps^2*n_inputs*mean
-# Use ±3 sigma (taking the max across all param sets) so all six panels share the same range.
+# Normalized sigma values (divided by sqrt(n_inputs)):
+#   sigma_x^2 = var + mean^2 = E[w^2],  sigma_y^2 = eps^2 * mean = eps^2 * E[w]
+# Use ±2 sigma (taking the max across all param sets) so all six panels share the same range.
 # ------------------------------------------------------------------------------
 sigma_xs, sigma_ys = [], []
 for param_set in param_sets:
@@ -892,12 +905,11 @@ for param_set in param_sets:
             & (df_all["eps"] == eps)
         ]
     computed_var = df_tmp["variance"].iloc[0]
-    sigma_xs.append(np.sqrt(n_inputs * (computed_var + mean**2)))
-    sigma_ys.append(eps * np.sqrt(n_inputs * mean))
+    sigma_xs.append(np.sqrt(computed_var + mean**2))
+    sigma_ys.append(eps * np.sqrt(mean))
 
-hist_lim = 3.0 * max(max(sigma_xs), max(sigma_ys))
-hist_xlim = hist_lim
-hist_ylim = hist_lim
+hist_xlim = 2.0 * max(sigma_xs)
+hist_ylim = 2.0 * max(sigma_ys)
 
 # ------------------------------------------------------------------------------
 # SECTION 4: SIMULATED 2D HISTOGRAMS
@@ -924,8 +936,8 @@ for i, param_set in enumerate(param_sets):
             & (df_all["eps"] == eps)
         ]
 
-    z_vals = df_subset["z"].values
-    zhat_vals = df_subset["zhat"].values
+    z_vals = df_subset["z"].values / np.sqrt(n_inputs)
+    zhat_vals = df_subset["zhat"].values / np.sqrt(n_inputs)
 
     plot_local_field_hist(
         z_vals, zhat_vals, color=sim_colors[i], fname=f"{distribution}_{i}",
