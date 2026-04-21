@@ -14,7 +14,7 @@ This repository contains the full computational pipeline used to preprocess conn
     │   ├── framework.py
     │   ├── robustness_comparison.py
     │   ├── simulated_loss.py
-    │   ├── flywire_robustness_plots.py
+    │   ├── drosophila_robustness.py
     │   ├── connection_strength_distributions.py
     │   ├── statistics.py
     ├── processed_data/
@@ -86,7 +86,7 @@ simulation_results/
 python code/framework.py
 python code/robustness_comparison.py
 python code/simulated_loss.py
-python code/flywire_robustness_plots.py
+python code/drosophila_robustness.py
 python code/connection_strength_distributions.py
 ```
 
