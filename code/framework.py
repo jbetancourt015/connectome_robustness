@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 17 Apr 2026
+    Sat 19 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -131,8 +131,8 @@ n_perturb  = zztilde_n_perturb
 alpha_min = 0.2
 n_bins = 20
 
-# Distribution PDF plot parameters
-pdf_log_x = False
+# Distribution PDF plot parameters — set to a float to fix the y-axis for continuous PDFs
+pdf_y_max = 1.
 
 # Parametric loss parameters
 n_pred = 200
@@ -210,44 +210,6 @@ def draw_ellipse(R, rho, ax, color, lim=3.0):
     level = (R**2) * np.sqrt(1 - rho**2)
     ax.contourf(X, Y, Z, levels=[0, level], colors=[color], alpha=0.3)
     ax.contour(X, Y, Z, levels=[level], colors=[color], linewidths=2)
-
-
-def draw_principal_axes(R, rho, ax, color_pos, color_neg, lw=1):
-    """
-    Draw dashed principal axes (y=x and y=-x) within ellipse bounds.
-
-    Parameters
-    ----------
-    R : float
-        Radius scaling factor.
-    rho : float
-        Correlation parameter controlling ellipse shape.
-    ax : matplotlib.axes.Axes
-        Axes to draw on.
-    color_pos, color_neg : np.ndarray
-        RGB color arrays for the two axes.
-    lw : float
-        Line width.
-    """
-    level = R**2 * np.sqrt(1 - rho**2)
-    x_pos = np.sqrt(level / (2 * (1 - rho)))  # y=x line
-    x_neg = np.sqrt(level / (2 * (1 + rho)))  # y=-x line
-
-    ax.annotate(
-        "",
-        xytext=(0, 0),
-        xy=(x_pos, x_pos),
-        arrowprops=dict(color=color_pos, width=1, headwidth=5),
-    )
-    ax.annotate(
-        "",
-        xytext=(0, 0),
-        xy=(x_neg, -x_neg),
-        arrowprops=dict(color=color_neg, width=1, headwidth=5),
-    )
-
-    ax.plot([0.0, x_pos], [0.0, x_pos], c=color_pos, lw=lw)
-    ax.plot([0.0, x_neg], [0.0, -x_neg], c=color_neg, lw=lw)
 
 
 def general_loss(mean, var):
@@ -657,9 +619,7 @@ def plot_parametric_loss(distribution, n_inputs):
     plt.show()
 
 
-def plot_distribution_pdf(
-    distribution, mean, var, color, fname, x_range, y_range=None, log_x=False
-):
+def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_range=None):
     """
     Plot the PDF of the weight distribution used in simulations.
 
@@ -681,18 +641,11 @@ def plot_distribution_pdf(
     x_range : tuple
         Shared (x_min, x_max) range for the x-axis.
     y_range : tuple or None
-        Shared (y_min, y_max) range for the y-axis. If None, uses matplotlib default.
-    log_x : bool
-        If True, use a logarithmic x-axis.
+        (y_min, y_max) for continuous distributions. If None, uses matplotlib default.
     """
     fig, ax = plt.subplots(figsize=(0.4 * width_sm, 0.4 * height_sm))
 
     x_min, x_max = x_range
-
-    def _xspace(lo, hi, n=500):
-        if log_x:
-            return np.logspace(np.log10(lo), np.log10(hi), n)
-        return np.linspace(lo, hi, n)
 
     if distribution == "dirac":
         ax.plot([mean, mean], [0, 1], color=color, lw=2)
@@ -704,7 +657,7 @@ def plot_distribution_pdf(
     elif distribution == "gamma":
         theta = var / mean
         shape = mean**2 / var
-        x = _xspace(x_min, x_max)
+        x = np.linspace(x_min, x_max, 500)
         pdf = gamma_dist.pdf(x, a=shape, scale=theta)
         ax.plot(x, pdf, color=color, lw=2)
         ax.fill_between(x, pdf, alpha=0.2, color=color)
@@ -724,7 +677,7 @@ def plot_distribution_pdf(
         sigma2 = np.log(1 + var / mean**2)
         sigma = np.sqrt(sigma2)
         mu = np.log(mean) - sigma2 / 2
-        x = _xspace(max(x_min, 1e-6), x_max)
+        x = np.linspace(max(x_min, 1e-6), x_max, 500)
         pdf = lognorm_dist.pdf(x, s=sigma, scale=np.exp(mu))
         ax.plot(x, pdf, color=color, lw=2)
         ax.fill_between(x, pdf, alpha=0.2, color=color)
@@ -734,14 +687,12 @@ def plot_distribution_pdf(
     elif distribution == "pareto":
         if mean > 1:
             alpha_param = mean / (mean - 1)
-            x = _xspace(max(1, x_min), x_max)
+            x = np.linspace(max(1, x_min), x_max, 500)
             pdf = alpha_param / (x ** (alpha_param + 1))
             ax.plot(x, pdf, color=color, lw=2)
             ax.fill_between(x, pdf, alpha=0.2, color=color)
 
     ax.set_xlim(x_range)
-    if log_x:
-        ax.set_xscale("log")
     ax.set_xticks([])
     ax.set_yticks([])
 
@@ -846,11 +797,13 @@ ax.plot(x_ell, y_ell, color=sim_colors[1], lw=2)
 
 # Principal axis along z: arrow from origin to (R*sigma_x, 0)
 ax.annotate("", xy=(R * sigma_x_mid, 0), xytext=(0, 0),
-            arrowprops=dict(arrowstyle="-|>", color=con_colors[0], lw=2, mutation_scale=12))
+            arrowprops=dict(arrowstyle="-|>", color='k', lw=2, mutation_scale=12,
+                            shrinkA=0, shrinkB=0))
 
 # Principal axis along z_hat: arrow from origin to (0, R*sigma_y)
 ax.annotate("", xy=(0, R * sigma_y_mid), xytext=(0, 0),
-            arrowprops=dict(arrowstyle="-|>", color=con_colors[1], lw=2, mutation_scale=12))
+            arrowprops=dict(arrowstyle="-|>", color='k', lw=2, mutation_scale=12,
+                            shrinkA=0, shrinkB=0))
 
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
@@ -946,6 +899,7 @@ for i, param_set in enumerate(param_sets):
     )
 
     print("  Generated histogram")
+    print(f"  Simulated std:   std(z)={np.std(z_vals):.4f},  std(zhat)={np.std(zhat_vals):.4f}")
 
 # ------------------------------------------------------------------------------
 # SECTION 5: ANALYTICAL GAUSSIAN HEATMAPS
@@ -968,6 +922,7 @@ for i, param_set in enumerate(param_sets):
     )
 
     print("  Generated heatmap")
+    print(f"  Analytical std:  std(z)={sigma_xs[i]:.4f},  std(zhat)={sigma_ys[i]:.4f}")
 
 # ------------------------------------------------------------------------------
 # SECTION 6: LOSS VS VARIANCE
@@ -1010,32 +965,8 @@ for param_set in param_sets:
 
         x_max_vals.append(poisson_dist.ppf(0.7, mean))
 
-x_range_pdf = (
-    1e-2 if pdf_log_x else 0,
-    max(x_max_vals) if not pdf_log_x else 10 * max(x_max_vals),
-)
-
-continuous_y_max = -np.inf
-for param_set in param_sets:
-    distribution, mean, var = parse_param_set(param_set)
-    if distribution == "gamma":
-        theta = var / mean
-        shape = mean**2 / var
-        x = np.linspace(x_range_pdf[0], x_range_pdf[1], 500)
-        pdf = gamma_dist.pdf(x, a=shape, scale=theta)
-    elif distribution == "lognormal":
-        sigma2 = np.log(1 + var / mean**2)
-        sigma = np.sqrt(sigma2)
-        mu = np.log(mean) - sigma2 / 2
-        x = np.linspace(max(x_range_pdf[0], 1e-6), x_range_pdf[1], 500)
-        pdf = lognorm_dist.pdf(x, s=sigma, scale=np.exp(mu))
-    else:
-        continue
-    pdf_finite = pdf[np.isfinite(pdf) & (pdf > 0)]
-    if len(pdf_finite) > 0:
-        continuous_y_max = max(continuous_y_max, pdf_finite.max())
-
-continuous_y_range = (0, continuous_y_max * 1.05) if np.isfinite(continuous_y_max) else None
+x_range_pdf = (0, max(x_max_vals))
+continuous_y_range = (0, pdf_y_max) if pdf_y_max is not None else None
 
 for i, param_set in enumerate(param_sets):
     distribution, mean, var = parse_param_set(param_set)
@@ -1049,7 +980,6 @@ for i, param_set in enumerate(param_sets):
         fname=f"{distribution}_{i}",
         x_range=x_range_pdf,
         y_range=y_range,
-        log_x=pdf_log_x,
     )
     print("  Generated PDF plot")
 

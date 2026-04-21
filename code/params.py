@@ -16,7 +16,7 @@ contributors:
 """
 
 # ── Global ─────────────────────────────────────────────────────────────────────
-rng_seed      = 1764   # global random seed for reproducibility
+rng_seed      = 1674   # global random seed for reproducibility
 eta           = 1.0    # noise scaling exponent (used in all robustness computations)
 block_perturb = 128    # block size for memory-efficient Monte Carlo perturbation loop
 
@@ -34,13 +34,13 @@ periphery_repeats = 3
 # Each entry is (distribution, mean) or (distribution, mean, variance).
 zztilde_param_sets = [
     ("dirac",     1.0),
-    ("lognormal", 1.0,  5.0),
-    ("lognormal", 1.0, 20.0),
+    ("gamma", 1.0, 0.8),
+    ("gamma", 1.0, 3.0),
 ]
-zztilde_n_inputs  = int(1e4)
-zztilde_eps       = 2.0
-zztilde_n_draws   = int(1e3)
-zztilde_n_perturb = int(1e3)
+zztilde_n_inputs  = int(1e3)
+zztilde_eps       = 1.0
+zztilde_n_draws   = int(5e3)
+zztilde_n_perturb = int(5e3)
 
 # ── Parametric distribution simulations ───────────────────────────────────────
 parametric_n_neurons = int(1e3)
