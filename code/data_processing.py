@@ -7,7 +7,7 @@ created on:
     Mon 12 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Wed 25 Feb 2026
+    Mon 21 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from scipy.sparse import coo_matrix, save_npz
+import params
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
 #------------------------------------------------------------------------------
@@ -351,6 +352,24 @@ neuron_df = neuron_df.merge(class_df, on='root_id')
 for col in ['in_deg', 'in_strength', 'out_deg', 'out_strength']:
     neuron_df[col] = neuron_df[col].fillna(0)
 
+# Assign a neurotransmitter type to each neuron by plurality of outgoing synapses
+nt_out = (
+    conn_df
+    .groupby(['pre_root_id', 'nt_type'], as_index=False)['syn_count']
+    .sum()
+    .pivot(index='pre_root_id', columns='nt_type', values='syn_count')
+    .fillna(0)
+)
+nt_out_frac = nt_out.div(nt_out.sum(axis=1), axis=0)
+nt_out_max  = nt_out_frac.max(axis=1)
+nt_out_argmax = nt_out_frac.idxmax(axis=1)
+
+nt_type_assigned = nt_out_argmax.where(nt_out_max >= params.nt_plurality_thresh, other=np.nan)
+nt_type_assigned.name = 'nt_type'
+nt_type_assigned.index.name = 'root_id'
+
+neuron_df = neuron_df.merge(nt_type_assigned.reset_index(), on='root_id', how='left')
+
 # Save dataset as parquet
 neuron_df.to_parquet(processed_dir+'neuron_data.parquet')
 
@@ -410,12 +429,9 @@ for col in wide_df.columns:
 
 conn_class_df = wide_df.reset_index()
 
-# Set threshold for classification
-thresh = 0.6
-
 # Classify neurons as excitatory/inhibitory
-conn_class_df['is_exc'] = conn_class_df['frac_exc'] >= thresh
-conn_class_df['is_inh'] = conn_class_df['frac_inh'] >= thresh
+conn_class_df['is_exc'] = conn_class_df['frac_exc'] >= params.nt_class_thresh
+conn_class_df['is_inh'] = conn_class_df['frac_inh'] >= params.nt_class_thresh
 
 def classify_row(row):
     inh = row['is_inh']

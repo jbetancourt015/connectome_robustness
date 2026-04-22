@@ -6,7 +6,7 @@ created on:
     Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 16 Apr 2026
+    Mon 21 Apr 2026
 -------------------------------------------------------------------------------
 contributors:
     Jose:
@@ -49,6 +49,10 @@ parametric_n_draws   = int(1e3)
 parametric_n_perturb = int(1e3)
 parametric_mean_vals = [2.0, 4.0, 8.0, 16.0]   # manually chosen mean values for parametric sims
 parametric_n_var     = 10
+
+# ── Neurotransmitter classification ───────────────────────────────────────────
+nt_class_thresh    = 0.6   # min outgoing fraction to assign exc/inh nt_class per connection
+nt_plurality_thresh = 0.7  # min outgoing fraction to assign a specific nt_type per neuron
 
 # ── Network shuffling ──────────────────────────────────────────────────────────
 shuffle_k_min               = 10

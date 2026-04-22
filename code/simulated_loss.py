@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Wed 16 Apr 2026
+    Mon 21 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -249,7 +249,7 @@ plt.show()
 # SEPARATE LOSS PLOTS
 #------------------------------------------------------------------------------
 for i in range(n_mean_bins):
-    fig, ax = plt.subplots(figsize=(.5*width, .5*height))
+    fig, ax = plt.subplots(figsize=(.45*width, .45*height))
 
     mean_mask = df_nonneg['mean_bin'] == i
     if mean_mask.sum() == 0:
@@ -285,9 +285,10 @@ for i in range(n_mean_bins):
     plt.subplots_adjust(**fig_margins)
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_xticks([1e1,1e3])
-    if i > 0:
-        ax.set_yticks([])
+    if i == n_mean_bins - 1:
+        ax.set_xticks([1e1,1e3])
+    else:
+        ax.set_xticks([])
     plt.savefig(f"../../figures/simulated_loss/loss_vs_variance_separate_{i}.svg", dpi=600)
     
     # Add colorbar for interactive display (not in saved file)
@@ -397,7 +398,7 @@ for i in range(n_mean_bins):
 
 # Plot prediction line
 r_vals = np.linspace(rob_min, rob_max, 100)
-ax.plot(r_vals, (1./np.pi)*np.arccos((1.+(eps/r_vals)**2)**(-0.5)), c='k', ls='--', lw=1, zorder=0)
+ax.plot(r_vals, (1./np.pi)*np.arccos((1.+(eps/r_vals)**2)**(-0.5)), c='k', lw=2, zorder=0)
 
 # ax.set_xscale('log')
 ax.set_yscale('log')

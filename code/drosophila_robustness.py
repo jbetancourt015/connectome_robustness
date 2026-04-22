@@ -1,17 +1,20 @@
 """
-    This script generates six robustness plots for the FlyWire dataset:
+    This script generates nine robustness plots for the FlyWire dataset:
     1. CDF of normalized robustness
     2. Violin plots of normalized robustness by brain region
     3. CDF of excitatory vs inhibitory normalized robustness
     4. CDF of normalized robustness by reciprocity decile
     5. Running median of robustness vs optic peripherality (sliding window)
     6. Running median of robustness vs olfactory peripherality (sliding window)
+    7. Violin plots by visual pathway (R1-6, L1, Mi9, T4)
+    8. Violin plots by olfactory pathway (ORN, PN, KC, MBON)
+    9. CDF of normalized robustness by neurotransmitter type
 -------------------------------------------------------------------------------
 created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 3 Feb 2026
+    Tue 22 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -316,7 +319,7 @@ fig, ax = plt.subplots(figsize=(width, height))
 # Add population median line (behind data)
 ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
 
-cmap = plt.get_cmap('plasma')
+cmap = plt.get_cmap('coolwarm')
 
 for i in range(n_quantiles):
     mask = neuron_df['reciprocity_q'] == i
@@ -406,10 +409,11 @@ ax_left.set_ylim(-.1,8.)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
-# Left panel: seed point at x=0 (linear scale)
-ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[5], s=40, zorder=5)
+# Left panel: seed point at the panel boundary (right edge of ax_left)
+ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[5], s=40,
+                zorder=5, clip_on=False)
 
-# Connect seed point to first running median point (added to ax_left so zorder is respected)
+# Connect seed point to first running median point
 con = ConnectionPatch(
     xyA=(0, seed_median), coordsA=ax_left.transData,
     xyB=(running_x[0], running_median[0]), coordsB=ax_right.transData,
@@ -438,6 +442,17 @@ ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
 
 kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
+
+# Break in data line at panel boundary: white mask cuts the line, then diagonal marks on top
+ylim_min, ylim_max = -0.1, 8.0
+y_axes = (running_median[0] - ylim_min) / (ylim_max - ylim_min)
+dy_gap = 0.02
+ax_right.plot((-d, +d), (y_axes, y_axes),
+              transform=ax_right.transAxes, color='white', clip_on=False, lw=6,
+              solid_capstyle='round', zorder=8)
+kwargs_break = dict(transform=ax_right.transAxes, color=con_colors[5], clip_on=False, lw=2, zorder=9)
+ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs_break)
+ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
 plt.savefig('../../figures/drosophila_robustness/robustness_vs_optic_peripherality.svg', dpi=600)
@@ -508,16 +523,16 @@ ax_left.set_ylim(-.1,8.)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
-# Left panel: seed point at x=0 (linear scale)
-ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[6], s=40, zorder=5)
+# Left panel: seed point at the panel boundary (right edge of ax_left)
+ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[6], s=40,
+                zorder=5, clip_on=False)
 
-# Connect seed point to first running median point (added to ax_left so zorder is respected)
+# Connect seed point to first running median point
 con = ConnectionPatch(
     xyA=(0, seed_median), coordsA=ax_left.transData,
     xyB=(running_x[0], running_median[0]), coordsB=ax_right.transData,
     color=con_colors[6], lw=2, zorder=4, clip_on=False)
 ax_left.add_artist(con)
-
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
 ax_left.set_xticklabels(['0'])
@@ -541,6 +556,17 @@ ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
 
 kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
+
+# Break in data line at panel boundary: white mask cuts the line, then diagonal marks on top
+ylim_min, ylim_max = -0.1, 8.0
+y_axes = (running_median[0] - ylim_min) / (ylim_max - ylim_min)
+dy_gap = 0.02
+ax_right.plot((-d, +d), (y_axes, y_axes),
+              transform=ax_right.transAxes, color='white', clip_on=False, lw=6,
+              solid_capstyle='round', zorder=8)
+kwargs_break = dict(transform=ax_right.transAxes, color=con_colors[6], clip_on=False, lw=2, zorder=9)
+ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs_break)
+ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
 plt.savefig('../../figures/drosophila_robustness/robustness_vs_olfactory_peripherality.svg', dpi=600)
@@ -675,3 +701,46 @@ plt.savefig('../../figures/drosophila_robustness/violin_olfactory_pathway.svg', 
 ax.set_ylabel('Normalized Robustness')
 plt.show()
 
+#------------------------------------------------------------------------------
+# PLOT 9: CDF BY NEUROTRANSMITTER TYPE
+#------------------------------------------------------------------------------
+# Restrict to neurons with an assigned nt_type
+nt_df = neuron_df.dropna(subset=['nt_type'])
+
+# Order NT types by median normalized robustness
+nt_order = (
+    nt_df.groupby('nt_type')['norm_robustness']
+    .median()
+    .sort_values()
+    .index
+    .tolist()
+)
+
+n_nt = len(nt_order)
+cmap_nt = plt.get_cmap('managua')
+nt_colors = [cmap_nt(i / (n_nt - 1)) for i in range(n_nt)]
+
+fig, ax = plt.subplots(figsize=(width, height))
+
+ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+
+for i, nt in enumerate(nt_order):
+    mask = nt_df['nt_type'] == nt
+    rob, cdf = compute_cdf(nt_df[mask]['norm_robustness'])
+    ax.step(rob, cdf, where='post', lw=2, c=nt_colors[i])
+
+ax.set_xscale('log')
+ax.set_xlim(1e-1, 1e2)
+
+plt.subplots_adjust(**fig_margins)
+plt.savefig('../../figures/drosophila_robustness/nt_robustness_distribution.svg', dpi=600)
+
+ax.set_xlabel('Normalized robustness')
+ax.set_ylabel('CDF')
+ax.legend(
+    [plt.Line2D([0], [0], color=nt_colors[i], lw=2) for i in range(n_nt)],
+    nt_order,
+    loc='upper left'
+)
+
+plt.show()
