@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Sat 19 Apr 2026
+    Mon 28 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -165,7 +165,7 @@ def _outer_tick(lim):
 
 def mean_bin_median_norm(n_mean_bins=4):
     """
-    Compute LogNorm anchored to bin-median mean values from FlyWire neuron data.
+    Compute LogNorm anchored to log-midpoint mean values from FlyWire neuron data.
     Matches the colorbar range used in simulated_loss.py.
     """
     neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
@@ -177,13 +177,11 @@ def mean_bin_median_norm(n_mean_bins=4):
     mean_bins = np.logspace(
         np.log10(df_nonneg["mean"].min()), np.log10(df_nonneg["mean"].max()), n_mean_bins + 1
     )
-    df_nonneg["mean_bin"] = pd.cut(df_nonneg["mean"], bins=mean_bins, labels=False, include_lowest=True)
-    mean_mids = np.array([
-        df_nonneg.loc[df_nonneg["mean_bin"] == i, "mean"].median()
-        for i in range(n_mean_bins)
-    ])
-    valid_means = mean_mids[~np.isnan(mean_mids)]
-    return mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max())
+    mean_mids = np.sqrt(mean_bins[:-1] * mean_bins[1:])
+    print("Mean bin log-midpoints used for colors:")
+    for i, m in enumerate(mean_mids):
+        print(f"  Bin {i}: {m:.4f}")
+    return mcolors.LogNorm(vmin=1, vmax=mean_mids.max())
 
 
 def draw_ellipse(R, rho, ax, color, lim=3.0):
@@ -450,9 +448,9 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
 
     # Error shading: region between y-axis and y=-x (equivalent to Q2/Q4 in z-ztilde space)
     x_r = np.array([0.0, xlim])
-    ax_scatter.fill_between(x_r, -ylim, -x_r, color=con_colors[1], alpha=0.1)
+    ax_scatter.fill_between(x_r, -ylim, -x_r, color=con_colors[1], alpha=0.3)
     x_l = np.array([-xlim, 0.0])
-    ax_scatter.fill_between(x_l, -x_l, ylim, color=con_colors[1], alpha=0.1)
+    ax_scatter.fill_between(x_l, -x_l, ylim, color=con_colors[1], alpha=0.3)
 
     ax_scatter.plot([0.0, 0.0], [-ylim, ylim], c="k", alpha=0.5, lw=1)
     ax_scatter.plot([-xlim, xlim], [0.0, 0.0], c="k", alpha=0.5, lw=1)
@@ -526,9 +524,9 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
 
     # Error shading: region between y-axis and y=-x (equivalent to Q2/Q4 in z-ztilde space)
     x_r = np.array([0.0, xlim])
-    ax.fill_between(x_r, -ylim, -x_r, color=con_colors[1], alpha=0.1)
+    ax.fill_between(x_r, -ylim, -x_r, color=con_colors[1], alpha=0.3)
     x_l = np.array([-xlim, 0.0])
-    ax.fill_between(x_l, -x_l, ylim, color=con_colors[1], alpha=0.1)
+    ax.fill_between(x_l, -x_l, ylim, color=con_colors[1], alpha=0.3)
 
     ax.plot([0.0, 0.0], [-ylim, ylim], c="k", alpha=0.5, lw=1)
     ax.plot([-xlim, xlim], [0.0, 0.0], c="k", alpha=0.5, lw=1)

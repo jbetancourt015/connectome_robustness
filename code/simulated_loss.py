@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Mon 21 Apr 2026
+    Mon 28 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -187,19 +187,14 @@ for i in range(n_mean_bins):
 # Get prediction values spanning the full variance range
 var_pred = np.logspace(np.log10(var_min), np.log10(var_max), n_pred)
 
-# Pre-compute median average incoming weight per mean bin
-mean_mids = []
-for i in range(n_mean_bins):
-    mean_mask = df_nonneg['mean_bin'] == i
-    if mean_mask.sum() == 0:
-        mean_mids.append(np.nan)
-    else:
-        mean_mids.append(df_nonneg.loc[mean_mask, 'mean'].median())
-mean_mids = np.array(mean_mids)
+# Log midpoint (geometric mean of bin edges) per mean bin
+mean_mids = np.sqrt(mean_bins[:-1] * mean_bins[1:])
+print("Mean bin log-midpoints used for colors:")
+for i, m in enumerate(mean_mids):
+    print(f"  Bin {i}: {m:.4f}")
 
-# Log-normalize for colormap using the bin-median range
-valid_means = mean_mids[~np.isnan(mean_mids)]
-mean_norm = mcolors.LogNorm(vmin=valid_means.min(), vmax=valid_means.max())
+# Log-normalize with fixed vmin=1
+mean_norm = mcolors.LogNorm(vmin=1, vmax=mean_mids.max())
 
 # Set up figure
 cmap = plt.get_cmap('dark_cool')
@@ -233,7 +228,7 @@ log_format(ax)
 plt.savefig('../../figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
 
 # Print colorbar range to console
-print(f"Colorbar range (avg incoming weight) — min: {valid_means.min():.4f}, max: {valid_means.max():.4f}")
+print(f"Colorbar range (avg incoming weight) — min: {mean_mids.min():.4f}, max: {mean_mids.max():.4f}")
 
 # Add colorbar for interactive display (not in saved file)
 sm = plt.cm.ScalarMappable(cmap=cmap, norm=mean_norm)
@@ -409,7 +404,7 @@ plt.subplots_adjust(**fig_margins)
 plt.savefig('../../figures/simulated_loss/loss_vs_robustness_binned.svg', dpi=600)
 
 # Print colorbar range to console
-print(f"Colorbar range (avg incoming weight) — min: {valid_means.min():.4f}, max: {valid_means.max():.4f}")
+print(f"Colorbar range (avg incoming weight) — min: {mean_mids.min():.4f}, max: {mean_mids.max():.4f}")
 
 # Add colorbar for interactive display (not in saved file)
 sm = plt.cm.ScalarMappable(cmap=cmap, norm=mean_norm)
