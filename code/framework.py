@@ -768,8 +768,8 @@ _, mean_mid, var_mid = parse_param_set(param_sets[1])
 sigma_x_mid = np.sqrt(var_mid + mean_mid**2)
 sigma_y_mid = eps * np.sqrt(mean_mid)
 
-R = 1.5        # level-set radius
-lim = 1.5 * R * max(sigma_x_mid, sigma_y_mid)
+R = 2.0        # level-set radius
+lim = 1.2 * R * max(sigma_x_mid, sigma_y_mid)
 
 fig, ax = plt.subplots(figsize=(width_md, height_md))
 

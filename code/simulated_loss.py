@@ -379,12 +379,9 @@ for i in range(n_mean_bins):
     mean_mid = mean_mids[i]
     color = cmap(mean_norm(mean_mid))
 
-    # Compute median loss and median variance for each variance bin
+    # Compute median loss and median robustness per variance bin
     grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
-    grouped_var = df_nonneg[mean_mask].groupby('var_bin')['var'].median()
-
-    # Compute robustness for each variance bin
-    grouped_rob = np.sqrt(mean_mid + grouped_var / mean_mid)
+    grouped_rob  = df_nonneg[mean_mask].groupby('var_bin')['robustness'].median()
 
     # Plot scatter for bins with data
     valid_bins = grouped_loss.index.dropna().astype(int)
