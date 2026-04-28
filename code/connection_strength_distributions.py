@@ -207,13 +207,13 @@ pmf_vals = poisson_dist.pmf(k_vals, lam)
 fig, ax = plt.subplots(figsize=(width_large, height_large))
 
 ax.plot(k_vals, pmf_vals, color='black', lw=1, zorder=1)
-ax.scatter(s_global,   P_global,   color='lightgrey', s=10, rasterized=True, clip_on=False, zorder=3)
+ax.scatter(s_global,   P_global,   color='lightsteelblue', s=10, rasterized=True, clip_on=False, zorder=3)
 ax.scatter(s_shuffled, P_shuffled, color='grey',      s=10, rasterized=True, clip_on=False, zorder=4)
 ax.scatter(s_fafb,     P_fafb,     color=con_colors[0], s=10, rasterized=True, clip_on=False, zorder=5)
 log_format(ax)
 
 ax.set_xlim(1.,None)
-ax.set_ylim(1e-8,1.)
+ax.set_ylim(3e-8,1.)
 
 plt.subplots_adjust(**fig_margins_large)
 plt.savefig(output_dir + 'fafb_distribution.svg', dpi=600)
