@@ -17,6 +17,7 @@ processed_data/*
 simulation_results/*
 !simulation_results/.gitkeep
 supplement_code/
+report_code/
 
 # R
 .Rhistory
