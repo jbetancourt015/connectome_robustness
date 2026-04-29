@@ -14,7 +14,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 22 Apr 2026
+    Tue 29 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.ticker as mticker
 import logging
+import os
 from scipy.sparse import coo_matrix
 from matplotlib.patches import ConnectionPatch
 import network_processing
@@ -65,6 +66,10 @@ height = 55./mm_to_in
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
 wide_fig_margins = dict(left=0.12, right=0.98, bottom=0.22, top=0.95)
+
+# Output directory
+fig_dir = "../../figures/drosophila_robustness/raw/"
+os.makedirs(fig_dir, exist_ok=True)
 
 # Plotting colors
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
@@ -135,7 +140,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/drosophila_robustness/cdf_normalized_robustness.svg', dpi=600)
+plt.savefig(fig_dir + 'cdf_normalized_robustness.svg', dpi=600)
 
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')
@@ -205,7 +210,7 @@ ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 plt.subplots_adjust(**wide_fig_margins)
-plt.savefig('../../figures/drosophila_robustness/violin_by_brain_region.svg', dpi=600)
+plt.savefig(fig_dir + 'violin_by_brain_region.svg', dpi=600)
 
 ax.set_ylabel("Normalized Robustness")
 plt.show()
@@ -288,7 +293,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/drosophila_robustness/cdf_exc_vs_inh.svg', dpi=600)
+plt.savefig(fig_dir + 'cdf_exc_vs_inh.svg', dpi=600)
 
 ax.legend()
 
@@ -330,7 +335,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/drosophila_robustness/cdf_by_reciprocity_decile.svg', dpi=600)
+plt.savefig(fig_dir + 'cdf_by_reciprocity_decile.svg', dpi=600)
 
 # Print colorbar range to console
 print(f"Colorbar range — min median reciprocity: {rec_min:.4f}, max median reciprocity: {rec_max:.4f}")
@@ -455,7 +460,7 @@ ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs
 ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../figures/drosophila_robustness/robustness_vs_optic_peripherality.svg', dpi=600)
+plt.savefig(fig_dir + 'robustness_vs_optic_peripherality.svg', dpi=600)
 
 # Format figure
 ax_left.set_ylabel('Median robustness')
@@ -569,7 +574,7 @@ ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs
 ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
 
 plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
-plt.savefig('../../figures/drosophila_robustness/robustness_vs_olfactory_peripherality.svg', dpi=600)
+plt.savefig(fig_dir + 'robustness_vs_olfactory_peripherality.svg', dpi=600)
 
 # Format figure
 ax_left.set_ylabel('Median robustness')
@@ -634,7 +639,7 @@ ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/drosophila_robustness/violin_visual_pathway.svg', dpi=600)
+plt.savefig(fig_dir + 'violin_visual_pathway.svg', dpi=600)
 
 ax.set_ylabel('Normalized Robustness')
 plt.show()
@@ -696,7 +701,7 @@ ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/drosophila_robustness/violin_olfactory_pathway.svg', dpi=600)
+plt.savefig(fig_dir + 'violin_olfactory_pathway.svg', dpi=600)
 
 ax.set_ylabel('Normalized Robustness')
 plt.show()
@@ -733,7 +738,7 @@ ax.set_xscale('log')
 ax.set_xlim(1e-1, 1e2)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/drosophila_robustness/nt_robustness_distribution.svg', dpi=600)
+plt.savefig(fig_dir + 'nt_robustness_distribution.svg', dpi=600)
 
 ax.set_xlabel('Normalized robustness')
 ax.set_ylabel('CDF')

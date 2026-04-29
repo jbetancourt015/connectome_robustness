@@ -5,7 +5,7 @@ created on:
     Mon 15 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Fri 23 Jan 2026
+    Tue 29 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -81,7 +81,7 @@ fig_margins_grid = dict(left=0.1, right=0.97, bottom=0.15, top=0.95)
 data_dir = '../../data/'
 processed_dir = '../processed_data/'
 sim_dir = '../simulation_results/'
-output_dir = '../../figures/connection_strength_distributions/'
+output_dir = '../../figures/connection_strength_distributions/raw/'
 os.makedirs(output_dir, exist_ok=True)
 
 # Import connections data

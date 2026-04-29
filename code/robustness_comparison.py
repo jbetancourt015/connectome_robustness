@@ -7,7 +7,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Wed 25 Feb 2026
+    Tue 29 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -30,6 +30,7 @@ from scipy.stats import gaussian_kde
 from matplotlib.ticker import ScalarFormatter
 import logging
 import pickle
+import os
 
 plt.rcParams.update({
     'font.family': 'Helvetica',
@@ -65,6 +66,10 @@ fig_margins = dict(left=0.24, right=1., bottom=0.24, top=1.)
 fig_margins_large = dict(left=0.12, right=0.95, bottom=0.12, top=0.95)
 
 alpha_min = .2
+
+# Output directory
+fig_dir = "../../figures/robustness_comparison/raw/"
+os.makedirs(fig_dir, exist_ok=True)
 
 # Connectome list
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
@@ -165,7 +170,7 @@ def plot_robustness(data_idx, Q1, Q2, null_net, log_axes=False):
         plt.subplots_adjust(**fig_margins)
     
     # Save plot without labels
-    plt.savefig(f"../../figures/robustness_comparison/{connectomes[data_idx]}_scatter.svg", dpi=600)
+    plt.savefig(fig_dir + f"{connectomes[data_idx]}_scatter.svg", dpi=600)
 
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
@@ -232,7 +237,7 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
         plt.subplots_adjust(**fig_margins)
     
     # Save plot without labels
-    plt.savefig(f"../../figures/robustness_comparison/{connectomes[data_idx]}_hist.svg", dpi=600)
+    plt.savefig(fig_dir + f"{connectomes[data_idx]}_hist.svg", dpi=600)
     
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
@@ -311,7 +316,7 @@ ax.set_xlim(-0.5, len(plot_indices) - 0.5)
 plt.subplots_adjust(**fig_bar_margins)
 
 # Save plot without labels
-plt.savefig("../../figures/robustness_comparison/robustness_decrease_fraction.svg", dpi=600)
+plt.savefig(fig_dir + "robustness_decrease_fraction.svg", dpi=600)
 
 # Add labels
 ax.set_ylabel('Fraction with decreased robustness')
@@ -369,7 +374,7 @@ ax.set_xlim(-0.5, len(fafb_bar_labels) - 0.5)
 plt.subplots_adjust(**fig_bar_margins_region)
 
 # Save plot without labels
-plt.savefig("../../figures/robustness_comparison/fafb_region_robustness_decrease.svg", dpi=600)
+plt.savefig(fig_dir + "fafb_region_robustness_decrease.svg", dpi=600)
 
 # Add labels
 ax.set_ylabel('Fraction with decreased robustness')

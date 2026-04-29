@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Mon 28 Apr 2026
+    Tue 29 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -15,6 +15,7 @@ contributors:
         email:      jose.betancourtvalencia@yale.edu
 -------------------------------------------------------------------------------
 """
+import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -57,6 +58,10 @@ fig_margins = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
 fig_margins_small = dict(left=0.3, right=0.9, bottom=0.3, top=0.9)
 
 alpha_min = 0.
+
+# Output directory
+fig_dir = "../../figures/simulated_loss/raw/"
+os.makedirs(fig_dir, exist_ok=True)
 
 # Connectome list
 connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
@@ -225,7 +230,7 @@ ax.set_xlim([5e-1,1e4])
 
 plt.subplots_adjust(**fig_margins)
 log_format(ax)
-plt.savefig('../../figures/simulated_loss/loss_vs_variance_binned.svg', dpi=600)
+plt.savefig(fig_dir + 'loss_vs_variance_binned.svg', dpi=600)
 
 # Print colorbar range to console
 print(f"Colorbar range (avg incoming weight) — min: {mean_mids.min():.4f}, max: {mean_mids.max():.4f}")
@@ -284,7 +289,7 @@ for i in range(n_mean_bins):
         ax.set_xticks([1e1,1e3])
     else:
         ax.set_xticks([])
-    plt.savefig(f"../../figures/simulated_loss/loss_vs_variance_separate_{i}.svg", dpi=600)
+    plt.savefig(fig_dir + f"loss_vs_variance_separate_{i}.svg", dpi=600)
     
     # Add colorbar for interactive display (not in saved file)
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=mean_norm)
@@ -351,7 +356,7 @@ ax.xaxis.set_major_locator(locator)
 ax.plot([0.,max_loss], [0.,max_loss], c='k', ls='--', lw=1, zorder=0)
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/simulated_loss/loss_vs_prediction.svg', dpi=600)
+plt.savefig(fig_dir + 'loss_vs_prediction.svg', dpi=600)
 
 # Add labels
 ax.set_xlabel('Predicted error probability')
@@ -398,7 +403,7 @@ ax.set_xlim([0.,None])
 ax.set_ylim([1e-2,.2])
 
 plt.subplots_adjust(**fig_margins)
-plt.savefig('../../figures/simulated_loss/loss_vs_robustness_binned.svg', dpi=600)
+plt.savefig(fig_dir + 'loss_vs_robustness_binned.svg', dpi=600)
 
 # Print colorbar range to console
 print(f"Colorbar range (avg incoming weight) — min: {mean_mids.min():.4f}, max: {mean_mids.max():.4f}")
