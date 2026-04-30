@@ -1,5 +1,7 @@
 # Claude Code
 CLAUDE.md
+.claude/
+code/hooks/
 
 # OS
 .DS_Store

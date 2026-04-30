@@ -7,7 +7,7 @@ created on:
     Mon 12 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Mon 21 Apr 2026
+    Thu 30 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -201,7 +201,6 @@ in_stats = (
     .assign(
         robustness = lambda d: np.sqrt(d['sum_w2']/d['in_strength']),
         norm_robustness = lambda d: (np.sqrt(d['sum_w2']/d['in_strength']) - np.sqrt(d['in_strength']/d['in_deg']))/(np.sqrt(1. + (d['in_strength']/d['in_deg'])) - np.sqrt(d['in_strength']/d['in_deg'])),
-        scaled_robustness = lambda d: np.sqrt((d['in_deg'] * d['sum_w2'])/d['in_strength']**2)-1.
     )
     .reset_index()
     .rename(columns={'post_root_id': 'root_id'})

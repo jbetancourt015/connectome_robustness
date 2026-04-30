@@ -8,7 +8,7 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 16 Apr 2026
+    Thu 30 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
@@ -38,7 +38,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix, csc_matrix, load_npz
 from tqdm import tqdm
 from params import (
-    rng_seed, eta, block_perturb,
+    rng_seed, block_perturb,
     loss_eps, loss_n_draws, loss_n_perturb,
     periphery_n_sim, periphery_threshold, periphery_repeats,
     zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
@@ -90,37 +90,28 @@ def load_connectome(data_idx, thresholded=False, scheme=None):
     return A
 
 
-def compute_robustness(A, eta=1.0, k_min=2, normalized=True):
+def compute_robustness(A, k_min=2, normalized=True):
     k = A.getnnz(axis=0)
     mask = k >= k_min
 
-    s_0 = k[mask]
-    s_1 = np.asarray(A.sum(axis=0)).ravel()[mask]
-
     B = A.copy()
-    B.data = B.data**2
-    s_2 = np.asarray(B.sum(axis=0)).ravel()[mask]
+    B.data = B.data ** 2
 
-    if eta == 1.0:
-        s_eta = s_1
-    elif eta == 2.0:
-        s_eta = s_2
-    else:
-        C = A.copy()
-        C.data = C.data**eta
-        s_eta = np.asarray(C.sum(axis=0)).ravel()[mask]
+    mu_1 = np.asarray(A.sum(axis=0)).ravel()[mask] / k[mask]   # E[w]
+    mu_2 = np.asarray(B.sum(axis=0)).ravel()[mask] / k[mask]   # E[w²]
 
-    Q = (s_2 / s_eta) ** 0.5
+    r = np.sqrt(mu_2 / mu_1)
     if normalized:
-        Q *= (s_0 / s_1) ** (1.0 - eta / 2)
-        Q -= 1.0
-    return Q
+        robustness = (r - np.sqrt(mu_1)) / (np.sqrt(1.0 + mu_1) - np.sqrt(mu_1))
+    else:
+        robustness = r
+    return robustness
 
 
 # ==============================================================================
 # SIMULATION FUNCTIONS
 # ==============================================================================
-def average_error_fast(w, eta, eps, n_draws, n_perturb, block_perturb=128, rng=None):
+def average_error_fast(w, eps, n_draws, n_perturb, block_perturb=128, rng=None):
     """
     Monte Carlo estimate of the loss, vectorized and blocked to reduce memory.
 
@@ -128,8 +119,6 @@ def average_error_fast(w, eta, eps, n_draws, n_perturb, block_perturb=128, rng=N
     ----------
     w : array-like
         Weight vector.
-    eta : float
-        Noise scaling exponent.
     eps : float
         Perturbation magnitude.
     n_draws : int
@@ -158,7 +147,7 @@ def average_error_fast(w, eta, eps, n_draws, n_perturb, block_perturb=128, rng=N
     x = 2.0 * rng.integers(0, 2, size=(n_inputs, n_draws)) - 1.0
 
     # Draw base Gaussian noise and scale
-    w_scale = eps * (w ** (eta / 2.0))
+    w_scale = eps * np.sqrt(w)
     w_hat = rng.normal(0.0, 1.0, size=(n_inputs, n_perturb)) * w_scale[:, None]
 
     # Baseline output: shape (n_draws,)
@@ -373,7 +362,6 @@ def run_flywire_loss_simulation():
 
         l_hat = average_error_fast(
             w,
-            eta=eta,
             eps=loss_eps,
             n_draws=loss_n_draws,
             n_perturb=loss_n_perturb,
@@ -539,7 +527,7 @@ def generate_weights_zztilde(distribution, mean, n_inputs, rng, var=None):
 
 
 def compute_z_ztilde(
-    distribution, mean, n_inputs, eta, eps, n_draws, n_perturb, rng=None, var=None
+    distribution, mean, n_inputs, eps, n_draws, n_perturb, rng=None, var=None
 ):
     """
     Compute z and ztilde values for a weight vector drawn from the specified distribution.
@@ -552,8 +540,6 @@ def compute_z_ztilde(
         Mean parameter.
     n_inputs : int
         Number of input dimensions.
-    eta : float
-        Noise scaling exponent.
     eps : float
         Perturbation magnitude.
     n_draws : int
@@ -579,7 +565,7 @@ def compute_z_ztilde(
 
     x = rng.choice([-1.0, 1.0], size=(n_inputs, n_draws))
     base_noise = rng.normal(0.0, 1.0, size=(n_inputs, n_perturb))
-    w_hat = base_noise * (w ** (eta / 2.0))[:, None]
+    w_hat = base_noise * np.sqrt(w)[:, None]
 
     z = w @ x
     delta = eps * (w_hat.T @ x)
@@ -668,7 +654,6 @@ def run_zztilde_simulation():
                 distribution=distribution,
                 mean=mean,
                 n_inputs=zztilde_n_inputs,
-                eta=eta,
                 eps=zztilde_eps,
                 n_draws=zztilde_n_draws,
                 n_perturb=zztilde_n_perturb,
@@ -777,7 +762,6 @@ def run_parametric_simulation(
     n_neurons=1000,
     n_draws=1000,
     n_perturb=1000,
-    eta=1.0,
     eps=1.0,
     rng=None,
 ):
@@ -800,8 +784,6 @@ def run_parametric_simulation(
         Number of input draws for Monte Carlo.
     n_perturb : int
         Number of weight perturbation draws.
-    eta : float
-        Noise scaling exponent.
     eps : float
         Perturbation magnitude.
     rng : numpy.random.Generator, optional
@@ -837,7 +819,6 @@ def run_parametric_simulation(
                 w = sample_weights_parametric(distribution, params, n_inputs, rng)
                 l_hat = average_error_fast(
                     w,
-                    eta=eta,
                     eps=eps,
                     n_draws=n_draws,
                     n_perturb=n_perturb,
@@ -969,7 +950,6 @@ def shuffled_neuron_robustness(
     scheme,
     conn_type,
     n_threshold,
-    eta=1.0,
     normalized=False,
     return_weights=False,
 ):
@@ -1007,15 +987,16 @@ def shuffled_neuron_robustness(
         wts = np.ones(k)
         wts[0] = strength - k + 1
 
-    s_2 = np.sum(wts**2)
-    s_eta = np.sum(wts**eta)
-    Q = (s_2 / s_eta) ** 0.5
+    mu_1 = np.mean(wts)        # E[w]
+    mu_2 = np.mean(wts ** 2)   # E[w²]
+    r = np.sqrt(mu_2 / mu_1)
     if normalized:
-        Q *= (k / np.sum(wts)) ** (1.0 - eta / 2)
-        Q -= 1.0
+        robustness = (r - np.sqrt(mu_1)) / (np.sqrt(1.0 + mu_1) - np.sqrt(mu_1))
+    else:
+        robustness = r
     if return_weights:
-        return Q, wts
-    return Q
+        return robustness, wts
+    return robustness
 
 
 def global_weight_shuffle(A, n_threshold=0):
@@ -1071,7 +1052,7 @@ def run_network_shuffling():
     print("SIMULATION 5: Network Shuffling")
     print("=" * 60)
 
-    def robustness_per_neuron(A, eta=eta, k_min=shuffle_k_min, normalized=False):
+    def robustness_per_neuron(A, k_min=shuffle_k_min, normalized=False):
         """
         Return per-neuron robustness with NaN for undefined cases.
         """
@@ -1080,7 +1061,7 @@ def run_network_shuffling():
         print("Vector lengths:", len(k), len(q))
         mask = k >= k_min
         if mask.any():
-            q[mask] = compute_robustness(A, eta=eta, k_min=k_min, normalized=normalized)
+            q[mask] = compute_robustness(A, k_min=k_min, normalized=normalized)
         return q
 
     for data_idx in range(len(connectomes)):
@@ -1145,7 +1126,6 @@ def run_network_shuffling():
                     scheme="rand_weight",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=eta,
                     normalized=False,
                     return_weights=True,
                 )
@@ -1156,7 +1136,6 @@ def run_network_shuffling():
                     scheme="rand_weight",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=eta,
                     normalized=False,
                 )
 
@@ -1260,7 +1239,6 @@ def run_network_shuffling():
                     scheme="multinomial",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=eta,
                     normalized=False,
                     return_weights=True,
                 )
@@ -1271,7 +1249,6 @@ def run_network_shuffling():
                     scheme="multinomial",
                     conn_type=conn_type,
                     n_threshold=n_threshold,
-                    eta=eta,
                     normalized=False,
                 )
 

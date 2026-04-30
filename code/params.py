@@ -6,7 +6,7 @@ created on:
     Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Mon 21 Apr 2026
+    Thu 30 Apr 2026
 -------------------------------------------------------------------------------
 contributors:
     Jose:
@@ -17,7 +17,6 @@ contributors:
 
 # ── Global ─────────────────────────────────────────────────────────────────────
 rng_seed      = 1674   # global random seed for reproducibility
-eta           = 1.0    # noise scaling exponent (used in all robustness computations)
 block_perturb = 128    # block size for memory-efficient Monte Carlo perturbation loop
 
 # ── FlyWire loss simulation ────────────────────────────────────────────────────

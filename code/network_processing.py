@@ -6,7 +6,7 @@ created on:
     Tue 28 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 2 Sep 2025
+    Thu 30 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -53,33 +53,23 @@ def load_connectome(data_idx, thresholded=False, scheme=None):
 # ------------------------------------------------------------------------------
 # ROBUSTNESS CALCULATION
 # ------------------------------------------------------------------------------
-def compute_robustness(A, eta=1.0, k_min=2, normalized=True):
-    # Compute 0th moment
+def compute_robustness(A, k_min=2, normalized=True):
     k = A.getnnz(axis=0)
-    # Get higher moments
     mask = k >= k_min
 
-    # Get moments of columns
-    def col_moment(p, mask):
-        if p == 1:
-            return np.asarray(A.sum(axis=0)).ravel()[mask]
-        else:
-            B = A.copy()
-            B.data = np.power(B.data, p)
-            return np.asarray(B.sum(axis=0)).ravel()[mask]
+    B = A.copy()
+    B.data = B.data ** 2
 
-    # Compute moments
-    s_0 = k[mask]
-    s_1 = col_moment(1.0, mask)
-    s_2 = col_moment(2.0, mask)
-    s_eta = col_moment(eta, mask)
+    mu_1 = np.asarray(A.sum(axis=0)).ravel()[mask] / k[mask]   # E[w]
+    mu_2 = np.asarray(B.sum(axis=0)).ravel()[mask] / k[mask]   # E[w²]
 
-    # Compute sensitivities
-    Q = (s_2 / s_eta) ** 0.5
+    # Compute robustness
+    r = np.sqrt(mu_2 / mu_1)
     if normalized:
-        Q *= (s_0 / s_1) ** (1.0 - eta / 2)
-        Q -= 1.0
-    return Q
+        robustness = (r - np.sqrt(mu_1)) / (np.sqrt(1.0 + mu_1) - np.sqrt(mu_1))
+    else:
+        robustness = r
+    return robustness
 
 
 # ------------------------------------------------------------------------------

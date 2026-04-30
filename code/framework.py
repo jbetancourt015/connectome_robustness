@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 29 Apr 2026
+    Thu 30 Apr 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -36,7 +36,7 @@ from scipy.stats import gamma as gamma_dist
 from scipy.stats import lognorm as lognorm_dist
 import logging
 from params import (
-    rng_seed, eta,
+    rng_seed,
     zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
     shuffle_k_min,
 )
@@ -288,7 +288,6 @@ def compute_z_ztilde(
     distribution,
     mean,
     n_inputs,
-    eta,
     eps,
     n_draws,
     n_perturb,
@@ -304,7 +303,7 @@ def compute_z_ztilde(
     w, computed_var = generate_weights(distribution, mean, n_inputs, rng, var)
     x = rng.choice([-1.0, 1.0], size=(n_inputs, n_draws))
     base_noise = rng.normal(0.0, 1.0, size=(n_inputs, n_perturb))
-    w_hat = base_noise * (w ** (eta / 2.0))[:, None]
+    w_hat = base_noise * np.sqrt(w)[:, None]
     z = w @ x
     delta = eps * (w_hat.T @ x)
     ztilde = z[None, :] + delta

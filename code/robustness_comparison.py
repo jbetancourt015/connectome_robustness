@@ -7,7 +7,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 29 Apr 2026
+    Thu 30 Apr 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -174,7 +174,7 @@ def plot_robustness(data_idx, Q1, Q2, null_net, log_axes=False):
 
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
-    ax_scatter.set_ylabel('Shuffled weight robustness' if null_net=='rand_weight' else 'Poisson sensitivity')
+    ax_scatter.set_ylabel('Shuffled weight robustness' if null_net=='rand_weight' else 'Poisson robustness')
 
     plt.show()
 
