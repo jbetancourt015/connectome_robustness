@@ -5,7 +5,7 @@ created on:
     Mon 15 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Tue 29 Apr 2026
+    Fri 1 May 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -31,29 +31,9 @@ from scipy.stats import poisson as poisson_dist
 
 sys.path.append('../new_code')
 import network_processing
+from figure_formatting import apply_style, log_format
 
-plt.rcParams.update({
-    'text.usetex': False,  # keep LaTeX off globally
-    'mathtext.fontset': 'cm',   # or 'stixsans' for sans-serif
-    'mathtext.rm': 'Helvetica',
-    'mathtext.it': 'Helvetica:italic',
-    'mathtext.bf': 'Helvetica:bold',
-    'font.family': 'Helvetica',
-    'axes.labelsize': 9,
-    'xtick.labelsize': 8,
-    'ytick.labelsize': 8,
-    'legend.fontsize': 8,
-    'axes.linewidth': 0.5,   # thin axis lines for publication
-    'axes.spines.top': False,    # remove top spine
-    'axes.spines.right': False,  # remove right spine
-    'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
-    'ps.fonttype': 42,       # same for PostScript
-})
-
-mpl.rcParams['figure.dpi'] = 300
-
-logging.getLogger("fontTools").setLevel(logging.ERROR)
-logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
+apply_style()
 
 
 con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
@@ -155,32 +135,6 @@ def compute_cdf_np(data):
     cum_counts = np.cumsum(counts)
     cdf = cum_counts / cum_counts[-1]
     return unique_vals, cdf
-
-def log_format(ax, format_x=True, format_y=True):
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    if format_x:
-        # --- Force major ticks at every decade ---
-        ax.xaxis.set_major_locator(
-            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
-        )
-        # --- Force minor ticks between decades ---
-        ax.xaxis.set_minor_locator(
-            mticker.LogLocator(base=10.0,
-                              subs=np.arange(2, 10) * 0.1,
-                              numticks=100)
-        )
-    if format_y:
-        # --- Force major ticks at every decade ---
-        ax.yaxis.set_major_locator(
-            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
-        )
-        # --- Force minor ticks between decades ---
-        ax.yaxis.set_minor_locator(
-            mticker.LogLocator(base=10.0,
-                              subs=np.arange(2, 10) * 0.1,
-                              numticks=100)
-        )
 
 #------------------------------------------------------------------------------
 # FAFB DISTRIBUTIONS

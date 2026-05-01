@@ -14,7 +14,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 29 Apr 2026
+    Fri 1 May 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -34,29 +34,9 @@ import os
 from scipy.sparse import coo_matrix
 from matplotlib.patches import ConnectionPatch
 import network_processing
+from figure_formatting import apply_style, log10_formatter
 
-plt.rcParams.update({
-    'text.usetex': False,  # keep LaTeX off globally
-    'mathtext.fontset': 'cm',   # or 'stixsans' for sans-serif
-    'mathtext.rm': 'Helvetica',
-    'mathtext.it': 'Helvetica:italic',
-    'mathtext.bf': 'Helvetica:bold',
-    'font.family': 'Helvetica',
-    'axes.labelsize': 9,
-    'xtick.labelsize': 8,
-    'ytick.labelsize': 8,
-    'legend.fontsize': 8,
-    'axes.linewidth': 0.5,   # thin axis lines for publication
-    'axes.spines.top': False,    # remove top spine
-    'axes.spines.right': False,  # remove right spine
-    'pdf.fonttype': 42,      # ensures text stays as text in Illustrator
-    'ps.fonttype': 42,       # same for PostScript
-})
-
-mpl.rcParams['figure.dpi'] = 300
-
-logging.getLogger("fontTools").setLevel(logging.ERROR)
-logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
+apply_style()
 
 # Nature figure size
 mm_to_in = 25.4
@@ -84,13 +64,6 @@ def compute_cdf(series):
     cum_counts = counts.cumsum()
     cdf = cum_counts / cum_counts.iloc[-1]
     return cdf.index, cdf.values
-
-def log10_formatter(y, pos):
-    """Format y-axis ticks as powers of 10 with superscript notation."""
-    superscripts = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
-    if y.is_integer():
-        return "10" + str(int(y)).translate(superscripts)
-    return ""
 
 #------------------------------------------------------------------------------
 # LOAD DATASETS

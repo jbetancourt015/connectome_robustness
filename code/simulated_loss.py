@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 29 Apr 2026
+    Fri 1 May 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -24,34 +24,17 @@ import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.ticker as mticker
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
+from figure_formatting import apply_style, log_format
 
-plt.rcParams.update({
-    'text.usetex': False,  # keep LaTeX off globally
-    'mathtext.fontset': 'cm',   # or 'stixsans' for sans-serif
-    'mathtext.rm': 'Helvetica',
-    'mathtext.it': 'Helvetica:italic',
-    'mathtext.bf': 'Helvetica:bold',
-    'font.family': 'Helvetica',
-    'axes.labelsize': 9,
-    'xtick.labelsize': 8,
-    'ytick.labelsize': 8,
-    'legend.fontsize': 8,
-    'axes.linewidth': 0.5,   # thin axis lines for publication
-    'axes.spines.top': False,    # remove top spine
-    'axes.spines.right': False,  # remove right spine
-    'pdf.fonttype': 42,      # ensures text stays as text in Illustrator5
-    'ps.fonttype': 42,       # same for PostScript
-})
+apply_style()
 
-mpl.rcParams['figure.dpi'] = 300
-
-logging.getLogger("fontTools").setLevel(logging.ERROR)
-logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
-
-# Nature figure size
+# Reference size (page width in mm) for scaling figure dimensions
+pg_width = 165  # mm
 mm_to_in = 25.4
-width = 60./mm_to_in
-height = 60./mm_to_in
+
+# Panel dimensions in inches (scaled from mm reference)
+width = 0.31 * pg_width / mm_to_in
+height = 0.31 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
@@ -98,32 +81,6 @@ def general_loss(mean, var):
     """Compute predicted loss from mean and variance."""
     rob = np.sqrt(mean + var/mean)
     return (1/np.pi)*np.arccos((1.+(eps/rob)**2)**(-1/2))
-
-def log_format(ax, format_x=True, format_y=True):
-    ax.set_xscale('log')
-    ax.set_yscale('log')
-    if format_x:
-        # --- Force major ticks at every decade ---
-        ax.xaxis.set_major_locator(
-            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
-        )
-        # --- Force minor ticks between decades ---
-        ax.xaxis.set_minor_locator(
-            mticker.LogLocator(base=10.0,
-                              subs=np.arange(2, 10) * 0.1,
-                              numticks=100)
-        )
-    if format_y:
-        # --- Force major ticks at every decade ---
-        ax.yaxis.set_major_locator(
-            mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100)
-        )
-        # --- Force minor ticks between decades ---
-        ax.yaxis.set_minor_locator(
-            mticker.LogLocator(base=10.0,
-                              subs=np.arange(2, 10) * 0.1,
-                              numticks=100)
-        )
 
 data_dir = '../../data/'
 processed_dir = '../processed_data/'

@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 30 Apr 2026
+    Fri 1 May 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -41,32 +41,12 @@ from params import (
     shuffle_k_min,
 )
 from simulations import run_zztilde_simulation
+from figure_formatting import apply_style, outer_tick
 
 # ------------------------------------------------------------------------------
 # MATPLOTLIB CONFIGURATION
 # ------------------------------------------------------------------------------
-plt.rcParams.update(
-    {
-        "text.usetex": False,
-        "mathtext.fontset": "cm",
-        "mathtext.rm": "Helvetica",
-        "mathtext.it": "Helvetica:italic",
-        "mathtext.bf": "Helvetica:bold",
-        "font.family": "Helvetica",
-        "axes.labelsize": 9,
-        "xtick.labelsize": 8,
-        "ytick.labelsize": 8,
-        "legend.fontsize": 8,
-        "axes.linewidth": 0.5,
-        "pdf.fonttype": 42,
-        "ps.fonttype": 42,
-    }
-)
-
-mpl.rcParams["figure.dpi"] = 300
-
-logging.getLogger("fontTools").setLevel(logging.ERROR)
-logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
+apply_style()
 
 # ------------------------------------------------------------------------------
 # SHARED CONFIGURATION
@@ -155,13 +135,6 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
     top = (*rgb, 1.0)
     return LinearSegmentedColormap.from_list(name, [bottom, top], N=256)
-
-
-def _outer_tick(lim):
-    """Sig fig just below 75% of lim (e.g. lim=23.4 → 0.75*23.4=17.6 → 10)."""
-    val = 0.75 * lim
-    exp = int(np.floor(np.log10(val)))
-    return int(np.floor(val / 10**exp) * 10**exp)
 
 
 def mean_bin_median_norm(n_mean_bins=4):
@@ -460,7 +433,7 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
     ax_scatter.set_xlim(-xlim, xlim)
     ax_scatter.set_ylim(-ylim, ylim)
     ax_scatter.set_yticks([])
-    _xt = _outer_tick(xlim)
+    _xt = outer_tick(xlim)
     ax_scatter.set_xticks([-_xt, 0, _xt] if last else [])
 
     plt.subplots_adjust(**fig_margins_sm)
@@ -536,9 +509,9 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
     ax.set_xlim(-xlim, xlim)
     ax.set_ylim(-ylim, ylim)
 
-    _yt = _outer_tick(ylim)
+    _yt = outer_tick(ylim)
     ax.set_yticks([-_yt, 0, _yt])
-    _xt = _outer_tick(xlim)
+    _xt = outer_tick(xlim)
     ax.set_xticks([-_xt, 0, _xt] if last else [])
 
     plt.subplots_adjust(**fig_margins_sm)
@@ -806,7 +779,7 @@ ax.annotate("", xy=(0, R * sigma_y_mid), xytext=(0, 0),
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
 ax.set_aspect("equal")
-_t = _outer_tick(lim)
+_t = outer_tick(lim)
 ax.set_xticks([-_t, 0, _t])
 ax.set_yticks([-_t, 0, _t])
 
