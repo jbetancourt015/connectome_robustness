@@ -104,8 +104,8 @@ mm_to_in = 25.4
 # Panel dimensions in inches (scaled from mm reference)
 width_sm = 0.15 * pg_width / mm_to_in
 height_sm = 0.15 * pg_width / mm_to_in
-width_md = (1/3.) * pg_width / mm_to_in
-height_md = (1/3.) * pg_width / mm_to_in
+width_md = 0.35 * pg_width / mm_to_in
+height_md = 0.35 * pg_width / mm_to_in
 width_lg = 0.45 * pg_width / mm_to_in
 height_lg = 0.45 * pg_width / mm_to_in
 
