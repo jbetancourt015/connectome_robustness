@@ -432,7 +432,7 @@ kwargs_break = dict(transform=ax_right.transAxes, color=con_colors[5], clip_on=F
 ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs_break)
 ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
 
-plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
+plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'robustness_vs_optic_peripherality.svg', dpi=600)
 
 # Format figure
@@ -546,7 +546,7 @@ kwargs_break = dict(transform=ax_right.transAxes, color=con_colors[6], clip_on=F
 ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs_break)
 ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
 
-plt.subplots_adjust(left=0.18, right=0.95, bottom=0.22, top=0.95)
+plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'robustness_vs_olfactory_peripherality.svg', dpi=600)
 
 # Format figure
