@@ -149,8 +149,9 @@ violin_data = [neuron_df_regions.loc[mask0 & (neuron_df_regions["brain_region"] 
 # Set up figure (wider for region labels)
 fig, ax = plt.subplots(figsize=(2*width, height))
 
-# Add population median line (behind violins)
+# Add population median line and Poisson robustness line (behind violins)
 ax.axhline(np.log10(median_rob), lw=1, c='k', ls='--', zorder=0)
+ax.axhline(0., lw=1, c='k', ls='--', zorder=0, alpha=0.5)
 
 parts = ax.violinplot(
     violin_data,
