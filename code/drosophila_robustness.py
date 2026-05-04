@@ -44,8 +44,8 @@ width = 55./mm_to_in
 height = 55./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
-fig_margins = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
-wide_fig_margins = dict(left=0.12, right=0.98, bottom=0.22, top=0.95)
+fig_margins = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
+wide_fig_margins = dict(left=0.12, right=0.98, bottom=0.18, top=0.95)
 
 # Output directory
 fig_dir = "../../figures/drosophila_robustness/raw/"
@@ -421,17 +421,6 @@ ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
 kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 
-# Break in data line at panel boundary: white mask cuts the line, then diagonal marks on top
-ylim_min, ylim_max = -0.1, 8.0
-y_axes = (running_median[0] - ylim_min) / (ylim_max - ylim_min)
-dy_gap = 0.02
-ax_right.plot((-d, +d), (y_axes, y_axes),
-              transform=ax_right.transAxes, color='white', clip_on=False, lw=6,
-              solid_capstyle='round', zorder=8)
-kwargs_break = dict(transform=ax_right.transAxes, color=con_colors[5], clip_on=False, lw=2, zorder=9)
-ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs_break)
-ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
-
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'robustness_vs_optic_peripherality.svg', dpi=600)
 
@@ -534,17 +523,6 @@ ax_left.plot((1 - d_left, 1 + d_left), (-d, +d), **kwargs)  # bottom-right
 
 kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
-
-# Break in data line at panel boundary: white mask cuts the line, then diagonal marks on top
-ylim_min, ylim_max = -0.1, 8.0
-y_axes = (running_median[0] - ylim_min) / (ylim_max - ylim_min)
-dy_gap = 0.02
-ax_right.plot((-d, +d), (y_axes, y_axes),
-              transform=ax_right.transAxes, color='white', clip_on=False, lw=6,
-              solid_capstyle='round', zorder=8)
-kwargs_break = dict(transform=ax_right.transAxes, color=con_colors[6], clip_on=False, lw=2, zorder=9)
-ax_right.plot((-d, +d), (y_axes + dy_gap/2 + d, y_axes + dy_gap/2 - d), **kwargs_break)
-ax_right.plot((-d, +d), (y_axes - dy_gap/2 + d, y_axes - dy_gap/2 - d), **kwargs_break)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'robustness_vs_olfactory_peripherality.svg', dpi=600)
