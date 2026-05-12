@@ -286,6 +286,7 @@ italic_indices = [2, 3]
 # Get labels and colors for selected connectomes
 plot_indices = [5, 6, 7, 2, 4]
 bar_labels = [short_names[i] for i in plot_indices]
+
 bar_colors = [con_colors[data_to_color[i]] for i in plot_indices]
 
 # Map processed indices to fractions, then filter for plot_indices
@@ -293,8 +294,8 @@ frac_map = dict(zip(processed_indices, frac_decreased_list))
 bar_fractions = [frac_map[i] for i in plot_indices]
 
 # Set up figure
-fig_bar_margins = dict(left=0.17, right=0.95, bottom=0.35, top=0.95)
-fig, ax = plt.subplots(figsize=(0.7*width_large, 1.5*height))
+fig_bar_margins = dict(left=0.17, right=0.95, bottom=0.35, top=0.94)
+fig, ax = plt.subplots(figsize=(0.7*width_large, 1.25*height))
 
 # Create bar plot
 x_pos = np.arange(len(plot_indices))
@@ -304,7 +305,7 @@ ax.bar(x_pos, bar_fractions, color=bar_colors, edgecolor='none', width=0.6)
 ax.set_xticks(x_pos)
 # Manually specify labels with LaTeX italics for species/genus names
 formatted_labels = ['FAFB', 'BANC', 'MANC', r'\textit{C. elegans}', 'Mouse retina']
-ax.set_xticklabels(formatted_labels, rotation=45, ha='right')
+ax.set_xticklabels(formatted_labels, rotation=70, ha='right')
 # Enable LaTeX rendering only for the italic label
 for label in ax.get_xticklabels():
     if 'textit' in label.get_text():

@@ -1,4 +1,4 @@
-# Figure Generation Pipeline for "Signatures of Robust Computations in Connectomes"
+# Heavy-tailed connections support robust neural computations
 
 This repository contains the full computational pipeline used to preprocess connectome data, run simulations, and generate the figures for the associated manuscript.
 

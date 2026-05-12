@@ -14,7 +14,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Fri 1 May 2026
+    Mon 4 May 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -32,7 +32,6 @@ import matplotlib.ticker as mticker
 import logging
 import os
 from scipy.sparse import coo_matrix
-from matplotlib.patches import ConnectionPatch
 import network_processing
 from figure_formatting import apply_style, log10_formatter
 
@@ -325,59 +324,47 @@ ax.set_ylabel('CDF')
 plt.show()
 
 #------------------------------------------------------------------------------
-# PLOT 5: RUNNING MEDIAN OF ROBUSTNESS VS OPTIC PERIPHERALITY
+# PLOT 5 & 6: RUNNING MEDIAN OF ROBUSTNESS VS PERIPHERALITY
 #------------------------------------------------------------------------------
 # Sliding window parameters for running median
 log_band_width = 0.8  # Width of band in log10(percentile) space
 log_step_size = 0.1   # Step size for sliding window
-
-# Set up seed and masks
-seed = 'optic'
-mask_seed = neuron_df[f"distance_{seed}"] == 0      # seed neurons (distance = 0)
-mask_pos = neuron_df[f"distance_{seed}"] > 0        # all positive distance neurons
-
-# Compute median robustness for seed
-seed_median = neuron_df[mask_seed]['norm_robustness'].median()
-
-# For positive-distance neurons: compute percentile ranks
-pos_df = neuron_df[mask_pos].copy()
-pos_df['quantile'] = pos_df[f"distance_{seed}"].rank(pct=True)
-
-# Define sliding window centers in log10(percentile) space
-# Start just after the minimum percentile, end at 100
-min_pct = pos_df['quantile'].min()
-log_min = np.log10(max(min_pct, 0.001))  # Avoid log(0)
 log_max = np.log10(1)
 
-# Generate window centers
-window_centers_log = np.arange(log_min + log_band_width/2, 
-                                log_max - log_band_width/2 + log_step_size, 
-                                log_step_size)
+def _compute_running_median(neuron_df, seed):
+    mask_seed = neuron_df[f"distance_{seed}"] == 0
+    mask_pos  = neuron_df[f"distance_{seed}"] > 0
+    seed_median = neuron_df[mask_seed]['norm_robustness'].median()
+    pos_df = neuron_df[mask_pos].copy()
+    pos_df['quantile'] = pos_df[f"distance_{seed}"].rank(pct=True)
+    min_pct = pos_df['quantile'].min()
+    log_min = np.log10(max(min_pct, 0.001))  # Avoid log(0)
+    window_centers_log = np.arange(log_min + log_band_width/2,
+                                    log_max - log_band_width/2 + log_step_size,
+                                    log_step_size)
+    running_x, running_median = [], []
+    for center_log in window_centers_log:
+        low_pct  = 10 ** (center_log - log_band_width / 2)
+        high_pct = 10 ** (center_log + log_band_width / 2)
+        band_mask = (pos_df['quantile'] >= low_pct) & (pos_df['quantile'] < high_pct)
+        if band_mask.sum() > 0:
+            running_x.append(10 ** center_log)
+            running_median.append(pos_df[band_mask]['norm_robustness'].median())
+    return seed_median, np.array(running_x), np.array(running_median)
 
-# Compute running median for each window position
-running_x = []
-running_median = []
+seed_median_optic,     running_x_optic,     running_median_optic     = _compute_running_median(neuron_df, 'optic')
+seed_median_olfactory, running_x_olfactory, running_median_olfactory = _compute_running_median(neuron_df, 'olfactory')
 
-for center_log in window_centers_log:
-    # Define band edges in percentile space
-    low_pct = 10 ** (center_log - log_band_width / 2)
-    high_pct = 10 ** (center_log + log_band_width / 2)
-    
-    # Find neurons within this band
-    band_mask = (pos_df['quantile'] >= low_pct) & (pos_df['quantile'] < high_pct)
-    
-    if band_mask.sum() > 0:
-        # x-coordinate is the geometric mean of band edges (= 10^center)
-        running_x.append(10 ** center_log)
-        running_median.append(pos_df[band_mask]['norm_robustness'].median())
+# Shared x-axis left limit: lower of the two current break points
+shared_x_left = min(running_x_optic[0], running_x_olfactory[0])
 
-running_x = np.array(running_x)
-running_median = np.array(running_median)
-
+#------------------------------------------------------------------------------
+# PLOT 5: RUNNING MEDIAN OF ROBUSTNESS VS OPTIC PERIPHERALITY
+#------------------------------------------------------------------------------
 # Set up figure with broken x-axis
 fig, (ax_left, ax_right) = plt.subplots(
-    1, 2, 
-    sharey=True, 
+    1, 2,
+    sharey=True,
     figsize=(width, height),
     gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
 )
@@ -389,23 +376,16 @@ ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
 # Left panel: seed point at the panel boundary (right edge of ax_left)
-ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[5], s=40,
+ax_left.scatter([0], [seed_median_optic], c='white', edgecolors=con_colors[5], s=40,
                 zorder=5, clip_on=False)
 
-# Connect seed point to first running median point
-con = ConnectionPatch(
-    xyA=(0, seed_median), coordsA=ax_left.transData,
-    xyB=(running_x[0], running_median[0]), coordsB=ax_right.transData,
-    color=con_colors[5], lw=2, zorder=4, clip_on=False)
-ax_left.add_artist(con)
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
 ax_left.set_xticklabels(['0'])
 
-# Right panel: running median line in log-scale
-ax_right.plot(running_x, running_median, lw=2, c=con_colors[5])
+# Right panel: log-scale x-axis (line drawn below after layout is set)
 ax_right.set_xscale('log')
-ax_right.set_xlim(right=1)
+ax_right.set_xlim(left=shared_x_left, right=1)
 
 # Hide the spines between the two axes to show the "break"
 ax_left.spines['right'].set_visible(False)
@@ -423,6 +403,15 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 
 plt.subplots_adjust(**fig_margins)
+
+# Draw seed → running median as one Line2D in figure space (no junction artifact)
+seed_disp = ax_left.transData.transform([[0, seed_median_optic]])
+rm_disp   = ax_right.transData.transform(
+    np.column_stack([running_x_optic, running_median_optic]))
+all_fig = fig.transFigure.inverted().transform(np.vstack([seed_disp, rm_disp]))
+fig.add_artist(mpl.lines.Line2D(all_fig[:, 0], all_fig[:, 1],
+                                 transform=fig.transFigure,
+                                 lw=2, color=con_colors[5], zorder=4, clip_on=False))
 plt.savefig(fig_dir + 'robustness_vs_optic_peripherality.svg', dpi=600)
 
 # Format figure
@@ -434,53 +423,10 @@ plt.show()
 #------------------------------------------------------------------------------
 # PLOT 6: RUNNING MEDIAN OF ROBUSTNESS VS OLFACTORY PERIPHERALITY
 #------------------------------------------------------------------------------
-# Set up seed and masks
-seed = 'olfactory'
-mask_seed = neuron_df[f"distance_{seed}"] == 0      # seed neurons (distance = 0)
-mask_pos = neuron_df[f"distance_{seed}"] > 0        # all positive distance neurons
-
-# Compute median robustness for seed
-seed_median = neuron_df[mask_seed]['norm_robustness'].median()
-
-# For positive-distance neurons: compute quantile ranks
-pos_df = neuron_df[mask_pos].copy()
-pos_df['quantile'] = pos_df[f"distance_{seed}"].rank(pct=True)
-
-# Define sliding window centers in log10(quantile) space
-# Start just after the minimum quantile, end at 100
-min_pct = pos_df['quantile'].min()
-log_min = np.log10(max(min_pct, 0.001))  # Avoid log(0)
-log_max = np.log10(1)
-
-# Generate window centers
-window_centers_log = np.arange(log_min + log_band_width/2, 
-                                log_max - log_band_width/2 + log_step_size, 
-                                log_step_size)
-
-# Compute running median for each window position
-running_x = []
-running_median = []
-
-for center_log in window_centers_log:
-    # Define band edges in percentile space
-    low_pct = 10 ** (center_log - log_band_width / 2)
-    high_pct = 10 ** (center_log + log_band_width / 2)
-    
-    # Find neurons within this band
-    band_mask = (pos_df['quantile'] >= low_pct) & (pos_df['quantile'] < high_pct)
-    
-    if band_mask.sum() > 0:
-        # x-coordinate is the geometric mean of band edges (= 10^center)
-        running_x.append(10 ** center_log)
-        running_median.append(pos_df[band_mask]['norm_robustness'].median())
-
-running_x = np.array(running_x)
-running_median = np.array(running_median)
-
 # Set up figure with broken x-axis
 fig, (ax_left, ax_right) = plt.subplots(
-    1, 2, 
-    sharey=True, 
+    1, 2,
+    sharey=True,
     figsize=(width, height),
     gridspec_kw={'width_ratios': [1, 6], 'wspace': 0.05}
 )
@@ -492,23 +438,16 @@ ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
 # Left panel: seed point at the panel boundary (right edge of ax_left)
-ax_left.scatter([0], [seed_median], c='white', edgecolors=con_colors[6], s=40,
+ax_left.scatter([0], [seed_median_olfactory], c='white', edgecolors=con_colors[6], s=40,
                 zorder=5, clip_on=False)
 
-# Connect seed point to first running median point
-con = ConnectionPatch(
-    xyA=(0, seed_median), coordsA=ax_left.transData,
-    xyB=(running_x[0], running_median[0]), coordsB=ax_right.transData,
-    color=con_colors[6], lw=2, zorder=4, clip_on=False)
-ax_left.add_artist(con)
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
 ax_left.set_xticklabels(['0'])
 
-# Right panel: running median line in log-scale
-ax_right.plot(running_x, running_median, lw=2, c=con_colors[6])
+# Right panel: log-scale x-axis (line drawn below after layout is set)
 ax_right.set_xscale('log')
-ax_right.set_xlim(right=1)
+ax_right.set_xlim(left=shared_x_left, right=1)
 
 # Hide the spines between the two axes to show the "break"
 ax_left.spines['right'].set_visible(False)
@@ -526,6 +465,15 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 
 plt.subplots_adjust(**fig_margins)
+
+# Draw seed → running median as one Line2D in figure space (no junction artifact)
+seed_disp = ax_left.transData.transform([[0, seed_median_olfactory]])
+rm_disp   = ax_right.transData.transform(
+    np.column_stack([running_x_olfactory, running_median_olfactory]))
+all_fig = fig.transFigure.inverted().transform(np.vstack([seed_disp, rm_disp]))
+fig.add_artist(mpl.lines.Line2D(all_fig[:, 0], all_fig[:, 1],
+                                 transform=fig.transFigure,
+                                 lw=2, color=con_colors[6], zorder=4, clip_on=False))
 plt.savefig(fig_dir + 'robustness_vs_olfactory_peripherality.svg', dpi=600)
 
 # Format figure
