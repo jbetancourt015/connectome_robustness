@@ -6,7 +6,7 @@
     4. CDF of normalized robustness by reciprocity decile
     5. Running median of robustness vs optic peripherality (sliding window)
     6. Running median of robustness vs olfactory peripherality (sliding window)
-    7. Violin plots by visual pathway (R1-6, L1, Mi9, T4)
+    7. Violin plots by visual pathway (R1-6, L1, Mi1, T4)
     8. Violin plots by olfactory pathway (ORN, PN, KC, MBON)
     9. CDF of normalized robustness by neurotransmitter type
 -------------------------------------------------------------------------------
@@ -14,7 +14,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Mon 4 May 2026
+    Thu 14 May 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -375,10 +375,6 @@ ax_left.set_ylim(-.1,8.)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
-# Left panel: seed point at the panel boundary (right edge of ax_left)
-ax_left.scatter([0], [seed_median_optic], c='white', edgecolors=con_colors[5], s=40,
-                zorder=5, clip_on=False)
-
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
 ax_left.set_xticklabels(['0'])
@@ -412,6 +408,14 @@ all_fig = fig.transFigure.inverted().transform(np.vstack([seed_disp, rm_disp]))
 fig.add_artist(mpl.lines.Line2D(all_fig[:, 0], all_fig[:, 1],
                                  transform=fig.transFigure,
                                  lw=2, color=con_colors[5], zorder=4, clip_on=False))
+# Seed point added as figure-level artist so it renders above the line
+fig.add_artist(mpl.lines.Line2D([all_fig[0, 0]], [all_fig[0, 1]],
+                                 transform=fig.transFigure,
+                                 marker='o', markersize=np.sqrt(40), lw=0,
+                                 markerfacecolor='white',
+                                 markeredgecolor=con_colors[5],
+                                 markeredgewidth=1.0,
+                                 zorder=5, clip_on=False))
 plt.savefig(fig_dir + 'robustness_vs_optic_peripherality.svg', dpi=600)
 
 # Format figure
@@ -436,10 +440,6 @@ ax_right.set_facecolor('none')
 ax_left.set_ylim(-.1,8.)
 ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
-
-# Left panel: seed point at the panel boundary (right edge of ax_left)
-ax_left.scatter([0], [seed_median_olfactory], c='white', edgecolors=con_colors[6], s=40,
-                zorder=5, clip_on=False)
 
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
@@ -474,6 +474,14 @@ all_fig = fig.transFigure.inverted().transform(np.vstack([seed_disp, rm_disp]))
 fig.add_artist(mpl.lines.Line2D(all_fig[:, 0], all_fig[:, 1],
                                  transform=fig.transFigure,
                                  lw=2, color=con_colors[6], zorder=4, clip_on=False))
+# Seed point added as figure-level artist so it renders above the line
+fig.add_artist(mpl.lines.Line2D([all_fig[0, 0]], [all_fig[0, 1]],
+                                 transform=fig.transFigure,
+                                 marker='o', markersize=np.sqrt(40), lw=0,
+                                 markerfacecolor='white',
+                                 markeredgecolor=con_colors[6],
+                                 markeredgewidth=1.0,
+                                 zorder=5, clip_on=False))
 plt.savefig(fig_dir + 'robustness_vs_olfactory_peripherality.svg', dpi=600)
 
 # Format figure
@@ -483,16 +491,16 @@ fig.supxlabel('Peripherality percentile', fontsize=9)
 plt.show()
 
 #------------------------------------------------------------------------------
-# PLOT 7: VIOLIN PLOTS – VISUAL PATHWAY (R1-6, L1, Mi9, T4)
+# PLOT 7: VIOLIN PLOTS – VISUAL PATHWAY (R1-6, L1, Mi1, T4)
 #------------------------------------------------------------------------------
 # Define visual pathway steps in biological order (periphery → deeper processing)
-visual_pathway_order = ['R1-6', 'L1', 'Mi9', 'T4']
+visual_pathway_order = ['R1-6', 'L1', 'Mi1', 'T4']
 
 # Assign each neuron to its visual pathway step
 visual_masks = {
     'R1-6': neuron_df['primary_type'] == 'R1-6',
     'L1':   neuron_df['primary_type'] == 'L1',
-    'Mi9':  neuron_df['primary_type'] == 'Mi9',
+    'Mi1':  neuron_df['primary_type'] == 'Mi1',
     'T4':   neuron_df['primary_type'].str.startswith('T4', na=False),
 }
 
