@@ -250,11 +250,10 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
     plt.show()
 
 #------------------------------------------------------------------------------
-# COMPARE SENSITIVITIES
+# COMPARE ROBUSTNESS
 #------------------------------------------------------------------------------
 norm = False
 log_axes = False
-k_min = 2
 
 # Collect fraction of neurons with decreased robustness after shuffling
 frac_decreased_list = []
