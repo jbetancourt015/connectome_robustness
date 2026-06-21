@@ -6,7 +6,7 @@ created on:
     Tue 28 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Thu 30 Apr 2026
+    Wed 3 Jun 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -17,6 +17,7 @@ contributors:
 -------------------------------------------------------------------------------
 """
 
+import os
 import numpy as np
 from scipy.sparse import load_npz, csc_matrix
 from numba import njit
@@ -24,7 +25,8 @@ from numba import njit
 # ------------------------------------------------------------------------------
 # IMPORTING DATA
 # ------------------------------------------------------------------------------
-processed_dir = "../processed_data/"
+_code_dir = os.path.dirname(os.path.abspath(__file__))
+processed_dir = os.path.join(_code_dir, "../processed_data/")
 
 connectomes = [
     "drosophila_central_brain",

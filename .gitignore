@@ -19,6 +19,7 @@ processed_data/*
 simulation_results/*
 !simulation_results/.gitkeep
 supplement_code/
+supplement_simulation_results/
 report_code/
 
 # R
