@@ -272,7 +272,7 @@ neuron_df['pred_loss'] = (1/np.pi)*np.arccos((1.+(eps/neuron_df['robustness'])**
 
 # Average relative error (drop neurons with zero simulated loss)
 nonzero_mask = neuron_df['sim_loss'] > 0
-rel_err = (neuron_df.loc[nonzero_mask, 'sim_loss'] - neuron_df.loc[nonzero_mask, 'pred_loss']) / neuron_df.loc[nonzero_mask, 'sim_loss']
+rel_err = np.abs(neuron_df.loc[nonzero_mask, 'sim_loss'] - neuron_df.loc[nonzero_mask, 'pred_loss']) / neuron_df.loc[nonzero_mask, 'sim_loss']
 print(f"Average relative error of prediction: {rel_err.mean():.4f} (n={nonzero_mask.sum()})")
 
 # Set up figure

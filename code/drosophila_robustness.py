@@ -120,6 +120,9 @@ ax.legend()
 
 plt.show()
 
+# Print median robustness to console
+print(f"Median robustness: {median_rob:.4f}")
+
 #------------------------------------------------------------------------------
 # PLOT 2: VIOLIN PLOTS BY BRAIN REGION (LOG SCALE)
 #------------------------------------------------------------------------------
