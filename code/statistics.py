@@ -52,7 +52,6 @@ stat_labels = [
     'Average in/out-degree',
     'Average in/out-strength',
     'Average strength per connection',
-    r'Fraction with $k_{\mathrm{in}} \geq 10$',
 ]
 
 k_min = 10
@@ -73,7 +72,6 @@ for idx, name in enumerate(connectomes):
             np.mean(in_deg),               # average in-degree
             np.mean(in_str),               # average in-strength
             A.sum() / A.nnz,               # average strength per connection
-            np.mean(in_deg >= k_min),      # fraction with in-degree >= 10
         ]
 
         mask         = in_deg >= k_min
@@ -81,6 +79,7 @@ for idx, name in enumerate(connectomes):
         large_in_str = in_str[mask]
         large_stats[name] = [
             int(mask.sum()),                          # neurons with k_in >= 10
+            np.mean(in_deg >= k_min),                 # fraction with k_in >= 10
             np.mean(large_in_deg),                    # avg in-degree
             np.mean(large_in_str),                    # avg in-strength
             large_in_str.sum() / large_in_deg.sum(),  # avg strength per connection
@@ -131,6 +130,7 @@ print(f'Table saved to {out_path}')
 # ── Build large-neuron LaTeX table ─────────────────────────────────────────────
 large_stat_labels = [
     'Number of neurons',
+    r'Fraction with $k_{\mathrm{in}} \geq 10$',
     'Average in-degree',
     'Average in-strength',
     'Average strength per connection',
