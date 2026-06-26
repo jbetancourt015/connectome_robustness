@@ -6,7 +6,7 @@ created on:
     Tue 24 Mar 2026
 -------------------------------------------------------------------------------
 last change:
-    Sat 21 Jun 2026
+    Thu 26 Jun 2026
 -------------------------------------------------------------------------------
 notes:
     Run from the repo/ directory:
@@ -93,7 +93,7 @@ def fmt(val, label, connectome=None):
     elif label == 'Number of connections':
         mantissa, exp = f'{val:.2e}'.split('e')
         return f'{mantissa} $\\times$ 10$^{{{int(exp)}}}$'
-    elif label == 'Average in/out-strength' and connectome == 'mouse_retina':
+    elif label in ('Average in/out-strength', 'Average in-strength') and connectome == 'mouse_retina':
         return f'{val:.1f}' + r'$\ \mu$m$^2$'
     elif label == 'Average strength per connection' and connectome == 'mouse_retina':
         return f'{val:.1f}' + r'$\ \mu$m$^2$'
@@ -131,8 +131,8 @@ print(f'Table saved to {out_path}')
 # ── Build large-neuron LaTeX table ─────────────────────────────────────────────
 large_stat_labels = [
     'Number of neurons',
-    'Average in/out-degree',
-    'Average in/out-strength',
+    'Average in-degree',
+    'Average in-strength',
     'Average strength per connection',
 ]
 
