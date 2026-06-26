@@ -129,7 +129,7 @@ print(f'Table saved to {out_path}')
 
 # ── Build large-neuron LaTeX table ─────────────────────────────────────────────
 large_stat_labels = [
-    'Number of neurons',
+    r'Number of neurons with $k_{\mathrm{in}} \geq 10$',
     r'Fraction with $k_{\mathrm{in}} \geq 10$',
     'Average in-degree',
     'Average in-strength',
