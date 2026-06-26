@@ -87,7 +87,7 @@ for idx, name in enumerate(connectomes):
 
 # ── Format individual values ───────────────────────────────────────────────────
 def fmt(val, label, connectome=None):
-    if label == 'Number of neurons':
+    if 'Number of neurons' in label:
         return f'{int(val):,}'
     elif label == 'Number of connections':
         mantissa, exp = f'{val:.2e}'.split('e')
