@@ -295,7 +295,7 @@ else:
     ybins = np.linspace(min_loss, max_loss, n_bins)
 
 counts, xedges, yedges = np.histogram2d(
-    neuron_df['pred_loss'], neuron_df['sim_loss'],
+    neuron_df['sim_loss'], neuron_df['pred_loss'],
     bins=[xbins, ybins]
 )
 prob = counts / counts.sum()
@@ -319,8 +319,8 @@ plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'loss_vs_prediction.svg', dpi=600)
 
 # Add labels
-ax.set_xlabel('Predicted error probability')
-ax.set_ylabel('Simulated error probability')
+ax.set_xlabel('Simulated error probability')
+ax.set_ylabel('Predicted error probability')
 
 # Add colorbar after saving (only shows in plt.show(), not in PDF)
 cb = fig.colorbar(im, ax=ax)
