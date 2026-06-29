@@ -5,7 +5,7 @@ created on:
     Mon 15 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Fri 1 May 2026
+    Sun 29 Jun 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -211,9 +211,12 @@ for idx in tqdm(range(n_cols*n_rows)):
         ax.set_xscale('log')
         ax.set_yscale('log')
         # Split two-word region names into two lines
-        region_label = r.replace(' ', '\n')
+        if r == 'Periesophageal NP':
+            region_label = 'Periesoph-\nageal\nNP'
+        else:
+            region_label = r.replace(' ', '\n')
         loc, va, ha = (0.05, 'bottom', 'left') if r=='Periesophageal' else (0.95, 'top', 'right')
-        ax.text(loc, loc, region_label, transform=ax.transAxes, fontsize=5,
+        ax.text(loc, loc, region_label, transform=ax.transAxes, fontsize=6,
                 ha=ha, va=va)
         # Advance region index
         region_idx += 1
