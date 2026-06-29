@@ -7,7 +7,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Sun 29 Jun 2026
+    Mon 29 Jun 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ ax.bar(x_pos, bar_fractions, color=bar_colors, edgecolor='none', width=0.6)
 ax.set_xticks(x_pos)
 # Manually specify labels with LaTeX italics for species/genus names
 formatted_labels = ['FAFB', 'BANC', 'MANC', r'\textit{C. elegans}', 'Mouse retina']
-ax.set_xticklabels(formatted_labels, rotation=70, ha='right')
+ax.set_xticklabels(formatted_labels, rotation=70, ha='right', rotation_mode='anchor')
 # Enable LaTeX rendering only for the italic label
 for label in ax.get_xticklabels():
     if 'textit' in label.get_text():
@@ -374,7 +374,7 @@ ax.bar(x_pos, fafb_bar_fractions, color=fafb_bar_colors, edgecolor='none', width
 
 # Configure axes
 ax.set_xticks(x_pos)
-ax.set_xticklabels(fafb_bar_labels, rotation=45, ha='right')
+ax.set_xticklabels(fafb_bar_labels, rotation=45, ha='right', rotation_mode='anchor')
 ax.set_ylim(0., 1.)
 ax.set_xlim(-0.5, len(fafb_bar_labels) - 0.5)
 
