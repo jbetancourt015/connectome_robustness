@@ -7,7 +7,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Thu 30 Apr 2026
+    Sun 29 Jun 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -27,6 +27,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import gaussian_kde
+from scipy.sparse import load_npz
 from matplotlib.ticker import ScalarFormatter
 import logging
 import pickle
@@ -58,11 +59,14 @@ logging.getLogger("matplotlib.backends.backend_pdf").setLevel(logging.ERROR)
 mm_to_in = 25.4
 width = 40./mm_to_in
 height = 40./mm_to_in
+width_small = 30./mm_to_in
+height_small = 30./mm_to_in
 width_large = 80./mm_to_in
 height_large = 80./mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins = dict(left=0.24, right=1., bottom=0.24, top=1.)
+fig_margins_small = dict(left=0.2, right=1., bottom=0.2, top=1.)
 fig_margins_large = dict(left=0.12, right=0.95, bottom=0.12, top=0.95)
 
 alpha_min = .2
@@ -238,7 +242,11 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
     
     # Save plot without labels
     plt.savefig(fig_dir + f"{connectomes[data_idx]}_hist.svg", dpi=600)
-    
+
+    frac_below = np.mean(Q1 > Q2)
+    ax_scatter.text(0.05, 0.95, f'{100*frac_below:.1f}%', transform=ax_scatter.transAxes,
+                    fontsize=6, va='top', ha='left')
+
     # Add labels
     ax_scatter.set_xlabel('Connectome robustness')
     ax_scatter.set_ylabel('Shuffled weight robustness')
@@ -378,5 +386,52 @@ plt.savefig(fig_dir + "fafb_region_robustness_decrease.svg", dpi=600)
 
 # Add labels
 ax.set_ylabel('Fraction with decreased robustness')
+
+plt.show()
+
+#------------------------------------------------------------------------------
+# FAFB MEAN VS VARIANCE HISTOGRAM
+#------------------------------------------------------------------------------
+k_min_stat = 2
+
+fafb_A = load_npz(processed_dir + 'drosophila_whole_brain.npz')
+fafb_k = fafb_A.getnnz(axis=0)
+fafb_mask = fafb_k >= k_min_stat
+fafb_A2 = fafb_A.copy()
+fafb_A2.data = fafb_A2.data ** 2
+fafb_mu  = np.asarray(fafb_A.sum(axis=0)).ravel()[fafb_mask] / fafb_k[fafb_mask]
+fafb_mu2 = np.asarray(fafb_A2.sum(axis=0)).ravel()[fafb_mask] / fafb_k[fafb_mask]
+fafb_var = fafb_mu2 - fafb_mu ** 2
+fafb_pos = fafb_var > 1e-10
+fafb_mu, fafb_var = fafb_mu[fafb_pos], fafb_var[fafb_pos]
+
+xbins_mv = np.logspace(np.log10(fafb_mu.min()),  np.log10(fafb_mu.max()),  n_bins)
+ybins_mv = np.logspace(np.log10(fafb_var.min()), np.log10(fafb_var.max()), n_bins)
+counts_mv, xedges_mv, yedges_mv = np.histogram2d(fafb_mu, fafb_var, bins=[xbins_mv, ybins_mv])
+prob_mv = counts_mv / counts_mv.sum()
+prob_mv_masked = np.ma.masked_where(prob_mv == 0, prob_mv)
+
+fig, ax = plt.subplots(figsize=(width_small, height_small))
+im_mv = ax.pcolormesh(
+    xedges_mv, yedges_mv, prob_mv_masked.T,
+    norm=LogNorm(),
+    cmap=fade_to_color_cmap(con_colors[data_to_color[5]], alpha_min=alpha_min, name="fade_to_color"),
+    rasterized=True,
+)
+ax.set_xscale('log')
+ax.set_yscale('log')
+ax.set_xlim(xedges_mv[0], xedges_mv[-1])
+ax.set_ylim(yedges_mv[0], yedges_mv[-1])
+lim_mv = [max(xedges_mv[0], yedges_mv[0]), min(xedges_mv[-1], yedges_mv[-1])]
+ax.plot(lim_mv, lim_mv, ls='--', lw=1, c='k', alpha=0.5, zorder=3)
+ax.tick_params(axis='both', labelsize=6)
+plt.subplots_adjust(**fig_margins_small)
+
+plt.savefig(fig_dir + 'fafb_mean_variance_hist.svg', dpi=600)
+
+ax.set_xlabel('Mean incoming weight')
+ax.set_ylabel('Variance in weight')
+cb = fig.colorbar(im_mv, ax=ax)
+cb.set_label('Probability')
 
 plt.show()
