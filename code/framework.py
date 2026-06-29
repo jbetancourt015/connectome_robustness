@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Fri 1 May 2026
+    Sun 29 Jun 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -621,7 +621,7 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
     if distribution == "dirac":
         ax.plot([mean, mean], [0, 1], color=color, lw=2)
         ax.scatter(
-            [mean], [1], color="white", edgecolors=color, s=30, clip_on=False, zorder=5
+            [mean], [1], color=color, edgecolors=color, s=30, clip_on=False, zorder=5
         )
         ax.set_ylim(bottom=0)
 
@@ -871,6 +871,8 @@ for i, param_set in enumerate(param_sets):
 
     print("  Generated histogram")
     print(f"  Simulated std:   std(z)={np.std(z_vals):.4f},  std(zhat)={np.std(zhat_vals):.4f}")
+    error_rate = np.mean(np.sign(z_vals) != np.sign(z_vals + zhat_vals))
+    print(f"  Error rate:      {error_rate:.4f}")
 
 # ------------------------------------------------------------------------------
 # SECTION 5: ANALYTICAL GAUSSIAN HEATMAPS
