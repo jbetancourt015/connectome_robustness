@@ -25,9 +25,9 @@ loss_n_draws  = int(1e3)
 loss_n_perturb = int(1e3)
 
 # ── FlyWire periphery scoring ──────────────────────────────────────────────────
-periphery_n_sim   = 100
+periphery_n_sim   = int(1e3)
 periphery_threshold = 0.3
-periphery_repeats = 3
+periphery_repeats = 10
 
 # ── z/ztilde simulation ────────────────────────────────────────────────────────
 # Each entry is (distribution, mean) or (distribution, mean, variance).

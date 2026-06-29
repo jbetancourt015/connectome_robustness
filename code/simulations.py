@@ -166,7 +166,7 @@ def average_error_fast(w, eps, n_draws, n_perturb, block_perturb=128, rng=None):
     return error_count / total_pairs
 
 
-def simulate_propagation(A, pool, threshold=0.3, repeats=3, seed=None, max_steps=None):
+def simulate_propagation(A, pool, threshold=0.3, repeats=10, seed=None, max_steps=None):
     """
     Simulate stochastic propagation on a directed weighted sparse graph.
 
@@ -437,10 +437,9 @@ def run_flywire_periphery_scoring():
 
     optic_mask = neuron_df["primary_type"].str.contains(optic_re)
     olfactory_mask = neuron_df["primary_type"].str.contains(olfactory_re)
-    joint_mask = optic_mask | olfactory_mask
 
-    masks = [optic_mask, olfactory_mask, joint_mask]
-    labels = ["optic", "olfactory", "joint"]
+    masks = [optic_mask, olfactory_mask]
+    labels = ["optic", "olfactory"]
 
     sim_df = pd.DataFrame({"root_id": idx_to_id})
 

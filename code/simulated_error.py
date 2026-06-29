@@ -43,7 +43,7 @@ fig_margins_small = dict(left=0.3, right=0.9, bottom=0.3, top=0.9)
 alpha_min = 0.
 
 # Output directory
-fig_dir = "../../figures/simulated_loss/raw/"
+fig_dir = "../../figures/simulated_error/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
 # Connectome list
