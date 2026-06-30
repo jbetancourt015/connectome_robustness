@@ -270,10 +270,11 @@ n_bins = 30
 # Compute predicted loss
 neuron_df['pred_loss'] = (1/np.pi)*np.arccos((1.+(eps/neuron_df['robustness'])**2)**(-1/2))
 
-# Average relative error (drop neurons with zero simulated loss)
-nonzero_mask = neuron_df['sim_loss'] > 0
-rel_err = np.abs(neuron_df.loc[nonzero_mask, 'sim_loss'] - neuron_df.loc[nonzero_mask, 'pred_loss']) / neuron_df.loc[nonzero_mask, 'sim_loss']
-print(f"Average relative error of prediction: {rel_err.mean():.4f} (n={nonzero_mask.sum()})")
+# Average relative error
+err_diff = np.abs(neuron_df['sim_loss'] - neuron_df['pred_loss'])
+avg_sim_err = neuron_df['sim_loss'].mean()
+print(f"Average simulated error: {avg_sim_err:.4f}")
+print(f"Average error difference: {err_diff.mean():.4f}")
 
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
