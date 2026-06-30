@@ -14,7 +14,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 14 May 2026
+    Sun 29 Jun 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ median_rob_shuffled = neuron_df['norm_robustness_shuffled'].median()
 # Set up figure
 fig, ax = plt.subplots(figsize=(width, height))
 
-ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k')
 ax.plot([median_rob_shuffled, median_rob_shuffled], [0., 1.], lw=1, c='k', alpha=.5, ls='--')
 ax.step(rob_vals, rob_cdf, where='post', lw=2, color=con_colors[0], label='Connectome')
 ax.step(rob_vals_shuf, rob_cdf_shuf, where='post', lw=2, color=con_colors[0], alpha=0.5, label='Shuffled')
@@ -152,7 +152,8 @@ violin_data = [neuron_df_regions.loc[mask0 & (neuron_df_regions["brain_region"] 
 fig, ax = plt.subplots(figsize=(2*width, height))
 
 # Add population median line and Poisson robustness line (behind violins)
-ax.axhline(np.log10(median_rob), lw=1, c='k', ls='--', zorder=0)
+ax.axhline(np.log10(median_rob), lw=1, c='k', zorder=0)
+ax.axhline(np.log10(median_rob_shuffled), lw=1, c='k', alpha=.5, ls='--', zorder=0)
 ax.axhline(0., lw=1, c='k', ls='--', zorder=0, alpha=0.5)
 
 parts = ax.violinplot(
@@ -178,7 +179,7 @@ if 'cmedians' in parts and parts['cmedians'] is not None:
     
 # Labels/ticks
 ax.set_xticks(range(1, len(region_order) + 1))
-ax.set_xticklabels(region_order, rotation=35, ha="right")
+ax.set_xticklabels(region_order, rotation=35, ha="right", rotation_mode='anchor')
 
 # Format y-axis with log10 tick labels
 ax.set_ylim(-1, 2)
@@ -260,7 +261,8 @@ rob_inh, cdf_inh = compute_cdf(neuron_df_class[mask_inh]['norm_robustness'])
 fig, ax = plt.subplots(figsize=(width, height))
 
 # Add population median line (behind data)
-ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k')
+ax.plot([median_rob_shuffled, median_rob_shuffled], [0., 1.], lw=1, c='k', alpha=.5, ls='--')
 
 ax.step(rob_exc, cdf_exc, where='post', color=con_colors[0], lw=2, label='Excitatory')
 ax.step(rob_inh, cdf_inh, where='post', color=con_colors[1], lw=2, label='Inhibitory')
@@ -298,7 +300,8 @@ rec_norm = [(r - rec_min) / (rec_max - rec_min) for r in reciprocities]
 fig, ax = plt.subplots(figsize=(width, height))
 
 # Add population median line (behind data)
-ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k')
+ax.plot([median_rob_shuffled, median_rob_shuffled], [0., 1.], lw=1, c='k', alpha=.5, ls='--')
 
 cmap = plt.get_cmap('coolwarm')
 
@@ -375,8 +378,6 @@ ax_right.set_facecolor('none')
 
 # Add population median line (behind data, spans both panels via shared y-axis)
 ax_left.set_ylim(-.1,8.)
-ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
-ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
@@ -402,6 +403,19 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 
 plt.subplots_adjust(**fig_margins)
+
+# Draw median reference lines as figure-level artists so they span both panels without a gap
+x0_fig = ax_left.get_position().x0
+x1_fig = ax_right.get_position().x1
+y_med_fig = fig.transFigure.inverted().transform(
+    ax_left.transData.transform([[0, median_rob]]))[0, 1]
+y_shuf_fig = fig.transFigure.inverted().transform(
+    ax_left.transData.transform([[0, median_rob_shuffled]]))[0, 1]
+fig.add_artist(mpl.lines.Line2D([x0_fig, x1_fig], [y_med_fig, y_med_fig],
+                                  transform=fig.transFigure, lw=1, color='k', clip_on=False, zorder=1))
+fig.add_artist(mpl.lines.Line2D([x0_fig, x1_fig], [y_shuf_fig, y_shuf_fig],
+                                  transform=fig.transFigure, lw=1, color='k', alpha=0.5, ls='--',
+                                  clip_on=False, zorder=1))
 
 # Draw seed → running median as one Line2D in figure space (no junction artifact)
 seed_disp = ax_left.transData.transform([[0, seed_median_optic]])
@@ -441,8 +455,6 @@ ax_right.set_facecolor('none')
 
 # Add population median line (behind data, spans both panels via shared y-axis)
 ax_left.set_ylim(-.1,8.)
-ax_left.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
-ax_right.axhline(median_rob, lw=1, c='k', ls='--', zorder=0)
 
 ax_left.set_xlim(-0.5, 0.5)
 ax_left.set_xticks([0])
@@ -468,6 +480,19 @@ kwargs.update(transform=ax_right.transAxes)
 ax_right.plot((-d, +d), (-d, +d), **kwargs)  # bottom-left
 
 plt.subplots_adjust(**fig_margins)
+
+# Draw median reference lines as figure-level artists so they span both panels without a gap
+x0_fig = ax_left.get_position().x0
+x1_fig = ax_right.get_position().x1
+y_med_fig = fig.transFigure.inverted().transform(
+    ax_left.transData.transform([[0, median_rob]]))[0, 1]
+y_shuf_fig = fig.transFigure.inverted().transform(
+    ax_left.transData.transform([[0, median_rob_shuffled]]))[0, 1]
+fig.add_artist(mpl.lines.Line2D([x0_fig, x1_fig], [y_med_fig, y_med_fig],
+                                  transform=fig.transFigure, lw=1, color='k', clip_on=False, zorder=1))
+fig.add_artist(mpl.lines.Line2D([x0_fig, x1_fig], [y_shuf_fig, y_shuf_fig],
+                                  transform=fig.transFigure, lw=1, color='k', alpha=0.5, ls='--',
+                                  clip_on=False, zorder=1))
 
 # Draw seed → running median as one Line2D in figure space (no junction artifact)
 seed_disp = ax_left.transData.transform([[0, seed_median_olfactory]])
@@ -519,7 +544,8 @@ for step in visual_pathway_order:
 fig, ax = plt.subplots(figsize=(width, height))
 
 # Population median line (behind violins)
-ax.axhline(np.log10(median_rob), lw=1, c='k', ls='--', zorder=0)
+ax.axhline(np.log10(median_rob), lw=1, c='k', zorder=0)
+ax.axhline(np.log10(median_rob_shuffled), lw=1, c='k', alpha=.5, ls='--', zorder=0)
 
 parts = ax.violinplot(
     visual_violin_data,
@@ -581,7 +607,8 @@ for step in olfactory_pathway_order:
 fig, ax = plt.subplots(figsize=(width, height))
 
 # Population median line (behind violins)
-ax.axhline(np.log10(median_rob), lw=1, c='k', ls='--', zorder=0)
+ax.axhline(np.log10(median_rob), lw=1, c='k', zorder=0)
+ax.axhline(np.log10(median_rob_shuffled), lw=1, c='k', alpha=.5, ls='--', zorder=0)
 
 parts = ax.violinplot(
     olfactory_violin_data,
@@ -638,7 +665,8 @@ nt_colors = [cmap_nt(i / (n_nt - 1)) for i in range(n_nt)]
 
 fig, ax = plt.subplots(figsize=(width, height))
 
-ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k', ls='--')
+ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k')
+ax.plot([median_rob_shuffled, median_rob_shuffled], [0., 1.], lw=1, c='k', alpha=.5, ls='--')
 
 for i, nt in enumerate(nt_order):
     mask = nt_df['nt_type'] == nt
