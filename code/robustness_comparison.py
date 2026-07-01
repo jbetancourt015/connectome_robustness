@@ -424,7 +424,7 @@ ax.set_xlim(xedges_mv[0], xedges_mv[-1])
 ax.set_ylim(yedges_mv[0], yedges_mv[-1])
 lim_mv = [max(xedges_mv[0], yedges_mv[0]), min(xedges_mv[-1], yedges_mv[-1])]
 ax.plot(lim_mv, lim_mv, ls='--', lw=1, c='k', alpha=0.5, zorder=3)
-ax.tick_params(axis='both', labelsize=6)
+ax.tick_params(axis='both', labelsize=7)
 plt.subplots_adjust(**fig_margins_small)
 
 plt.savefig(fig_dir + 'fafb_mean_variance_hist.svg', dpi=600)
