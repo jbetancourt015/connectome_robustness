@@ -7,7 +7,7 @@ created on:
     Mon 12 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Thu 30 Apr 2026
+    Wed 2 Jul 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -351,23 +351,15 @@ neuron_df = neuron_df.merge(class_df, on='root_id')
 for col in ['in_deg', 'in_strength', 'out_deg', 'out_strength']:
     neuron_df[col] = neuron_df[col].fillna(0)
 
-# Assign a neurotransmitter type to each neuron by plurality of outgoing synapses
-nt_out = (
-    conn_df
-    .groupby(['pre_root_id', 'nt_type'], as_index=False)['syn_count']
-    .sum()
-    .pivot(index='pre_root_id', columns='nt_type', values='syn_count')
-    .fillna(0)
+# Assign neurotransmitter type from the fafb_nt_types external classification
+nt_types_df = pd.read_csv(
+    data_dir + 'fafb_nt_types.csv.gz',
+    usecols=['root_id', 'nt_type'],
+    compression='gzip'
 )
-nt_out_frac = nt_out.div(nt_out.sum(axis=1), axis=0)
-nt_out_max  = nt_out_frac.max(axis=1)
-nt_out_argmax = nt_out_frac.idxmax(axis=1)
+nt_types_df['nt_type'] = nt_types_df['nt_type'].replace('', np.nan)
 
-nt_type_assigned = nt_out_argmax.where(nt_out_max >= params.nt_plurality_thresh, other=np.nan)
-nt_type_assigned.name = 'nt_type'
-nt_type_assigned.index.name = 'root_id'
-
-neuron_df = neuron_df.merge(nt_type_assigned.reset_index(), on='root_id', how='left')
+neuron_df = neuron_df.merge(nt_types_df, on='root_id', how='left')
 
 # Save dataset as parquet
 neuron_df.to_parquet(processed_dir+'neuron_data.parquet')
