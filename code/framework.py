@@ -16,6 +16,8 @@ notes:
       5. Simulated 2D histograms (hist_*.svg)
       6. Loss vs variance plot (*_simulation_var.svg) and loss vs robustness
          curve-collapse plot (*_simulation_robustness.svg)
+      7. Sparse-firing error rate vs robustness, parameterized by firing
+         probability p_f (sparse_error_vs_robustness.svg)
 
     Outputs to figures/framework/.
 -------------------------------------------------------------------------------
@@ -35,6 +37,8 @@ import matplotlib.colors as mcolors
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import gamma as gamma_dist
 from scipy.stats import lognorm as lognorm_dist
+from scipy.stats import multivariate_normal
+from scipy.special import erfinv, erf
 import logging
 from params import (
     rng_seed,
@@ -208,6 +212,31 @@ def robustness_from_moments(mean, var):
 def loss_from_robustness(rob):
     """Predicted loss as a function of robustness alone (curve-collapse form of general_loss)."""
     return (1 / np.pi) * np.arccos((1.0 + 1.0 / rob**2) ** (-1 / 2))
+
+
+def _phi2(h, k, rho):
+    """Bivariate standard normal CDF with correlation rho, evaluated at (h, k)."""
+    mean = (0.0, 0.0)
+    cov = ((1.0, rho), (rho, 1.0))
+    return multivariate_normal(mean, cov).cdf([h, k])
+
+
+def _norm_loc(p0):
+    """Standard normal quantile corresponding to firing probability p0."""
+    return -np.sqrt(2) * erfinv(1.0 - 2 * p0)
+
+
+def sparse_error_rate(p0, rho):
+    """
+    Error rate for a sparsely-firing neuron (firing probability p0) as a
+    function of the z/ztilde correlation rho, matching
+    supplement_code/sparse_inputs_outputs.py.
+    """
+    alpha = _norm_loc(p0)
+    l = 0.5 * (1.0 + erf(alpha / np.sqrt(2)))
+    l += 0.5 * (1.0 + erf(rho * alpha / np.sqrt(2)))
+    l -= 2 * _phi2(alpha, rho * alpha, rho)
+    return l
 
 
 # ==============================================================================
@@ -684,6 +713,46 @@ def plot_parametric_loss_vs_robustness(distribution, n_inputs):
     plt.show()
 
 
+def plot_sparse_error_vs_robustness(
+    r_min=0.3, r_max=22.0, p_vals=(0.01, 0.03, 0.1, 0.3), n_r=500
+):
+    """
+    Plot error rate vs robustness for sparsely-firing neurons, parameterized
+    by firing probability p_f (curve-collapse form assuming sigma=1).
+
+    Recreates the SI figure from supplement_code/sparse_inputs_outputs.py
+    (SECTION 3: error rate vs robustness) using the framework's medium
+    panel sizing/styling. Curve colors are evenly spaced along the colormap
+    regardless of the (log-spaced) firing probability values themselves.
+    """
+    r_vals = np.logspace(np.log10(r_min), np.log10(r_max), n_r)
+    rho_of_r = (1.0 + (1.0 / r_vals) ** 2) ** (-0.5)
+
+    p_vals = np.asarray(p_vals)
+    cmap = plt.get_cmap("plasma_r")
+    colors = cmap(np.linspace(0.0, 1.0, len(p_vals)))
+
+    fig, ax = plt.subplots(figsize=(width_md, height_md))
+
+    for p0, color in zip(p_vals, colors):
+        error_r = np.array([sparse_error_rate(p0, rho) for rho in rho_of_r])
+        ax.plot(r_vals, error_r, color=color, lw=2, label=f"$p_f={p0:g}$")
+
+    ax.set_yscale("log")
+    ax.set_xlim([0.0, r_max])
+    ax.set_ylim([1e-2, 0.2])
+    ax.spines[["right", "top"]].set_visible(False)
+
+    plt.subplots_adjust(**fig_margins_md)
+    plt.savefig(fig_dir + "sparse_error_vs_robustness.svg", dpi=600)
+
+    ax.set_xlabel(r"Robustness $r(\mathbf{w})$")
+    ax.set_ylabel(r"Error rate $\mathcal{E}(\mathbf{w};\, p_f)$")
+    ax.legend(title="Firing probability", frameon=False)
+
+    plt.show()
+
+
 def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_range=None):
     """
     Plot the PDF of the weight distribution used in simulations.
@@ -1023,6 +1092,16 @@ print("  Generated loss vs variance plot")
 
 plot_parametric_loss_vs_robustness("gamma", 1000)
 print("  Generated loss vs robustness plot (curve collapse)")
+
+# ------------------------------------------------------------------------------
+# SECTION 6B: SPARSE FIRING ERROR VS ROBUSTNESS
+# ------------------------------------------------------------------------------
+print("\n" + "=" * 60)
+print("STEP 6B: SPARSE FIRING ERROR VS ROBUSTNESS")
+print("=" * 60)
+
+plot_sparse_error_vs_robustness()
+print("  Generated sparse-firing error vs robustness plot")
 
 # ------------------------------------------------------------------------------
 # SECTION 7: DISTRIBUTION PDFs
