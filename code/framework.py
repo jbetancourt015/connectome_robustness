@@ -93,12 +93,15 @@ mm_to_in = 25.4
 # Panel dimensions in inches (scaled from mm reference)
 width_sm = 0.15 * pg_width / mm_to_in
 height_sm = 0.15 * pg_width / mm_to_in
-width_md = 0.35 * pg_width / mm_to_in
-height_md = 0.35 * pg_width / mm_to_in
+width_md = 0.32 * pg_width / mm_to_in
+height_md = 0.32 * pg_width / mm_to_in
+width_lg = 0.35 * pg_width / mm_to_in
+height_lg = 0.35 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins_sm = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
 fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
+fig_margins_lg = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
 
 # Dark-cool colormap for parametric loss plots
 dark_cool = mcolors.LinearSegmentedColormap.from_list(
@@ -850,7 +853,7 @@ print("=" * 60)
 
 lim = 1.0
 
-fig, ax = plt.subplots(figsize=(width_md, height_md))
+fig, ax = plt.subplots(figsize=(width_lg, height_lg))
 
 y1, y2 = 0.7, 0.2
 
@@ -880,7 +883,7 @@ ax.set_yticks([-1, 0, 1])
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
 
-plt.subplots_adjust(**fig_margins_md)
+plt.subplots_adjust(**fig_margins_lg)
 plt.savefig(fig_dir + "classification_plane.svg", dpi=600)
 
 ax.text(0.25, 0.75, "Fire", ha="left", va="bottom", transform=ax.transAxes)
@@ -907,7 +910,7 @@ sigma_y_mid = eps * np.sqrt(mean_mid)
 R = 2.0  # level-set radius
 lim = 1.2 * R * max(sigma_x_mid, sigma_y_mid)
 
-fig, ax = plt.subplots(figsize=(width_md, height_md))
+fig, ax = plt.subplots(figsize=(width_lg, height_lg))
 
 # Error shading: wedge between the y-axis and y = -x
 x_r = np.array([0.0, lim])
@@ -956,7 +959,7 @@ _t = outer_tick(lim)
 ax.set_xticks([-_t, 0, _t])
 ax.set_yticks([-_t, 0, _t])
 
-plt.subplots_adjust(**fig_margins_md)
+plt.subplots_adjust(**fig_margins_lg)
 plt.savefig(fig_dir + "2d_local_field_distribution.svg", dpi=600)
 
 ax.text(0.77, 0.23, "Error", ha="center", va="center", transform=ax.transAxes)
