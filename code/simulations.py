@@ -8,12 +8,12 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 1 Jul 2026
+    Mon 21 Sep 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
 
-    1. FlyWire loss simulation -> simulation_results/loss_data.parquet
+    1. FlyWire error simulation -> simulation_results/error_data.parquet
     2. Periphery scoring -> simulation_results/periphery_data.parquet
     3. z/ztilde simulation -> simulation_results/z_ztilde_simulations.parquet
                               simulation_results/zhat_simulations.parquet
@@ -36,10 +36,12 @@ import re
 import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix, csc_matrix, load_npz
+from scipy.special import erfinv
 from tqdm import tqdm
 from params import (
     rng_seed, block_perturb,
-    loss_eps, loss_n_draws, loss_n_perturb,
+    error_sigma, error_n_draws, error_n_perturb,
+    error_p_fire_vals, error_sigma_vals, error_sweep_n_draws, error_sweep_n_perturb,
     periphery_n_sim, periphery_threshold, periphery_repeats,
     zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
     parametric_n_neurons, parametric_n_inputs, parametric_n_draws, parametric_n_perturb,
@@ -152,6 +154,75 @@ def average_error_fast(w, eps, n_draws, n_perturb, block_perturb=128, rng=None):
 
     # Baseline output: shape (n_draws,)
     z = w @ x
+
+    total_pairs = n_draws * n_perturb
+    error_count = 0
+
+    # Process perturbations in blocks
+    for start in range(0, n_perturb, block_perturb):
+        end = min(start + block_perturb, n_perturb)
+        delta = w_hat[:, start:end].T @ x
+        zztilde = z * (z + delta)
+        error_count += (zztilde < 0).sum()
+
+    return error_count / total_pairs
+
+
+def _phi_inv(p):
+    """Standard normal quantile (probit) corresponding to firing probability p."""
+    return -np.sqrt(2) * erfinv(1.0 - 2 * p)
+
+
+def average_error_fast_biased(w, sigma, p_fire, n_draws, n_perturb, block_perturb=128, rng=None):
+    """
+    Monte Carlo estimate of the loss for a neuron biased to a target firing
+    probability p_fire, vectorized and blocked to reduce memory.
+
+    The local field is z = w @ x + b, where the bias b = sqrt(sum(w**2)) *
+    Phi^-1(p_fire) is chosen analytically (assuming z is asymptotically Gaussian,
+    since inputs are i.i.d. symmetric) so that P(z > 0) ~= p_fire. At p_fire=0.5
+    this reduces to average_error_fast (b=0).
+
+    Parameters
+    ----------
+    w : array-like
+        Weight vector.
+    sigma : float
+        Perturbation scale (noise magnitude).
+    p_fire : float
+        Target firing probability in (0, 1).
+    n_draws : int
+        Number of input draws.
+    n_perturb : int
+        Number of weight perturbation draws.
+    block_perturb : int
+        Block size for memory-efficient computation.
+    rng : numpy.random.Generator, optional
+        Random number generator.
+
+    Returns
+    -------
+    float
+        Estimated loss (fraction of sign flips).
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    w = np.asarray(w, dtype=float)
+    n_inputs = w.size
+    if n_inputs == 0:
+        return np.nan
+
+    # Draw inputs: n_inputs × n_draws
+    x = 2.0 * rng.integers(0, 2, size=(n_inputs, n_draws)) - 1.0
+
+    # Draw base Gaussian noise and scale
+    w_scale = sigma * np.sqrt(w)
+    w_hat = rng.normal(0.0, 1.0, size=(n_inputs, n_perturb)) * w_scale[:, None]
+
+    # Analytical bias to hit the target firing probability, then baseline output
+    bias = np.sqrt(np.sum(w ** 2)) * _phi_inv(p_fire)
+    z = w @ x + bias
 
     total_pairs = n_draws * n_perturb
     error_count = 0
@@ -301,23 +372,97 @@ def average_propagation(
 
 
 # ==============================================================================
-# SIMULATION 1: FLYWIRE LOSS
+# SIMULATION 1: FLYWIRE ERROR
 # ==============================================================================
-def run_flywire_loss_simulation():
+def _error_target_precision(p_fire, sigma):
+    """n_draws/n_perturb that a given (p_fire, sigma) pair should currently use:
+    the full-precision baseline settings at (0.5, error_sigma), the reduced
+    sweep settings otherwise."""
+    if (p_fire, sigma) == (0.5, error_sigma):
+        return error_n_draws, error_n_perturb
+    return error_sweep_n_draws, error_sweep_n_perturb
+
+
+def run_flywire_error_simulation():
     """
-    Run Monte Carlo loss simulation for all FlyWire neurons.
+    Run Monte Carlo error-rate simulation for all FlyWire neurons, swept over
+    two dimensions from a shared baseline point (p_fire=0.5, sigma=1.0), one
+    at a time: target firing probability (error_p_fire_vals, at sigma=1.0)
+    and perturbation scale (error_sigma_vals, at p_fire=0.5). Each neuron's
+    local field is analytically biased to hit each target p_fire (see
+    average_error_fast_biased). (p_fire, sigma) pairs already present in the
+    output file (or, for (0.5, 1.0), in the legacy loss_data.parquet) are
+    reused rather than recomputed when SKIP_EXISTING_SIMULATIONS is True.
+    Cached rows whose n_draws/n_perturb don't match the current target
+    precision (error_n_draws/error_n_perturb at baseline, error_sweep_n_draws/
+    error_sweep_n_perturb otherwise) are wiped and re-simulated.
 
     Input: data/connections_data.parquet
-    Output: data/loss_data.parquet
+    Output: simulation_results/error_data.parquet
     """
     print("=" * 60)
-    print("SIMULATION 1: FlyWire Loss")
+    print("SIMULATION 1: FlyWire Error")
     print("=" * 60)
 
-    output_file = sim_dir + "loss_data.parquet"
+    output_file = sim_dir + "error_data.parquet"
+    legacy_file = sim_dir + "loss_data.parquet"
 
-    if SKIP_EXISTING_SIMULATIONS and os.path.exists(output_file):
-        print(f"Skipping: {output_file} already exists")
+    # Reuse cached results for (p_fire, sigma) pairs already simulated, so
+    # resuming doesn't repeat the expensive Monte Carlo loop over all
+    # FlyWire neurons.
+    cached_df = None
+    if SKIP_EXISTING_SIMULATIONS:
+        if os.path.exists(output_file):
+            cached_df = pd.read_parquet(output_file)
+            if "eps" in cached_df.columns and "sigma" not in cached_df.columns:
+                cached_df = cached_df.rename(columns={"eps": "sigma"})
+        elif os.path.exists(legacy_file):
+            print(f"Migrating legacy {legacy_file} as the (p_fire=0.5, sigma=1.0) baseline...")
+            legacy_df = pd.read_parquet(legacy_file)
+            cached_df = pd.DataFrame(
+                {
+                    "root_id": legacy_df["root_id"],
+                    "p_fire": 0.5,
+                    "sim_error": legacy_df["sim_loss"],
+                    "sigma": error_sigma,
+                    "n_draws": error_n_draws,
+                    "n_perturb": error_n_perturb,
+                }
+            )
+
+    # Wipe any cached rows whose n_draws/n_perturb no longer match the current
+    # target precision for their (p_fire, sigma) pair, so a precision change
+    # in params.py triggers a re-run instead of silently mixing precisions.
+    if cached_df is not None and len(cached_df) > 0:
+        expected_draws, expected_perturb = zip(
+            *(
+                _error_target_precision(pf, s)
+                for pf, s in zip(cached_df["p_fire"], cached_df["sigma"])
+            )
+        )
+        stale = (cached_df["n_draws"].to_numpy() != np.array(expected_draws)) | (
+            cached_df["n_perturb"].to_numpy() != np.array(expected_perturb)
+        )
+        if stale.any():
+            stale_pairs = sorted(
+                set(zip(cached_df.loc[stale, "p_fire"], cached_df.loc[stale, "sigma"]))
+            )
+            print(
+                f"Outdated n_draws/n_perturb found for (p_fire, sigma) = {stale_pairs}; "
+                "wiping and re-running."
+            )
+            cached_df = cached_df.loc[~stale].reset_index(drop=True)
+
+    targets = {(pf, error_sigma) for pf in error_p_fire_vals} | {
+        (0.5, s) for s in error_sigma_vals
+    }
+    cached_pairs = (
+        set(zip(cached_df["p_fire"], cached_df["sigma"])) if cached_df is not None else set()
+    )
+    pending = sorted(targets - cached_pairs)
+
+    if not pending:
+        print(f"Skipping: all (p_fire, sigma) pairs already present in {output_file}")
         return
 
     # Load data
@@ -351,33 +496,53 @@ def run_flywire_loss_simulation():
     print("Extracting incoming weights...")
     incoming_weights = [A.data[A.indptr[j] : A.indptr[j + 1]] for j in range(N)]
 
-    loss = np.full(N, np.nan, dtype=float)
     rng = np.random.default_rng(rng_seed)
+    new_dfs = []
 
-    print(f"Simulating loss for {N} neurons...")
-    for i, w in enumerate(tqdm(incoming_weights, desc="FlyWire loss")):
-        w = np.asarray(w, dtype=float)
-        if w.size == 0:
-            continue
+    for p_fire, sigma in pending:
+        n_draws, n_perturb = _error_target_precision(p_fire, sigma)
 
-        l_hat = average_error_fast(
-            w,
-            eps=loss_eps,
-            n_draws=loss_n_draws,
-            n_perturb=loss_n_perturb,
-            block_perturb=block_perturb,
-            rng=rng,
+        error = np.full(N, np.nan, dtype=float)
+        print(
+            f"Simulating error for {N} neurons at p_fire={p_fire}, sigma={sigma} "
+            f"(n_draws={n_draws}, n_perturb={n_perturb})..."
         )
-        loss[i] = l_hat
+        for i, w in enumerate(
+            tqdm(incoming_weights, desc=f"FlyWire error (p_fire={p_fire}, sigma={sigma})")
+        ):
+            w = np.asarray(w, dtype=float)
+            if w.size == 0:
+                continue
+
+            e_hat = average_error_fast_biased(
+                w,
+                sigma=sigma,
+                p_fire=p_fire,
+                n_draws=n_draws,
+                n_perturb=n_perturb,
+                block_perturb=block_perturb,
+                rng=rng,
+            )
+            error[i] = e_hat
+
+        new_dfs.append(
+            pd.DataFrame(
+                {
+                    "root_id": idx_to_id,
+                    "p_fire": p_fire,
+                    "sim_error": error,
+                    "sigma": sigma,
+                    "n_draws": n_draws,
+                    "n_perturb": n_perturb,
+                }
+            )
+        )
 
     # Save results
-    sim_df = pd.DataFrame(
-        {
-            "root_id": idx_to_id,
-            "sim_loss": loss,
-        }
+    result_df = pd.concat(
+        ([cached_df] if cached_df is not None else []) + new_dfs, ignore_index=True
     )
-    sim_df.to_parquet(output_file)
+    result_df.to_parquet(output_file)
     print(f"Saved: {output_file}")
 
 
@@ -1307,7 +1472,7 @@ if __name__ == "__main__":
     print("=" * 60)
 
     # Run all simulations
-    run_flywire_loss_simulation()
+    run_flywire_error_simulation()
     run_flywire_periphery_scoring()
     run_zztilde_simulation()
     run_parametric_simulations()
@@ -1317,7 +1482,7 @@ if __name__ == "__main__":
     print("ALL SIMULATIONS COMPLETE!")
     print("=" * 60)
     print("\nOutput files generated:")
-    print(f"  - {sim_dir}loss_data.parquet")
+    print(f"  - {sim_dir}error_data.parquet")
     print(f"  - {sim_dir}periphery_data.parquet")
     print(f"  - {sim_dir}z_ztilde_simulations.parquet")
     print(f"  - {sim_dir}zhat_simulations.parquet")
@@ -1327,6 +1492,6 @@ if __name__ == "__main__":
     print(f"  - {sim_dir}*_shuffled.parquet (8 connectomes)")
     print(f"  - {sim_dir}*_shuffled_multinomial.parquet (8 connectomes)")
     print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights.npz")
-print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights_multinomial.npz")
-print(f"  - {sim_dir}drosophila_whole_brain_shuffled_weights_multinomial.npz")
-print("=" * 60)
+    print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights_multinomial.npz")
+    print(f"  - {sim_dir}drosophila_whole_brain_shuffled_weights_multinomial.npz")
+    print("=" * 60)

@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Sat 21 Jun 2026
+    Mon 21 Sep 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -88,10 +88,11 @@ sim_dir = '../simulation_results/'
 
 # Import neuron data
 neuron_df = pd.read_parquet(processed_dir+'neuron_data.parquet')
-loss_df = pd.read_parquet(sim_dir+'loss_data.parquet')
+error_df = pd.read_parquet(sim_dir+'error_data.parquet')
+error_df = error_df[(error_df['p_fire'] == 0.5) & (error_df['sigma'] == 1.0)][['root_id', 'sim_error']]
 
 # Append data
-neuron_df = neuron_df.merge(loss_df, on='root_id', how='outer')
+neuron_df = neuron_df.merge(error_df, on='root_id', how='outer')
 
 # Keep only high in-degree neurons
 k_min = 10
@@ -106,7 +107,7 @@ neuron_df['var'] = (neuron_df['sum_w2']/neuron_df['in_deg']) - neuron_df['mean']
 #------------------------------------------------------------------------------
 # Get range of statistics
 nonneg = neuron_df['var'] > 1e-5
-l_min, l_max = np.min(neuron_df['sim_loss']), np.max(neuron_df['sim_loss'])
+l_min, l_max = np.min(neuron_df['sim_error']), np.max(neuron_df['sim_error'])
 mu_min, mu_max = np.min(neuron_df['mean']), np.max(neuron_df['mean'])
 var_min, var_max = np.min(neuron_df[nonneg]['var']), np.max(neuron_df[nonneg]['var'])
 rob_min, rob_max = np.min(neuron_df['robustness']), np.max(neuron_df['robustness'])
@@ -171,7 +172,7 @@ for i in range(n_mean_bins):
     color = cmap(mean_norm(mean_mid))
 
     # Compute median loss and median variance for each variance bin
-    grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
+    grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_error'].median()
     grouped_var = df_nonneg[mean_mask].groupby('var_bin')['var'].median()
 
     # Plot prediction line
@@ -216,9 +217,9 @@ for i in range(n_mean_bins):
     color = cmap(mean_norm(mean_mid))
 
     # Compute median, Q1, Q3 for loss and variance per variance bin
-    grouped_loss    = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
-    grouped_loss_q1 = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].quantile(0.25)
-    grouped_loss_q3 = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].quantile(0.75)
+    grouped_loss    = df_nonneg[mean_mask].groupby('var_bin')['sim_error'].median()
+    grouped_loss_q1 = df_nonneg[mean_mask].groupby('var_bin')['sim_error'].quantile(0.25)
+    grouped_loss_q3 = df_nonneg[mean_mask].groupby('var_bin')['sim_error'].quantile(0.75)
     grouped_var     = df_nonneg[mean_mask].groupby('var_bin')['var'].median()
     grouped_var_q1  = df_nonneg[mean_mask].groupby('var_bin')['var'].quantile(0.25)
     grouped_var_q3  = df_nonneg[mean_mask].groupby('var_bin')['var'].quantile(0.75)
@@ -271,8 +272,8 @@ n_bins = 30
 neuron_df['pred_loss'] = (1/np.pi)*np.arccos((1.+(eps/neuron_df['robustness'])**2)**(-1/2))
 
 # Average relative error
-err_diff = np.abs(neuron_df['sim_loss'] - neuron_df['pred_loss'])
-avg_sim_err = neuron_df['sim_loss'].mean()
+err_diff = np.abs(neuron_df['sim_error'] - neuron_df['pred_loss'])
+avg_sim_err = neuron_df['sim_error'].mean()
 print(f"Average simulated error: {avg_sim_err:.4f}")
 print(f"Average error difference: {err_diff.mean():.4f}")
 
@@ -296,7 +297,7 @@ else:
     ybins = np.linspace(min_loss, max_loss, n_bins)
 
 counts, xedges, yedges = np.histogram2d(
-    neuron_df['sim_loss'], neuron_df['pred_loss'],
+    neuron_df['sim_error'], neuron_df['pred_loss'],
     bins=[xbins, ybins]
 )
 prob = counts / counts.sum()
@@ -346,7 +347,7 @@ for i in range(n_mean_bins):
     color = cmap(mean_norm(mean_mid))
 
     # Compute median loss and median robustness per variance bin
-    grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_loss'].median()
+    grouped_loss = df_nonneg[mean_mask].groupby('var_bin')['sim_error'].median()
     grouped_rob  = df_nonneg[mean_mask].groupby('var_bin')['robustness'].median()
 
     # Plot scatter for bins with data
