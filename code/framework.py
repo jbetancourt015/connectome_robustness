@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Sun 29 Jun 2026
+    Mon 21 Sep 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the six main framework figures:
@@ -37,7 +37,11 @@ from scipy.stats import lognorm as lognorm_dist
 import logging
 from params import (
     rng_seed,
-    zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
+    zztilde_param_sets,
+    zztilde_n_inputs,
+    zztilde_eps,
+    zztilde_n_draws,
+    zztilde_n_perturb,
     shuffle_k_min,
 )
 from simulations import run_zztilde_simulation
@@ -68,9 +72,9 @@ con_colors = (
 )
 
 # Directory paths
-sim_dir       = "../simulation_results/"
+sim_dir = "../simulation_results/"
 processed_dir = "../processed_data/"
-fig_dir       = "../../figures/framework/raw/"
+fig_dir = "../../figures/framework/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
 # Single consolidated simulation file for z/ztilde
@@ -86,13 +90,10 @@ width_sm = 0.15 * pg_width / mm_to_in
 height_sm = 0.15 * pg_width / mm_to_in
 width_md = 0.35 * pg_width / mm_to_in
 height_md = 0.35 * pg_width / mm_to_in
-width_lg = 0.45 * pg_width / mm_to_in
-height_lg = 0.45 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins_sm = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
 fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
-fig_margins_lg = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
 
 # Dark-cool colormap for parametric loss plots
 dark_cool = mcolors.LinearSegmentedColormap.from_list(
@@ -103,17 +104,21 @@ if "dark_cool" not in plt.colormaps:
 
 # z/ztilde simulation parameters (defined in params.py)
 param_sets = zztilde_param_sets
-n_inputs   = zztilde_n_inputs
-eps        = zztilde_eps
-n_draws    = zztilde_n_draws
-n_perturb  = zztilde_n_perturb
+n_inputs = zztilde_n_inputs
+eps = zztilde_eps
+n_draws = zztilde_n_draws
+n_perturb = zztilde_n_perturb
 
 # Histogram parameters
 alpha_min = 0.2
 n_bins = 20
 
+# Colorbar maximum floor for the third z/zhat panel (index 2), applied only if
+# the automatically-determined maximum density is lower than this value
+third_panel_min_vmax = 0.1
+
 # Distribution PDF plot parameters — set to a float to fix the y-axis for continuous PDFs
-pdf_y_max = 1.
+pdf_y_max = 1.0
 
 # Parametric loss parameters
 n_pred = 200
@@ -145,11 +150,15 @@ def mean_bin_median_norm(n_mean_bins=4):
     neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
     neuron_df = neuron_df[neuron_df["in_deg"] >= shuffle_k_min]
     neuron_df["mean"] = neuron_df["in_strength"] / neuron_df["in_deg"]
-    neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df["mean"] ** 2
+    neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df[
+        "mean"
+    ] ** 2
     df_nonneg = neuron_df[neuron_df["var"] > 1e-5].copy()
 
     mean_bins = np.logspace(
-        np.log10(df_nonneg["mean"].min()), np.log10(df_nonneg["mean"].max()), n_mean_bins + 1
+        np.log10(df_nonneg["mean"].min()),
+        np.log10(df_nonneg["mean"].max()),
+        n_mean_bins + 1,
     )
     mean_mids = np.sqrt(mean_bins[:-1] * mean_bins[1:])
     print("Mean bin log-midpoints used for colors:")
@@ -382,7 +391,7 @@ def load_and_normalize(df_all, distribution, mean, var=None, eps=None):
     return z_norm, ztilde_norm, computed_var
 
 
-def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=600.0):
+def plot_local_field_hist(z, zhat, color, fname, xlim=300.0, ylim=600.0, min_vmax=None):
     """
     Create a 2D heatmap histogram of (z, zhat) values.
 
@@ -396,11 +405,11 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
         RGB color array for the colormap.
     fname : str
         Filename suffix for saving.
-    last : bool
-        If True, this is the highest-variance panel: show x ticks (bottom spine).
-        No y ticks are shown on any panel.
     xlim, ylim : float
         Symmetric axis limits; shared across all panels.
+    min_vmax : float, optional
+        Floor for the colorbar maximum. If the automatically-determined
+        maximum density is lower than this, the colorbar max is raised to it.
     """
     fig, ax_scatter = plt.subplots(figsize=(width_sm, height_sm))
 
@@ -414,6 +423,9 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
         density=True,
         cmap=fade_to_color_cmap(color, alpha_min=0.0),
     )
+
+    if min_vmax is not None:
+        hist_img.set_clim(vmax=max(hist_img.get_array().max(), min_vmax))
 
     for loc in ["left", "right", "top", "bottom"]:
         ax_scatter.spines[loc].set_visible(True)
@@ -434,7 +446,7 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
     ax_scatter.set_ylim(-ylim, ylim)
     ax_scatter.set_yticks([])
     _xt = outer_tick(xlim)
-    ax_scatter.set_xticks([-_xt, 0, _xt] if last else [])
+    ax_scatter.set_xticks([-_xt, 0, _xt])
 
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"hist_{fname}.svg", dpi=600)
@@ -446,8 +458,9 @@ def plot_local_field_hist(z, zhat, color, fname, last=False, xlim=300.0, ylim=60
     plt.show()
 
 
-def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
-                          xlim=300.0, ylim=600.0, n_grid=200):
+def plot_gaussian_heatmap(
+    sigma_x, sigma_y, color, fname, xlim=300.0, ylim=600.0, n_grid=200, min_vmax=None
+):
     """
     Plot an analytical 2D Gaussian heatmap for (z, zhat) with zero covariance.
 
@@ -463,25 +476,25 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
         RGB color array for the colormap.
     fname : str
         Filename suffix for saving.
-    last : bool
-        If True, this is the highest-variance panel: show x ticks (bottom spine).
-        All panels always show y ticks (left spine).
     xlim, ylim : float
         Symmetric axis limits; shared across all panels.
     n_grid : int
         Number of grid points in each dimension.
+    min_vmax : float, optional
+        Floor for the colorbar maximum. If the automatically-determined
+        maximum density is lower than this, the colorbar max is raised to it.
     """
     x = np.linspace(-xlim, xlim, n_grid)
     y = np.linspace(-ylim, ylim, n_grid)
     X, Y = np.meshgrid(x, y)
 
-    Z = (
-        np.exp(-X**2 / (2 * sigma_x**2) - Y**2 / (2 * sigma_y**2))
-        / (2 * np.pi * sigma_x * sigma_y)
+    Z = np.exp(-(X**2) / (2 * sigma_x**2) - Y**2 / (2 * sigma_y**2)) / (
+        2 * np.pi * sigma_x * sigma_y
     )
 
     fig, ax = plt.subplots(figsize=(width_sm, height_sm))
 
+    vmax = max(Z.max(), min_vmax) if min_vmax is not None else None
     mesh = ax.pcolormesh(
         X,
         Y,
@@ -489,6 +502,7 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
         cmap=fade_to_color_cmap(color, alpha_min=0.0),
         shading="auto",
         rasterized=True,
+        vmax=vmax,
     )
 
     for loc in ["left", "right", "top", "bottom"]:
@@ -512,7 +526,7 @@ def plot_gaussian_heatmap(sigma_x, sigma_y, color, fname, last=False,
     _yt = outer_tick(ylim)
     ax.set_yticks([-_yt, 0, _yt])
     _xt = outer_tick(xlim)
-    ax.set_xticks([-_xt, 0, _xt] if last else [])
+    ax.set_xticks([-_xt, 0, _xt])
 
     plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + f"gaussian_{fname}.svg", dpi=600)
@@ -547,7 +561,7 @@ def plot_parametric_loss(distribution, n_inputs):
     cmap = plt.get_cmap("dark_cool")
     norm = mean_bin_median_norm()
 
-    fig, ax = plt.subplots(figsize=(width_lg, height_lg))
+    fig, ax = plt.subplots(figsize=(width_md, height_md))
 
     for mean in mean_vals:
         mask = df["mean"] == mean
@@ -577,7 +591,7 @@ def plot_parametric_loss(distribution, n_inputs):
 
     ax.spines[["right", "top"]].set_visible(False)
 
-    plt.subplots_adjust(**fig_margins_lg)
+    plt.subplots_adjust(**fig_margins_md)
     plt.savefig(fig_dir + f"{distribution}_simulation_var.svg", dpi=600)
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -614,7 +628,7 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
     y_range : tuple or None
         (y_min, y_max) for continuous distributions. If None, uses matplotlib default.
     """
-    fig, ax = plt.subplots(figsize=(0.4 * width_sm, 0.4 * height_sm))
+    fig, ax = plt.subplots(figsize=(0.6 * width_sm, 0.6 * height_sm))
 
     x_min, x_max = x_range
 
@@ -741,7 +755,7 @@ _, mean_mid, var_mid = parse_param_set(param_sets[1])
 sigma_x_mid = np.sqrt(var_mid + mean_mid**2)
 sigma_y_mid = eps * np.sqrt(mean_mid)
 
-R = 2.0        # level-set radius
+R = 2.0  # level-set radius
 lim = 1.2 * R * max(sigma_x_mid, sigma_y_mid)
 
 fig, ax = plt.subplots(figsize=(width_md, height_md))
@@ -767,14 +781,24 @@ ax.fill(x_ell, y_ell, color=sim_colors[1], alpha=0.3)
 ax.plot(x_ell, y_ell, color=sim_colors[1], lw=2)
 
 # Principal axis along z: arrow from origin to (R*sigma_x, 0)
-ax.annotate("", xy=(R * sigma_x_mid, 0), xytext=(0, 0),
-            arrowprops=dict(arrowstyle="-|>", color='k', lw=2, mutation_scale=12,
-                            shrinkA=0, shrinkB=0))
+ax.annotate(
+    "",
+    xy=(R * sigma_x_mid, 0),
+    xytext=(0, 0),
+    arrowprops=dict(
+        arrowstyle="-|>", color="k", lw=2, mutation_scale=12, shrinkA=0, shrinkB=0
+    ),
+)
 
 # Principal axis along z_hat: arrow from origin to (0, R*sigma_y)
-ax.annotate("", xy=(0, R * sigma_y_mid), xytext=(0, 0),
-            arrowprops=dict(arrowstyle="-|>", color='k', lw=2, mutation_scale=12,
-                            shrinkA=0, shrinkB=0))
+ax.annotate(
+    "",
+    xy=(0, R * sigma_y_mid),
+    xytext=(0, 0),
+    arrowprops=dict(
+        arrowstyle="-|>", color="k", lw=2, mutation_scale=12, shrinkA=0, shrinkB=0
+    ),
+)
 
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
@@ -864,13 +888,19 @@ for i, param_set in enumerate(param_sets):
     zhat_vals = df_subset["zhat"].values / np.sqrt(n_inputs)
 
     plot_local_field_hist(
-        z_vals, zhat_vals, color=sim_colors[i], fname=f"{distribution}_{i}",
-        last=(i == len(param_sets) - 1),
-        xlim=hist_xlim, ylim=hist_ylim,
+        z_vals,
+        zhat_vals,
+        color=sim_colors[i],
+        fname=f"{distribution}_{i}",
+        xlim=hist_xlim,
+        ylim=hist_ylim,
+        min_vmax=third_panel_min_vmax if i == 2 else None,
     )
 
     print("  Generated histogram")
-    print(f"  Simulated std:   std(z)={np.std(z_vals):.4f},  std(zhat)={np.std(zhat_vals):.4f}")
+    print(
+        f"  Simulated std:   std(z)={np.std(z_vals):.4f},  std(zhat)={np.std(zhat_vals):.4f}"
+    )
     error_rate = np.mean(np.sign(z_vals) != np.sign(z_vals + zhat_vals))
     print(f"  Error rate:      {error_rate:.4f}")
 
@@ -889,9 +919,13 @@ for i, param_set in enumerate(param_sets):
     )
 
     plot_gaussian_heatmap(
-        sigma_xs[i], sigma_ys[i], sim_colors[i], fname=f"{distribution}_{i}",
-        last=(i == len(param_sets) - 1),
-        xlim=hist_xlim, ylim=hist_ylim,
+        sigma_xs[i],
+        sigma_ys[i],
+        sim_colors[i],
+        fname=f"{distribution}_{i}",
+        xlim=hist_xlim,
+        ylim=hist_ylim,
+        min_vmax=third_panel_min_vmax if i == 2 else None,
     )
 
     print("  Generated heatmap")
