@@ -8,13 +8,14 @@ last change:
     Mon 21 Sep 2026
 -------------------------------------------------------------------------------
 notes:
-    Generates the six main framework figures:
+    Generates the main framework figures:
       1. Decision boundary cartoon (classification_plane.svg)
       2. Ellipse cartoon with principal axes (2d_local_field_distribution.svg)
       3. Weight distribution PDFs (pdf_*.svg)
       4. Analytical Gaussian heatmaps (gaussian_*.svg)
       5. Simulated 2D histograms (hist_*.svg)
-      6. Loss vs variance plot (*_simulation_var.svg)
+      6. Loss vs variance plot (*_simulation_var.svg) and loss vs robustness
+         curve-collapse plot (*_simulation_robustness.svg)
 
     Outputs to figures/framework/.
 -------------------------------------------------------------------------------
@@ -196,6 +197,16 @@ def draw_ellipse(R, rho, ax, color, lim=3.0):
 def general_loss(mean, var):
     """Predicted loss from mean and variance."""
     rob = np.sqrt(mean + var / mean)
+    return (1 / np.pi) * np.arccos((1.0 + 1.0 / rob**2) ** (-1 / 2))
+
+
+def robustness_from_moments(mean, var):
+    """Robustness Q = sqrt(mean + var/mean), matching network_processing.compute_robustness."""
+    return np.sqrt(mean + var / mean)
+
+
+def loss_from_robustness(rob):
+    """Predicted loss as a function of robustness alone (curve-collapse form of general_loss)."""
     return (1 / np.pi) * np.arccos((1.0 + 1.0 / rob**2) ** (-1 / 2))
 
 
@@ -604,6 +615,75 @@ def plot_parametric_loss(distribution, n_inputs):
     plt.show()
 
 
+def plot_parametric_loss_vs_robustness(distribution, n_inputs):
+    """
+    Plot simulated loss vs robustness for a given parametric distribution.
+
+    Same scatter points as plot_parametric_loss (colored by mean bin), but
+    with mean and variance collapsed onto a single robustness axis — the
+    curve-collapse view of the loss vs variance panel.
+
+    Parameters
+    ----------
+    distribution : str
+        Name of the distribution (e.g., 'lognormal', 'lomax', 'gamma').
+    n_inputs : int
+        Number of inputs used in the simulation.
+    """
+    df = pd.read_parquet(sim_dir + f"{distribution}_sim_{n_inputs}.parquet")
+
+    mean_vals = np.sort(df["mean"].unique())
+    robustness = robustness_from_moments(df["mean"], df["var"])
+
+    rob_min, rob_max = robustness.min(), robustness.max()
+    rob_pad = 0.05 * (rob_max - rob_min)
+    rob_pred = np.linspace(max(rob_min - rob_pad, 0.0), rob_max + rob_pad, n_pred)
+
+    # Color range anchored to bin-median range from FlyWire data (matches simulated_loss.py)
+    cmap = plt.get_cmap("dark_cool")
+    norm = mean_bin_median_norm()
+
+    fig, ax = plt.subplots(figsize=(width_md, height_md))
+
+    # Single collapse curve: mean/variance dependence collapses onto robustness alone
+    ax.plot(rob_pred, loss_from_robustness(rob_pred), c="k", lw=2, zorder=0)
+
+    for mean in mean_vals:
+        mask = df["mean"] == mean
+        color = cmap(norm(mean))
+
+        ax.scatter(
+            robustness[mask],
+            df[mask]["sim_loss"],
+            c="white",
+            edgecolors=color,
+            s=20,
+            zorder=2,
+            rasterized=True,
+        )
+
+    ax.set_yscale("log")
+    # Explicit, data-tight limits so the panel fills the frame the same way
+    # plot_parametric_loss's fixed [5e-1, 1e4] xlim does (rather than relying
+    # on matplotlib's auto-padding), keeping the two panels' proportions matched.
+    ax.set_xlim([max(rob_min - rob_pad, 0.0), rob_max + rob_pad])
+    ax.set_ylim([1e-2, 0.2])
+
+    ax.spines[["right", "top"]].set_visible(False)
+
+    plt.subplots_adjust(**fig_margins_md)
+    plt.savefig(fig_dir + f"{distribution}_simulation_robustness.svg", dpi=600)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    fig.colorbar(sm, ax=ax).set_label("Mean")
+
+    ax.set_xlabel("Robustness")
+    ax.set_ylabel("Simulated error probability")
+
+    plt.show()
+
+
 def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_range=None):
     """
     Plot the PDF of the weight distribution used in simulations.
@@ -932,14 +1012,17 @@ for i, param_set in enumerate(param_sets):
     print(f"  Analytical std:  std(z)={sigma_xs[i]:.4f},  std(zhat)={sigma_ys[i]:.4f}")
 
 # ------------------------------------------------------------------------------
-# SECTION 6: LOSS VS VARIANCE
+# SECTION 6: LOSS VS VARIANCE / LOSS VS ROBUSTNESS
 # ------------------------------------------------------------------------------
 print("\n" + "=" * 60)
-print("STEP 6: LOSS VS VARIANCE")
+print("STEP 6: LOSS VS VARIANCE / LOSS VS ROBUSTNESS")
 print("=" * 60)
 
 plot_parametric_loss("gamma", 1000)
 print("  Generated loss vs variance plot")
+
+plot_parametric_loss_vs_robustness("gamma", 1000)
+print("  Generated loss vs robustness plot (curve collapse)")
 
 # ------------------------------------------------------------------------------
 # SECTION 7: DISTRIBUTION PDFs
