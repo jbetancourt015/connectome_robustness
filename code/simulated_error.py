@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Mon 21 Sep 2026
+    Tue 22 Sep 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -101,6 +101,40 @@ neuron_df = neuron_df[neuron_df['in_deg'] >= k_min]
 # Compute relevant moments
 neuron_df['mean'] = neuron_df['in_strength']/neuron_df['in_deg']
 neuron_df['var'] = (neuron_df['sum_w2']/neuron_df['in_deg']) - neuron_df['mean']**2
+
+#------------------------------------------------------------------------------
+# DISTRIBUTIONS OF NEURON INPUT STATISTICS (CDFs)
+#------------------------------------------------------------------------------
+# Match the "medium" panel sizing/margins used in framework.py
+width_md = 0.32 * pg_width / mm_to_in
+height_md = 0.32 * pg_width / mm_to_in
+fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
+
+stat_color = con_colors[data_idx]
+
+def plot_stat_cdf(values, xlabel, fname):
+    """Plot the empirical CDF of a positive-valued neuron statistic on a log x-axis."""
+    values = np.sort(values[values > 0].to_numpy())
+    cdf = np.arange(1, len(values) + 1) / len(values)
+
+    fig, ax = plt.subplots(figsize=(width_md, height_md))
+    ax.plot(values, cdf, c=stat_color, lw=2)
+
+    ax.set_xscale('log')
+    ax.set_ylim([0., 1.])
+    ax.set_xlim([values.min(), values.max()])
+
+    plt.subplots_adjust(**fig_margins_md)
+    plt.savefig(fig_dir + fname, dpi=600)
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel('CDF')
+
+    plt.show()
+
+plot_stat_cdf(neuron_df['in_deg'], 'Number of inputs', 'cdf_in_degree.svg')
+plot_stat_cdf(neuron_df['mean'], 'Average input weight', 'cdf_mean_weight.svg')
+plot_stat_cdf(neuron_df['var'], 'Variance in input weight', 'cdf_variance.svg')
 
 #------------------------------------------------------------------------------
 # SIMULATED LOSS BY NEURON STATISTICS

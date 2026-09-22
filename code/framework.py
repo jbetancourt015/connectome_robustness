@@ -720,7 +720,7 @@ def plot_parametric_loss_vs_robustness(distribution, n_inputs):
 
 def plot_sparse_error_vs_robustness(
     r_min=0.3,
-    r_max=22.0,
+    r_max=30.0,
     p_vals=tuple(sparse_p_fire_vals),
     n_r=500,
     distribution="gamma",
@@ -772,7 +772,6 @@ def plot_sparse_error_vs_robustness(
 
     ax.set_yscale("log")
     ax.set_xlim([0.0, r_max])
-    ax.set_ylim([1e-2, 0.2])
     ax.spines[["right", "top"]].set_visible(False)
 
     plt.subplots_adjust(**fig_margins_md)
