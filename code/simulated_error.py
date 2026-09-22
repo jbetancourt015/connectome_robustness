@@ -117,16 +117,13 @@ error_df = error_df[(error_df["p_fire"] == 0.5) & (error_df["sigma"] == 1.0)][
 # Append data
 neuron_df = neuron_df.merge(error_df, on="root_id", how="outer")
 
-# Keep only high in-degree neurons
-k_min = 10
-neuron_df = neuron_df[neuron_df["in_deg"] >= k_min]
-
-# Compute relevant moments
+# Compute relevant moments (uses the full neuron population, before the
+# in-degree filter below)
 neuron_df["mean"] = neuron_df["in_strength"] / neuron_df["in_deg"]
 neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df["mean"] ** 2
 
 # ------------------------------------------------------------------------------
-# DISTRIBUTIONS OF NEURON INPUT STATISTICS (CDFs)
+# DISTRIBUTIONS OF NEURON INPUT STATISTICS (LOG-BINNED HISTOGRAMS)
 # ------------------------------------------------------------------------------
 # Match the "medium" panel sizing/margins used in framework.py
 width_md = 0.21 * pg_width / mm_to_in
@@ -135,31 +132,51 @@ fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
 
 stat_color = con_colors[0]
 
+n_hist_bins = 40
 
-def plot_stat_cdf(values, xlabel, fname):
-    """Plot the empirical CDF of a positive-valued neuron statistic on a log x-axis."""
-    values = np.sort(values[values > 0].to_numpy())
-    cdf = np.arange(1, len(values) + 1) / len(values)
+
+def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins):
+    """Plot a log-binned probability histogram of a positive-valued neuron statistic."""
+    values = values.to_numpy()
+    values = values[np.isfinite(values) & (values > 0)]
+
+    bin_edges = np.logspace(np.log10(values.min()), np.log10(values.max()), n_bins + 1)
+    counts, _ = np.histogram(values, bins=bin_edges)
+    prob = counts / counts.sum()
+    bin_centers = np.sqrt(bin_edges[:-1] * bin_edges[1:])
+
+    nonzero = prob > 0
 
     fig, ax = plt.subplots(figsize=(width_md, height_md))
-    ax.plot(values, cdf, c=stat_color, lw=2)
+    ax.scatter(
+        bin_centers[nonzero],
+        prob[nonzero],
+        c=stat_color,
+        s=20,
+        rasterized=True,
+        clip_on=False,
+    )
 
     ax.set_xscale("log")
-    ax.set_ylim([0.0, 1.0])
-    ax.set_xlim([values.min(), values.max()])
+    ax.set_yscale("log")
+    ax.set_xlim([bin_edges[0], bin_edges[-1]])
 
     plt.subplots_adjust(**fig_margins_md)
     plt.savefig(fig_dir + fname, dpi=600)
 
     ax.set_xlabel(xlabel)
-    ax.set_ylabel("CDF")
+    ax.set_ylabel("Probability")
 
     plt.show()
 
 
-plot_stat_cdf(neuron_df["in_deg"], "Number of inputs", "cdf_in_degree.svg")
-plot_stat_cdf(neuron_df["mean"], "Average input weight", "cdf_mean_weight.svg")
-plot_stat_cdf(neuron_df["var"], "Variance in input weight", "cdf_variance.svg")
+plot_stat_hist(neuron_df["in_deg"], "Number of inputs", "hist_in_degree.svg")
+plot_stat_hist(neuron_df["mean"], "Average input weight", "hist_mean_weight.svg")
+plot_stat_hist(neuron_df["var"], "Variance in input weight", "hist_variance.svg")
+
+# Keep only high in-degree neurons
+k_min = 10
+neuron_df = neuron_df[neuron_df["in_deg"] >= k_min]
 
 # ------------------------------------------------------------------------------
 # SIMULATED LOSS BY NEURON STATISTICS
