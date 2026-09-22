@@ -700,7 +700,7 @@ def plot_parametric_loss_vs_robustness(distribution, n_inputs):
     # Explicit, data-tight limits so the panel fills the frame the same way
     # plot_parametric_loss's fixed [5e-1, 1e4] xlim does (rather than relying
     # on matplotlib's auto-padding), keeping the two panels' proportions matched.
-    ax.set_xlim([max(rob_min - rob_pad, 0.0), rob_max + rob_pad])
+    ax.set_xlim([max(rob_min - rob_pad, 0.0), 30.0])
     ax.set_ylim([1e-2, 0.2])
 
     ax.spines[["right", "top"]].set_visible(False)
@@ -772,6 +772,7 @@ def plot_sparse_error_vs_robustness(
 
     ax.set_yscale("log")
     ax.set_xlim([0.0, r_max])
+    ax.set_ylim(bottom=1e-3)
     ax.spines[["right", "top"]].set_visible(False)
 
     plt.subplots_adjust(**fig_margins_md)
