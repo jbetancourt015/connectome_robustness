@@ -6,7 +6,7 @@ created on:
     Wed 16 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Mon 21 Sep 2026
+    Tue 22 Sep 2026
 -------------------------------------------------------------------------------
 contributors:
     Jose:
@@ -24,6 +24,7 @@ error_sigma = 1.0
 error_n_draws = int(1e3)
 error_n_perturb = int(1e3)
 error_p_fire_vals = [0.5, 0.01, 0.03, 0.1, 0.3]  # sigma fixed at error_sigma
+sparse_p_fire_vals = error_p_fire_vals[1:]  # firing probabilities for the sparse_error_vs_robustness sweep (matches error_p_fire_vals minus the 0.5 baseline)
 error_sigma_vals = [0.1, 0.3, 1.0, 3.0, 10.0]  # p_fire fixed at 0.5
 error_sweep_n_draws = int(5e2)
 error_sweep_n_perturb = int(5e2)
@@ -57,6 +58,8 @@ parametric_mean_vals = [
     16.0,
 ]  # manually chosen mean values for parametric sims
 parametric_n_var = 10
+parametric_sparse_n_draws = int(5e2)  # reduced precision for the p_fire sweep
+parametric_sparse_n_perturb = int(5e2)
 
 # ── Neurotransmitter classification ───────────────────────────────────────────
 nt_class_thresh = 0.6  # min outgoing fraction to assign exc/inh nt_class per connection

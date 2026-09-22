@@ -8,7 +8,7 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Mon 21 Sep 2026
+    Tue 22 Sep 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
@@ -18,6 +18,7 @@ notes:
     3. z/ztilde simulation -> simulation_results/z_ztilde_simulations.parquet
                               simulation_results/zhat_simulations.parquet
     4. Parametric distributions -> simulation_results/{dist}_sim_{n}.parquet
+    4B. Parametric distributions (p_fire sweep) -> simulation_results/gamma_sim_sparse_{n}.parquet
     5. Network shuffling -> simulation_results/{name}_shuffled.parquet
 
     Estimated total runtime: 4-8 hours (dominated by FlyWire simulations)
@@ -46,6 +47,7 @@ from params import (
     zztilde_param_sets, zztilde_n_inputs, zztilde_eps, zztilde_n_draws, zztilde_n_perturb,
     parametric_n_neurons, parametric_n_inputs, parametric_n_draws, parametric_n_perturb,
     parametric_mean_vals, parametric_n_var,
+    sparse_p_fire_vals, parametric_sparse_n_draws, parametric_sparse_n_perturb,
     shuffle_k_min, shuffle_n_threshold_default, shuffle_n_threshold_banc,
 )
 
@@ -918,6 +920,77 @@ def sample_weights_parametric(distribution, params, n_inputs, rng):
         return rng.gamma(shape, scale, n_inputs)
 
 
+def _parametric_mean_var_grid():
+    """
+    Derive the FAFB/FlyWire-informed (mean, var) grid shared by all parametric
+    simulations: manual mean_vals (parametric_mean_vals) crossed with a
+    var_vals grid obtained by quantile-median binning of real FlyWire neuron
+    variances within each mean bin. See run_parametric_simulations for
+    provenance/details.
+
+    Returns
+    -------
+    mean_vals, var_vals : ndarray, ndarray
+    """
+    # --- Derive mean/variance grids from FlyWire neuron data -----------------
+    print("Loading neuron data to determine mean/variance ranges...")
+    neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
+    neuron_df = neuron_df[neuron_df["in_deg"] >= shuffle_k_min]
+
+    neuron_df["mean"] = neuron_df["in_strength"] / neuron_df["in_deg"]
+    neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df[
+        "mean"
+    ] ** 2
+
+    # Filter to neurons with positive variance
+    neuron_df = neuron_df[neuron_df["var"] > 1e-5]
+
+    mu_min, mu_max = neuron_df["mean"].min(), neuron_df["mean"].max()
+
+    mean_vals = np.array(parametric_mean_vals)
+
+    # --- Derive variance grid via quantile binning within mean bins ----------
+    # Bin neurons by mean using log-uniform edges matched to the data range
+    mean_edges = np.logspace(np.log10(mu_min), np.log10(mu_max), len(mean_vals) + 1)
+    neuron_df["mean_bin"] = pd.cut(
+        neuron_df["mean"], bins=mean_edges, labels=False, include_lowest=True
+    )
+
+    # Within each mean bin, split variances into quantile bins and take medians
+    all_var_medians = []
+    for i in range(len(mean_vals)):
+        mean_mask = neuron_df["mean_bin"] == i
+        subset_var = neuron_df.loc[mean_mask, "var"]
+        if len(subset_var) == 0:
+            continue
+
+        # Quantile bin edges for variance within this mean bin
+        var_q = np.percentile(subset_var, np.linspace(0, 100, parametric_n_var + 1))
+        var_bin_idx = pd.cut(subset_var, bins=var_q, labels=False, include_lowest=True)
+
+        # Median variance in each quantile bin
+        for j in range(parametric_n_var):
+            bin_vals = subset_var[var_bin_idx == j]
+            if len(bin_vals) > 0:
+                all_var_medians.append(bin_vals.median())
+
+    # Pool medians and set var_vals as n_var log-uniform points over that range
+    all_var_medians = np.array(all_var_medians)
+    var_pool_min, var_pool_max = all_var_medians.min(), all_var_medians.max()
+    var_vals = np.logspace(np.log10(var_pool_min), np.log10(var_pool_max), parametric_n_var)
+
+    print(
+        f"  Mean  range: [{mu_min:.2f}, {mu_max:.2f}]  (data)  ->  manual values: {mean_vals}"
+    )
+    print(
+        f"  Var   range: [{var_pool_min:.2f}, {var_pool_max:.2f}]  ->  {parametric_n_var} log-spaced points (from quantile medians)"
+    )
+    print(f"  mean_vals = {np.array2string(mean_vals, precision=2)}")
+    print(f"  var_vals  = {np.array2string(var_vals, precision=2)}")
+
+    return mean_vals, var_vals
+
+
 def run_parametric_simulation(
     distribution,
     mean_vals,
@@ -1027,61 +1100,7 @@ def run_parametric_simulations():
     print("SIMULATION 4: Parametric Distributions")
     print("=" * 60)
 
-    # --- Derive mean/variance grids from FlyWire neuron data -----------------
-    print("Loading neuron data to determine mean/variance ranges...")
-    neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
-    neuron_df = neuron_df[neuron_df["in_deg"] >= shuffle_k_min]
-
-    neuron_df["mean"] = neuron_df["in_strength"] / neuron_df["in_deg"]
-    neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df[
-        "mean"
-    ] ** 2
-
-    # Filter to neurons with positive variance
-    neuron_df = neuron_df[neuron_df["var"] > 1e-5]
-
-    mu_min, mu_max = neuron_df["mean"].min(), neuron_df["mean"].max()
-
-    mean_vals = np.array(parametric_mean_vals)
-
-    # --- Derive variance grid via quantile binning within mean bins ----------
-    # Bin neurons by mean using log-uniform edges matched to the data range
-    mean_edges = np.logspace(np.log10(mu_min), np.log10(mu_max), len(mean_vals) + 1)
-    neuron_df["mean_bin"] = pd.cut(
-        neuron_df["mean"], bins=mean_edges, labels=False, include_lowest=True
-    )
-
-    # Within each mean bin, split variances into quantile bins and take medians
-    all_var_medians = []
-    for i in range(len(mean_vals)):
-        mean_mask = neuron_df["mean_bin"] == i
-        subset_var = neuron_df.loc[mean_mask, "var"]
-        if len(subset_var) == 0:
-            continue
-
-        # Quantile bin edges for variance within this mean bin
-        var_q = np.percentile(subset_var, np.linspace(0, 100, parametric_n_var + 1))
-        var_bin_idx = pd.cut(subset_var, bins=var_q, labels=False, include_lowest=True)
-
-        # Median variance in each quantile bin
-        for j in range(parametric_n_var):
-            bin_vals = subset_var[var_bin_idx == j]
-            if len(bin_vals) > 0:
-                all_var_medians.append(bin_vals.median())
-
-    # Pool medians and set var_vals as n_var log-uniform points over that range
-    all_var_medians = np.array(all_var_medians)
-    var_pool_min, var_pool_max = all_var_medians.min(), all_var_medians.max()
-    var_vals = np.logspace(np.log10(var_pool_min), np.log10(var_pool_max), parametric_n_var)
-
-    print(
-        f"  Mean  range: [{mu_min:.2f}, {mu_max:.2f}]  (data)  ->  manual values: {mean_vals}"
-    )
-    print(
-        f"  Var   range: [{var_pool_min:.2f}, {var_pool_max:.2f}]  ->  {parametric_n_var} log-spaced points (from quantile medians)"
-    )
-    print(f"  mean_vals = {np.array2string(mean_vals, precision=2)}")
-    print(f"  var_vals  = {np.array2string(var_vals, precision=2)}")
+    mean_vals, var_vals = _parametric_mean_var_grid()
 
     rng = np.random.default_rng(rng_seed)
 
@@ -1102,6 +1121,141 @@ def run_parametric_simulations():
         n_neurons=parametric_n_neurons,
         n_draws=parametric_n_draws,
         n_perturb=parametric_n_perturb,
+        rng=rng,
+    )
+
+
+def run_parametric_simulation_sparse(
+    distribution,
+    mean_vals,
+    var_vals,
+    p_fire_vals,
+    n_inputs=1000,
+    n_neurons=1000,
+    n_draws=500,
+    n_perturb=500,
+    sigma=1.0,
+    rng=None,
+):
+    """
+    Run Monte Carlo error-rate simulation for a parametric distribution swept
+    over firing probability p_fire, using the same FAFB-inspired synthetic
+    weight sampling as run_parametric_simulation but with
+    average_error_fast_biased in place of average_error_fast so each
+    neuron's local field is biased to hit a target p_fire.
+
+    Parameters
+    ----------
+    distribution : str
+        One of 'lognormal', 'lomax', or 'gamma'.
+    mean_vals : array-like
+        Array of mean values to simulate.
+    var_vals : array-like
+        Array of variance values to simulate.
+    p_fire_vals : array-like
+        Target firing probabilities to simulate.
+    n_inputs : int
+        Number of input weights per neuron.
+    n_neurons : int
+        Number of neurons to simulate per (mean, var, p_fire) triple.
+    n_draws : int
+        Number of input draws for Monte Carlo.
+    n_perturb : int
+        Number of weight perturbation draws.
+    sigma : float
+        Perturbation scale (noise magnitude).
+    rng : numpy.random.Generator, optional
+        Random number generator.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        DataFrame with columns 'mean', 'var', 'p_fire', 'sim_loss'.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    output_file = f"{sim_dir}{distribution}_sim_sparse_{n_inputs}.parquet"
+
+    if SKIP_EXISTING_SIMULATIONS and os.path.exists(output_file):
+        print(f"  Skipping {distribution} (sparse): {output_file} already exists")
+        return pd.read_parquet(output_file)
+
+    loss_list = []
+    mean_list = []
+    var_list = []
+    p_fire_list = []
+
+    for mean in tqdm(mean_vals, desc=f"  {distribution} (sparse)"):
+        for var in var_vals:
+            try:
+                params = get_dist_params(distribution, mean, var)
+            except ValueError:
+                continue
+
+            for p_fire in p_fire_vals:
+                loss = np.full(n_neurons, np.nan, dtype=float)
+                for i in range(n_neurons):
+                    w = sample_weights_parametric(distribution, params, n_inputs, rng)
+                    l_hat = average_error_fast_biased(
+                        w,
+                        sigma=sigma,
+                        p_fire=p_fire,
+                        n_draws=n_draws,
+                        n_perturb=n_perturb,
+                        block_perturb=128,
+                        rng=rng,
+                    )
+                    loss[i] = l_hat
+
+                loss_list.append(np.mean(loss))
+                mean_list.append(mean)
+                var_list.append(var)
+                p_fire_list.append(p_fire)
+
+    df = pd.DataFrame(
+        {
+            "mean": np.array(mean_list),
+            "var": np.array(var_list),
+            "p_fire": np.array(p_fire_list),
+            "sim_loss": np.array(loss_list),
+        }
+    )
+
+    df.to_parquet(output_file)
+    print(f"  Saved: {output_file}")
+
+    return df
+
+
+def run_parametric_simulations_sparse():
+    """
+    Run the gamma parametric simulation swept over firing probability
+    (sparse_p_fire_vals), reusing the same FAFB-derived (mean, var) grid as
+    run_parametric_simulations, for overlay on the sparse-firing error-rate-
+    vs-robustness analytical figure (framework.plot_sparse_error_vs_robustness).
+
+    Output file:
+        simulation_results/gamma_sim_sparse_1000.parquet
+    """
+    print("\n" + "=" * 60)
+    print("SIMULATION 4B: Parametric Distributions (firing-probability sweep)")
+    print("=" * 60)
+
+    mean_vals, var_vals = _parametric_mean_var_grid()
+
+    rng = np.random.default_rng(rng_seed)
+
+    print("Running gamma sparse-firing simulations...")
+    run_parametric_simulation_sparse(
+        "gamma",
+        mean_vals,
+        var_vals,
+        sparse_p_fire_vals,
+        n_inputs=parametric_n_inputs,
+        n_neurons=parametric_n_neurons,
+        n_draws=parametric_sparse_n_draws,
+        n_perturb=parametric_sparse_n_perturb,
         rng=rng,
     )
 
@@ -1476,6 +1630,7 @@ if __name__ == "__main__":
     run_flywire_periphery_scoring()
     run_zztilde_simulation()
     run_parametric_simulations()
+    run_parametric_simulations_sparse()
     run_network_shuffling()
 
     print("\n" + "=" * 60)
@@ -1489,6 +1644,7 @@ if __name__ == "__main__":
     print(f"  - {sim_dir}lognormal_sim_100.parquet")
     print(f"  - {sim_dir}lomax_sim_100.parquet")
     print(f"  - {sim_dir}gamma_sim_100.parquet")
+    print(f"  - {sim_dir}gamma_sim_sparse_{parametric_n_inputs}.parquet")
     print(f"  - {sim_dir}*_shuffled.parquet (8 connectomes)")
     print(f"  - {sim_dir}*_shuffled_multinomial.parquet (8 connectomes)")
     print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights.npz")

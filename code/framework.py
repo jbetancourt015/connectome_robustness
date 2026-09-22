@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Mon 21 Sep 2026
+    Tue 22 Sep 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the main framework figures:
@@ -17,7 +17,8 @@ notes:
       6. Loss vs variance plot (*_simulation_var.svg) and loss vs robustness
          curve-collapse plot (*_simulation_robustness.svg)
       7. Sparse-firing error rate vs robustness, parameterized by firing
-         probability p_f (sparse_error_vs_robustness.svg)
+         probability p_f, with simulated FAFB-inspired synthetic-neuron
+         overlay points (sparse_error_vs_robustness.svg)
 
     Outputs to figures/framework/.
 -------------------------------------------------------------------------------
@@ -48,6 +49,7 @@ from params import (
     zztilde_n_draws,
     zztilde_n_perturb,
     shuffle_k_min,
+    sparse_p_fire_vals,
 )
 from simulations import run_zztilde_simulation
 from figure_formatting import apply_style, outer_tick
@@ -717,7 +719,12 @@ def plot_parametric_loss_vs_robustness(distribution, n_inputs):
 
 
 def plot_sparse_error_vs_robustness(
-    r_min=0.3, r_max=22.0, p_vals=(0.01, 0.03, 0.1, 0.3), n_r=500
+    r_min=0.3,
+    r_max=22.0,
+    p_vals=tuple(sparse_p_fire_vals),
+    n_r=500,
+    distribution="gamma",
+    n_inputs=1000,
 ):
     """
     Plot error rate vs robustness for sparsely-firing neurons, parameterized
@@ -727,6 +734,11 @@ def plot_sparse_error_vs_robustness(
     (SECTION 3: error rate vs robustness) using the framework's medium
     panel sizing/styling. Curve colors are evenly spaced along the colormap
     regardless of the (log-spaced) firing probability values themselves.
+
+    If simulation_results/{distribution}_sim_sparse_{n_inputs}.parquet exists
+    (see simulations.run_parametric_simulations_sparse), overlays FAFB-inspired
+    synthetic-neuron Monte Carlo points for each p_fire, color-matched to its
+    analytical curve.
     """
     r_vals = np.logspace(np.log10(r_min), np.log10(r_max), n_r)
     rho_of_r = (1.0 + (1.0 / r_vals) ** 2) ** (-0.5)
@@ -740,6 +752,23 @@ def plot_sparse_error_vs_robustness(
     for p0, color in zip(p_vals, colors):
         error_r = np.array([sparse_error_rate(p0, rho) for rho in rho_of_r])
         ax.plot(r_vals, error_r, color=color, lw=2, label=f"$p_f={p0:g}$")
+
+    sparse_sim_file = sim_dir + f"{distribution}_sim_sparse_{n_inputs}.parquet"
+    if os.path.exists(sparse_sim_file):
+        df_sparse = pd.read_parquet(sparse_sim_file)
+        robustness = robustness_from_moments(df_sparse["mean"], df_sparse["var"])
+
+        for p0, color in zip(p_vals, colors):
+            mask = np.isclose(df_sparse["p_fire"], p0)
+            ax.scatter(
+                robustness[mask],
+                df_sparse.loc[mask, "sim_loss"],
+                c="white",
+                edgecolors=color,
+                s=20,
+                zorder=2,
+                rasterized=True,
+            )
 
     ax.set_yscale("log")
     ax.set_xlim([0.0, r_max])
