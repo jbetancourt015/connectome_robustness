@@ -25,7 +25,10 @@ import matplotlib as mpl
 import matplotlib.colors as mcolors
 import matplotlib.ticker as mticker
 from matplotlib.colors import LinearSegmentedColormap, LogNorm
+from scipy.stats import multivariate_normal
+from scipy.special import erfinv, erf
 from figure_formatting import apply_style, log_format
+from params import sparse_p_fire_vals, error_sigma_vals, error_sigma
 
 apply_style()
 
@@ -33,13 +36,21 @@ apply_style()
 pg_width = 165  # mm
 mm_to_in = 25.4
 
-# Panel dimensions in inches (scaled from mm reference)
-width = 0.31 * pg_width / mm_to_in
-height = 0.31 * pg_width / mm_to_in
+# Panel size presets (scaled from mm reference): xs, sm, md, lg.
+# xs: per-mean robustness-vs-variance plots
+# sm: neuron-statistic distribution plots
+# md: error-vs-robustness plot (matches framework.py's "medium" panel exactly)
+# lg: analytic-vs-simulated error rate plot
+width_xs = height_xs = 0.14 * pg_width / mm_to_in
+width_sm = height_sm = 0.17 * pg_width / mm_to_in
+width_md = height_md = 0.32 * pg_width / mm_to_in
+width_lg = height_lg = 0.39 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
-fig_margins = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
-fig_margins_small = dict(left=0.3, right=0.9, bottom=0.3, top=0.9)
+fig_margins_xs = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
+fig_margins_sm = dict(left=0.25, right=0.95, bottom=0.25, top=0.95)
+fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
+fig_margins_lg = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
 
 alpha_min = 0.0
 
@@ -88,6 +99,18 @@ if "dark_cool" not in plt.colormaps:
     plt.colormaps.register(dark_cool)
 
 
+def darken_cmap(name, max_val=0.85):
+    """Truncate a colormap before its brightest (yellow) end, so it reads
+    darker/higher-contrast on a white background."""
+    base = plt.get_cmap(name)
+    colors = base(np.linspace(0.0, max_val, 256))
+    return LinearSegmentedColormap.from_list(f"{name}_dark", colors)
+
+
+plasma_dark_r = darken_cmap("plasma").reversed()
+viridis_dark = darken_cmap("viridis")
+
+
 # ------------------------------------------------------------------------------
 # AUXILIARY FUNCTIONS
 # ------------------------------------------------------------------------------
@@ -103,14 +126,36 @@ def general_loss(mean, var):
     return (1 / np.pi) * np.arccos((1.0 + (eps / rob) ** 2) ** (-1 / 2))
 
 
+def _phi2(h, k, rho):
+    """Bivariate standard normal CDF with correlation rho, evaluated at (h, k)."""
+    mean = (0.0, 0.0)
+    cov = ((1.0, rho), (rho, 1.0))
+    return multivariate_normal(mean, cov).cdf([h, k])
+
+
+def _norm_loc(p0):
+    """Standard normal quantile corresponding to firing probability p0."""
+    return -np.sqrt(2) * erfinv(1.0 - 2 * p0)
+
+
+def sparse_error_rate(p0, rho):
+    """Error rate for a sparsely-firing neuron (firing probability p0) as a
+    function of the z/ztilde correlation rho (matches framework.py)."""
+    alpha = _norm_loc(p0)
+    l = 0.5 * (1.0 + erf(alpha / np.sqrt(2)))
+    l += 0.5 * (1.0 + erf(rho * alpha / np.sqrt(2)))
+    l -= 2 * _phi2(alpha, rho * alpha, rho)
+    return l
+
+
 data_dir = "../../data/"
 processed_dir = "../processed_data/"
 sim_dir = "../simulation_results/"
 
 # Import neuron data
 neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
-error_df = pd.read_parquet(sim_dir + "error_data.parquet")
-error_df = error_df[(error_df["p_fire"] == 0.5) & (error_df["sigma"] == 1.0)][
+error_df_full = pd.read_parquet(sim_dir + "error_data.parquet")
+error_df = error_df_full[(error_df_full["p_fire"] == 0.5) & (error_df_full["sigma"] == 1.0)][
     ["root_id", "sim_error"]
 ]
 
@@ -125,11 +170,6 @@ neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df["mean
 # ------------------------------------------------------------------------------
 # DISTRIBUTIONS OF NEURON INPUT STATISTICS (LOG-BINNED HISTOGRAMS)
 # ------------------------------------------------------------------------------
-# Match the "medium" panel sizing/margins used in framework.py
-width_md = 0.21 * pg_width / mm_to_in
-height_md = 0.21 * pg_width / mm_to_in
-fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
-
 stat_color = con_colors[0]
 
 n_hist_bins = 40
@@ -147,7 +187,7 @@ def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins):
 
     nonzero = prob > 0
 
-    fig, ax = plt.subplots(figsize=(width_md, height_md))
+    fig, ax = plt.subplots(figsize=(width_sm, height_sm))
     ax.scatter(
         bin_centers[nonzero],
         prob[nonzero],
@@ -161,7 +201,7 @@ def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins):
     ax.set_yscale("log")
     ax.set_xlim([bin_edges[0], bin_edges[-1]])
 
-    plt.subplots_adjust(**fig_margins_md)
+    plt.subplots_adjust(**fig_margins_sm)
     plt.savefig(fig_dir + fname, dpi=600)
 
     ax.set_xlabel(xlabel)
@@ -248,7 +288,7 @@ mean_norm = mcolors.LogNorm(vmin=1, vmax=mean_mids.max())
 
 # Set up figure
 cmap = plt.get_cmap("dark_cool")
-fig, ax = plt.subplots(figsize=(width, height))
+fig, ax = plt.subplots(figsize=(width_md, height_md))
 
 for i in range(n_mean_bins):
     mean_mask = df_nonneg["mean_bin"] == i
@@ -279,7 +319,7 @@ for i in range(n_mean_bins):
 ax.set_ylim([1e-2, 0.2])
 ax.set_xlim([5e-1, 1e4])
 
-plt.subplots_adjust(**fig_margins)
+plt.subplots_adjust(**fig_margins_md)
 log_format(ax)
 plt.savefig(fig_dir + "loss_vs_variance_binned.svg", dpi=600)
 
@@ -302,7 +342,7 @@ plt.show()
 # SEPARATE LOSS PLOTS
 # ------------------------------------------------------------------------------
 for i in range(n_mean_bins):
-    fig, ax = plt.subplots(figsize=(0.45 * width, 0.45 * height))
+    fig, ax = plt.subplots(figsize=(width_xs, height_xs))
 
     mean_mask = df_nonneg["mean_bin"] == i
     if mean_mask.sum() == 0:
@@ -336,13 +376,12 @@ for i in range(n_mean_bins):
     ax.set_ylim([1e-2, 0.2])
     ax.set_xlim([5e-1, 1e4])
 
-    plt.subplots_adjust(**fig_margins)
+    plt.subplots_adjust(**fig_margins_xs)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    if i == n_mean_bins - 1:
-        ax.set_xticks([1e1, 1e3])
-    else:
-        ax.set_xticks([])
+    ax.set_xticks([1e1, 1e3])
+    if i != 0:
+        ax.tick_params(axis="y", which="both", left=False, labelleft=False)
     plt.savefig(fig_dir + f"loss_vs_variance_separate_{i}.svg", dpi=600)
 
     # Add colorbar for interactive display (not in saved file)
@@ -376,7 +415,7 @@ print(f"Average simulated error: {avg_sim_err:.4f}")
 print(f"Average error difference: {err_diff.mean():.4f}")
 
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height))
+fig, ax = plt.subplots(figsize=(width_lg, height_lg))
 
 # Create histogram
 if log_axes:
@@ -417,7 +456,7 @@ ax.xaxis.set_major_locator(locator)
 # Plot y=x line
 ax.plot([0.0, max_loss], [0.0, max_loss], c="k", ls="--", lw=1, zorder=0)
 
-plt.subplots_adjust(**fig_margins)
+plt.subplots_adjust(**fig_margins_lg)
 plt.savefig(fig_dir + "loss_vs_prediction.svg", dpi=600)
 
 # Add labels
@@ -434,7 +473,7 @@ plt.show()
 # LOSS VS ROBUSTNESS (BINNED SCATTER)
 # ------------------------------------------------------------------------------
 # Set up figure
-fig, ax = plt.subplots(figsize=(width, height))
+fig, ax = plt.subplots(figsize=(width_md, height_md))
 
 # Plot scatter points for each mean bin (same bins as first plot)
 for i in range(n_mean_bins):
@@ -477,7 +516,7 @@ ax.set_yscale("log")
 ax.set_xlim([0.0, None])
 ax.set_ylim([1e-2, 0.2])
 
-plt.subplots_adjust(**fig_margins)
+plt.subplots_adjust(**fig_margins_md)
 plt.savefig(fig_dir + "loss_vs_robustness_binned.svg", dpi=600)
 
 # Print colorbar range to console
@@ -495,3 +534,111 @@ ax.set_xlabel("Robustness")
 ax.set_ylabel("Simulated error probability")
 
 plt.show()
+
+
+# ------------------------------------------------------------------------------
+# ERROR VS ROBUSTNESS — PARAMETER SWEEPS (FIRING PROBABILITY / NOISE STRENGTH)
+# ------------------------------------------------------------------------------
+def plot_error_vs_robustness_sweep(
+    sweep_col,
+    sweep_vals,
+    fixed_col,
+    fixed_val,
+    cmap_name,
+    legend_title,
+    label_fmt,
+    analytical_fn,
+    fname,
+):
+    """
+    Binned scatter of simulated error rate vs robustness across a parameter
+    sweep (p_fire or sigma), reusing the same mean/var-bin neuron populations
+    as the baseline loss-vs-robustness plot. One color per sweep value,
+    uniformly spaced along cmap_name regardless of the value itself.
+    """
+    sweep_error_df = error_df_full[error_df_full[fixed_col] == fixed_val][
+        ["root_id", sweep_col, "sim_error"]
+    ]
+
+    cmap = plt.get_cmap(cmap_name)
+    colors = cmap(np.linspace(0.0, 1.0, len(sweep_vals)))
+
+    fig, ax = plt.subplots(figsize=(width_md, height_md))
+    r_vals = np.linspace(rob_min, rob_max, 100)
+
+    for sweep_val, color in zip(sweep_vals, colors):
+        merged = bin_assignments.merge(
+            sweep_error_df[sweep_error_df[sweep_col] == sweep_val],
+            on="root_id",
+            how="inner",
+        )
+
+        for i in range(n_mean_bins):
+            mean_mask = merged["mean_bin"] == i
+            if mean_mask.sum() == 0:
+                continue
+            grouped_loss = merged[mean_mask].groupby("var_bin")["sim_error"].median()
+            grouped_rob = merged[mean_mask].groupby("var_bin")["robustness"].median()
+            valid_bins = grouped_loss.index.dropna().astype(int)
+            ax.scatter(
+                grouped_rob[valid_bins],
+                grouped_loss[valid_bins],
+                c="white",
+                edgecolors=color,
+                s=20,
+                zorder=2,
+                rasterized=True,
+            )
+
+        ax.plot(
+            r_vals,
+            analytical_fn(sweep_val, r_vals),
+            color=color,
+            lw=2,
+            zorder=0,
+            label=label_fmt(sweep_val),
+        )
+
+    ax.set_yscale("log")
+    ax.set_xlim([0.0, None])
+
+    plt.subplots_adjust(**fig_margins_md)
+    plt.savefig(fig_dir + fname, dpi=600)
+
+    ax.set_xlabel("Robustness")
+    ax.set_ylabel("Simulated error probability")
+    ax.legend(title=legend_title, frameon=False)
+
+    plt.show()
+
+
+# Neuron -> (mean_bin, var_bin) population assignment, independent of the sweep
+bin_assignments = df_nonneg[["root_id", "mean_bin", "var_bin", "robustness"]]
+
+# FIGURE: FIRING PROBABILITY SWEEP (sigma fixed at baseline) -------------------
+plot_error_vs_robustness_sweep(
+    sweep_col="p_fire",
+    sweep_vals=sorted(sparse_p_fire_vals),
+    fixed_col="sigma",
+    fixed_val=error_sigma,
+    cmap_name=plasma_dark_r,
+    legend_title="Firing probability",
+    label_fmt=lambda p0: f"$p_f={p0:g}$",
+    analytical_fn=lambda p0, r: np.array(
+        [sparse_error_rate(p0, (1.0 + (1.0 / rr) ** 2) ** (-0.5)) for rr in r]
+    ),
+    fname="error_vs_robustness_pfire_sweep.svg",
+)
+
+# FIGURE: NOISE STRENGTH SWEEP (p_fire fixed at baseline) ----------------------
+plot_error_vs_robustness_sweep(
+    sweep_col="sigma",
+    sweep_vals=sorted(error_sigma_vals),
+    fixed_col="p_fire",
+    fixed_val=0.5,
+    cmap_name=viridis_dark,
+    legend_title="Noise strength",
+    label_fmt=lambda s: rf"$\sigma={s:g}$",
+    analytical_fn=lambda s, r: (1.0 / np.pi) * np.arccos((1.0 + (s / r) ** 2) ** (-0.5)),
+    fname="error_vs_robustness_sigma_sweep.svg",
+)

@@ -23,9 +23,11 @@ block_perturb = 128  # block size for memory-efficient Monte Carlo perturbation 
 error_sigma = 1.0
 error_n_draws = int(1e3)
 error_n_perturb = int(1e3)
-error_p_fire_vals = [0.5, 0.01, 0.03, 0.1, 0.3]  # sigma fixed at error_sigma
-sparse_p_fire_vals = error_p_fire_vals[1:]  # firing probabilities for the sparse_error_vs_robustness sweep (matches error_p_fire_vals minus the 0.5 baseline)
-error_sigma_vals = [0.1, 0.3, 1.0, 3.0, 10.0]  # p_fire fixed at 0.5
+error_p_fire_vals = [0.5, 0.02, 0.05, 0.1, 0.2]  # sigma fixed at error_sigma
+sparse_p_fire_vals = error_p_fire_vals[
+    1:
+]  # firing probabilities for the sparse_error_vs_robustness sweep (matches error_p_fire_vals minus the 0.5 baseline)
+error_sigma_vals = [0.2, 0.5, 1.0, 2.0, 5.0]  # p_fire fixed at 0.5
 error_sweep_n_draws = int(5e2)
 error_sweep_n_perturb = int(5e2)
 
