@@ -60,8 +60,8 @@ parametric_mean_vals = [
     16.0,
 ]  # manually chosen mean values for parametric sims
 parametric_n_var = 10
-parametric_sparse_n_draws = int(5e2)  # reduced precision for the p_fire sweep
-parametric_sparse_n_perturb = int(5e2)
+parametric_sparse_n_draws = int(1e3)  # reduced precision for the p_fire sweep
+parametric_sparse_n_perturb = int(1e3)
 
 # ── Neurotransmitter classification ───────────────────────────────────────────
 nt_class_thresh = 0.6  # min outgoing fraction to assign exc/inh nt_class per connection

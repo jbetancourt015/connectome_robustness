@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 22 Sep 2026
+    Thu 24 Sep 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the main framework figures:
@@ -93,8 +93,8 @@ pg_width = 165  # mm
 mm_to_in = 25.4
 
 # Panel dimensions in inches (scaled from mm reference)
-width_sm = 0.15 * pg_width / mm_to_in
-height_sm = 0.15 * pg_width / mm_to_in
+width_sm = 0.17 * pg_width / mm_to_in
+height_sm = 0.17 * pg_width / mm_to_in
 width_md = 0.32 * pg_width / mm_to_in
 height_md = 0.32 * pg_width / mm_to_in
 width_lg = 0.35 * pg_width / mm_to_in
@@ -150,6 +150,17 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     bottom = (*rgb, alpha_min)
     top = (*rgb, 1.0)
     return LinearSegmentedColormap.from_list(name, [bottom, top], N=256)
+
+
+def darken_cmap(name, max_val=0.85):
+    """Truncate a colormap before its brightest (yellow) end, so it reads
+    darker/higher-contrast on a white background."""
+    base = plt.get_cmap(name)
+    colors = base(np.linspace(0.0, max_val, 256))
+    return LinearSegmentedColormap.from_list(f"{name}_dark", colors)
+
+
+plasma_dark_r = darken_cmap("plasma").reversed()
 
 
 def mean_bin_median_norm(n_mean_bins=4):
@@ -744,7 +755,7 @@ def plot_sparse_error_vs_robustness(
     rho_of_r = (1.0 + (1.0 / r_vals) ** 2) ** (-0.5)
 
     p_vals = np.asarray(p_vals)
-    cmap = plt.get_cmap("plasma_r")
+    cmap = plasma_dark_r
     colors = cmap(np.linspace(0.0, 1.0, len(p_vals)))
 
     fig, ax = plt.subplots(figsize=(width_md, height_md))

@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Wed 23 Sep 2026
+    Thu 24 Sep 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -155,9 +155,9 @@ sim_dir = "../simulation_results/"
 # Import neuron data
 neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
 error_df_full = pd.read_parquet(sim_dir + "error_data.parquet")
-error_df = error_df_full[(error_df_full["p_fire"] == 0.5) & (error_df_full["sigma"] == 1.0)][
-    ["root_id", "sim_error"]
-]
+error_df = error_df_full[
+    (error_df_full["p_fire"] == 0.5) & (error_df_full["sigma"] == 1.0)
+][["root_id", "sim_error"]]
 
 # Append data
 neuron_df = neuron_df.merge(error_df, on="root_id", how="outer")
@@ -192,9 +192,10 @@ def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins):
         bin_centers[nonzero],
         prob[nonzero],
         c=stat_color,
-        s=20,
+        s=10,
         rasterized=True,
         clip_on=False,
+        zorder=3,
     )
 
     ax.set_xscale("log")
@@ -642,6 +643,8 @@ plot_error_vs_robustness_sweep(
     cmap_name=viridis_dark,
     legend_title="Noise strength",
     label_fmt=lambda s: rf"$\sigma={s:g}$",
-    analytical_fn=lambda s, r: (1.0 / np.pi) * np.arccos((1.0 + (s / r) ** 2) ** (-0.5)),
+    analytical_fn=lambda s, r: (
+        (1.0 / np.pi) * np.arccos((1.0 + (s / r) ** 2) ** (-0.5))
+    ),
     fname="error_vs_robustness_sigma_sweep.svg",
 )
