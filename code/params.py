@@ -28,8 +28,8 @@ sparse_p_fire_vals = error_p_fire_vals[
     1:
 ]  # firing probabilities for the sparse_error_vs_robustness sweep (matches error_p_fire_vals minus the 0.5 baseline)
 error_sigma_vals = [0.2, 0.5, 1.0, 2.0, 5.0]  # p_fire fixed at 0.5
-error_sweep_n_draws = int(5e2)
-error_sweep_n_perturb = int(5e2)
+error_sweep_n_draws = int(1e3)
+error_sweep_n_perturb = int(1e3)
 
 # ── FlyWire periphery scoring ──────────────────────────────────────────────────
 periphery_n_sim = int(1e3)

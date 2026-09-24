@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Tue 22 Sep 2026
+    Wed 23 Sep 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ from matplotlib.colors import LinearSegmentedColormap, LogNorm
 from scipy.stats import multivariate_normal
 from scipy.special import erfinv, erf
 from figure_formatting import apply_style, log_format
-from params import sparse_p_fire_vals, error_sigma_vals, error_sigma
+from params import error_p_fire_vals, error_sigma_vals, error_sigma
 
 apply_style()
 
@@ -616,9 +616,12 @@ def plot_error_vs_robustness_sweep(
 bin_assignments = df_nonneg[["root_id", "mean_bin", "var_bin", "robustness"]]
 
 # FIGURE: FIRING PROBABILITY SWEEP (sigma fixed at baseline) -------------------
+# Includes p_fire=0.5 (the baseline), whose data is already cached in
+# error_data.parquet and whose analytical curve (sparse_error_rate at p0=0.5)
+# reduces algebraically to the same general_loss formula used elsewhere.
 plot_error_vs_robustness_sweep(
     sweep_col="p_fire",
-    sweep_vals=sorted(sparse_p_fire_vals),
+    sweep_vals=sorted(error_p_fire_vals),
     fixed_col="sigma",
     fixed_val=error_sigma,
     cmap_name=plasma_dark_r,
