@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Thu 24 Sep 2026
+    Fri 25 Sep 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ mm_to_in = 25.4
 width_xs = height_xs = 0.14 * pg_width / mm_to_in
 width_sm = height_sm = 0.17 * pg_width / mm_to_in
 width_md = height_md = 0.32 * pg_width / mm_to_in
-width_lg = height_lg = 0.39 * pg_width / mm_to_in
+width_lg = height_lg = 0.42 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins_xs = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
@@ -120,6 +120,17 @@ def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
     return LinearSegmentedColormap.from_list(name, [bottom, top], N=256)
 
 
+def sparse_decade_formatter(val, pos):
+    """Label only odd decades (..., 1e1, 1e3, ...), leaving the rest of the
+    major ticks unlabeled but still drawn."""
+    if val <= 0:
+        return ""
+    exp = round(np.log10(val))
+    if abs(np.log10(val) - exp) > 1e-6 or exp % 2 == 0:
+        return ""
+    return r"$\mathdefault{10^{%d}}$" % exp
+
+
 def general_loss(mean, var):
     """Compute predicted loss from mean and variance."""
     rob = np.sqrt(mean + var / mean)
@@ -172,10 +183,10 @@ neuron_df["var"] = (neuron_df["sum_w2"] / neuron_df["in_deg"]) - neuron_df["mean
 # ------------------------------------------------------------------------------
 stat_color = con_colors[0]
 
-n_hist_bins = 40
+n_hist_bins = 20
 
 
-def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins):
+def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins, sparse_xticks=False):
     """Plot a log-binned probability histogram of a positive-valued neuron statistic."""
     values = values.to_numpy()
     values = values[np.isfinite(values) & (values > 0)]
@@ -183,23 +194,24 @@ def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins):
     bin_edges = np.logspace(np.log10(values.min()), np.log10(values.max()), n_bins + 1)
     counts, _ = np.histogram(values, bins=bin_edges)
     prob = counts / counts.sum()
-    bin_centers = np.sqrt(bin_edges[:-1] * bin_edges[1:])
-
-    nonzero = prob > 0
 
     fig, ax = plt.subplots(figsize=(width_sm, height_sm))
-    ax.scatter(
-        bin_centers[nonzero],
-        prob[nonzero],
-        c=stat_color,
-        s=10,
+    ax.stairs(
+        prob,
+        bin_edges,
+        fill=True,
+        color=stat_color,
+        alpha=0.5,
         rasterized=True,
-        clip_on=False,
         zorder=3,
     )
 
-    ax.set_xscale("log")
-    ax.set_yscale("log")
+    log_format(ax)
+    if sparse_xticks:
+        # Label every other decade (still keep all minor ticks)
+        ax.xaxis.set_major_locator(
+            mticker.LogLocator(base=100.0, subs=(1.0,), numticks=100)
+        )
     ax.set_xlim([bin_edges[0], bin_edges[-1]])
 
     plt.subplots_adjust(**fig_margins_sm)
@@ -213,7 +225,12 @@ def plot_stat_hist(values, xlabel, fname, n_bins=n_hist_bins):
 
 plot_stat_hist(neuron_df["in_deg"], "Number of inputs", "hist_in_degree.svg")
 plot_stat_hist(neuron_df["mean"], "Average input weight", "hist_mean_weight.svg")
-plot_stat_hist(neuron_df["var"], "Variance in input weight", "hist_variance.svg")
+plot_stat_hist(
+    neuron_df["var"],
+    "Variance in input weight",
+    "hist_variance.svg",
+    sparse_xticks=True,
+)
 
 # Keep only high in-degree neurons
 k_min = 10
@@ -304,7 +321,7 @@ for i in range(n_mean_bins):
     grouped_var = df_nonneg[mean_mask].groupby("var_bin")["var"].median()
 
     # Plot prediction line
-    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=2, zorder=0)
+    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=3, zorder=0)
 
     # Plot scatter for bins with data (using median variance as x-position)
     valid_bins = grouped_loss.index.dropna().astype(int)
@@ -313,7 +330,7 @@ for i in range(n_mean_bins):
         grouped_loss[valid_bins],
         c="white",
         edgecolors=color,
-        s=20,
+        s=25,
         rasterized=True,
     )
 
@@ -380,7 +397,11 @@ for i in range(n_mean_bins):
     plt.subplots_adjust(**fig_margins_xs)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xticks([1e1, 1e3])
+    ax.xaxis.set_major_locator(mticker.LogLocator(base=10.0, subs=(1.0,), numticks=100))
+    ax.xaxis.set_minor_locator(
+        mticker.LogLocator(base=10.0, subs=np.arange(2, 10) * 0.1, numticks=100)
+    )
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(sparse_decade_formatter))
     if i != 0:
         ax.tick_params(axis="y", which="both", left=False, labelleft=False)
     plt.savefig(fig_dir + f"loss_vs_variance_separate_{i}.svg", dpi=600)
