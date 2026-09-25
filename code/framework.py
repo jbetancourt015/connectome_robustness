@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 24 Sep 2026
+    Fri 25 Sep 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the main framework figures:
@@ -52,7 +52,7 @@ from params import (
     sparse_p_fire_vals,
 )
 from simulations import run_zztilde_simulation
-from figure_formatting import apply_style, outer_tick
+from figure_formatting import apply_style, outer_tick, log_format
 
 # ------------------------------------------------------------------------------
 # MATPLOTLIB CONFIGURATION
@@ -640,8 +640,7 @@ def plot_parametric_loss(distribution, n_inputs):
             rasterized=True,
         )
 
-    ax.set_xscale("log")
-    ax.set_yscale("log")
+    log_format(ax)
     ax.set_ylim([1e-2, 0.2])
     ax.set_xlim([5e-1, 1e4])
 
@@ -923,6 +922,10 @@ ax.set_yticks([-1, 0, 1])
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
 
+for loc in ["left", "right", "top", "bottom"]:
+    ax.spines[loc].set_visible(True)
+ax.set_frame_on(True)
+
 plt.subplots_adjust(**fig_margins_lg)
 plt.savefig(fig_dir + "classification_plane.svg", dpi=600)
 
@@ -948,7 +951,7 @@ sigma_x_mid = np.sqrt(var_mid + mean_mid**2)
 sigma_y_mid = eps * np.sqrt(mean_mid)
 
 R = 2.0  # level-set radius
-lim = 1.2 * R * max(sigma_x_mid, sigma_y_mid)
+lim = 1.1 * R * max(sigma_x_mid, sigma_y_mid)
 
 fig, ax = plt.subplots(figsize=(width_lg, height_lg))
 
@@ -998,6 +1001,10 @@ ax.set_aspect("equal")
 _t = outer_tick(lim)
 ax.set_xticks([-_t, 0, _t])
 ax.set_yticks([-_t, 0, _t])
+
+for loc in ["left", "right", "top", "bottom"]:
+    ax.spines[loc].set_visible(True)
+ax.set_frame_on(True)
 
 plt.subplots_adjust(**fig_margins_lg)
 plt.savefig(fig_dir + "2d_local_field_distribution.svg", dpi=600)
