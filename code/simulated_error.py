@@ -321,7 +321,7 @@ for i in range(n_mean_bins):
     grouped_var = df_nonneg[mean_mask].groupby("var_bin")["var"].median()
 
     # Plot prediction line
-    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=3, zorder=0)
+    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=2, zorder=0)
 
     # Plot scatter for bins with data (using median variance as x-position)
     valid_bins = grouped_loss.index.dropna().astype(int)
@@ -330,7 +330,7 @@ for i in range(n_mean_bins):
         grouped_loss[valid_bins],
         c="white",
         edgecolors=color,
-        s=25,
+        s=20,
         rasterized=True,
     )
 
@@ -382,14 +382,14 @@ for i in range(n_mean_bins):
     grouped_var_q3 = df_nonneg[mean_mask].groupby("var_bin")["var"].quantile(0.75)
 
     # Plot prediction line
-    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=2, zorder=0)
+    ax.plot(var_pred, general_loss(mean_mid, var_pred), c=color, lw=3, zorder=0)
 
     # Plot scatter with IQR error bars for bins with data
     valid_bins = grouped_loss.index.dropna().astype(int)
     x_med = grouped_var[valid_bins].values
     y_med = grouped_loss[valid_bins].values
 
-    ax.scatter(x_med, y_med, c="white", edgecolors=color, s=20, rasterized=True)
+    ax.scatter(x_med, y_med, c="white", edgecolors=color, s=25, rasterized=True)
 
     ax.set_ylim([1e-2, 0.2])
     ax.set_xlim([5e-1, 1e4])
