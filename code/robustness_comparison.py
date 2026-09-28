@@ -7,7 +7,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Mon 29 Jun 2026
+    Mon 28 Sep 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -244,7 +244,7 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
     plt.savefig(fig_dir + f"{connectomes[data_idx]}_hist.svg", dpi=600)
 
     frac_below = np.mean(Q1 > Q2)
-    ax_scatter.text(0.05, 0.95, f'{100*frac_below:.1f}%', transform=ax_scatter.transAxes,
+    ax_scatter.text(0.05, 0.95, f'{100*frac_below:.0f}%', transform=ax_scatter.transAxes,
                     fontsize=6, va='top', ha='left')
 
     # Add labels
@@ -263,11 +263,17 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
 norm = False
 log_axes = False
 
+# Connectomes included in the manuscript figure (Fig. 3): FAFB, BANC, MANC,
+# C. elegans, mouse retina. Central brain, optic medulla, and platynereis are
+# excluded, mirroring the filtering already applied in
+# connection_strength_distributions.py.
+plot_indices = [5, 6, 7, 2, 4]
+
 # Collect fraction of neurons with decreased robustness after shuffling
 frac_decreased_list = []
 processed_indices = []
 
-for data_idx in range(len(connectomes)):
+for data_idx in plot_indices:
     # Use multinomial shuffle for all connectomes except mouse retina (data_idx=4)
     suffix = '' if data_idx == 4 else '_multinomial'
     robustness_df = load_robustness_dataset(connectomes[data_idx], suffix=suffix).dropna()
@@ -290,8 +296,7 @@ short_names = ['Central Brain', 'Optic Medulla', 'C. elegans', 'Platynereis',
 # Indices of labels that should be italicized (species/genus names)
 italic_indices = [2, 3]
 
-# Get labels and colors for selected connectomes
-plot_indices = [5, 6, 7, 2, 4]
+# Get labels and colors for selected connectomes (see plot_indices above)
 bar_labels = [short_names[i] for i in plot_indices]
 
 bar_colors = [con_colors[data_to_color[i]] for i in plot_indices]
@@ -420,7 +425,7 @@ im_mv = ax.pcolormesh(
 )
 ax.set_xscale('log')
 ax.set_yscale('log')
-ax.set_xlim(xedges_mv[0], xedges_mv[-1])
+ax.set_xlim(1., xedges_mv[-1])
 ax.set_ylim(yedges_mv[0], yedges_mv[-1])
 lim_mv = [max(xedges_mv[0], yedges_mv[0]), min(xedges_mv[-1], yedges_mv[-1])]
 ax.plot(lim_mv, lim_mv, ls='--', lw=1, c='k', alpha=0.5, zorder=3)
