@@ -76,6 +76,27 @@ def log_format(ax, format_x=True, format_y=True):
         )
 
 
+def log10_minor_locator():
+    """Minor-tick locator for axes holding pre-log10-transformed data (linear scale).
+
+    Places ticks at log10(2..9) offsets within each integer decade, mimicking
+    the look of a true log-scale axis's minor ticks.
+    """
+
+    class _Log10DataMinorLocator(mticker.Locator):
+        def __call__(self):
+            vmin, vmax = self.axis.get_view_interval()
+            return self.tick_values(vmin, vmax)
+
+        def tick_values(self, vmin, vmax):
+            offsets = np.log10(np.arange(2, 10))
+            decades = np.arange(np.floor(vmin), np.ceil(vmax) + 1)
+            ticks = np.concatenate([decade + offsets for decade in decades])
+            return ticks[(ticks >= vmin) & (ticks <= vmax)]
+
+    return _Log10DataMinorLocator()
+
+
 def log10_formatter(y, pos):
     """Format a log10-transformed tick value as 10^x with Unicode superscripts."""
     superscripts = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")

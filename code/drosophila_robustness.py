@@ -14,7 +14,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Sun 29 Jun 2026
+    Mon 28 Sep 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ import logging
 import os
 from scipy.sparse import coo_matrix
 import network_processing
-from figure_formatting import apply_style, log10_formatter
+from figure_formatting import apply_style, log10_formatter, log10_minor_locator
 
 apply_style()
 
@@ -109,7 +109,7 @@ ax.step(rob_vals_shuf, rob_cdf_shuf, where='post', lw=2, color=con_colors[0], al
 
 
 ax.set_xscale('log')
-ax.set_xlim(1e-1, 1e2)
+ax.set_xlim(0.3, 40)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'cdf_normalized_robustness.svg', dpi=600)
@@ -185,6 +185,8 @@ ax.set_xticklabels(region_order, rotation=35, ha="right", rotation_mode='anchor'
 ax.set_ylim(-1, 2)
 ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
+ax.yaxis.set_minor_locator(log10_minor_locator())
+ax.tick_params(axis='y', which='minor', length=2)
 
 plt.subplots_adjust(**wide_fig_margins)
 plt.savefig(fig_dir + 'violin_by_brain_region.svg', dpi=600)
@@ -268,7 +270,7 @@ ax.step(rob_exc, cdf_exc, where='post', color=con_colors[0], lw=2, label='Excita
 ax.step(rob_inh, cdf_inh, where='post', color=con_colors[1], lw=2, label='Inhibitory')
 
 ax.set_xscale('log')
-ax.set_xlim(1e-1, 1e2)
+ax.set_xlim(0.3, 40)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'cdf_exc_vs_inh.svg', dpi=600)
@@ -311,7 +313,7 @@ for i in range(n_quantiles):
     ax.step(rob, cdf, where='post', lw=2, c=cmap(rec_norm[i]))
 
 ax.set_xscale('log')
-ax.set_xlim(1e-1, 1e2)
+ax.set_xlim(0.3, 40)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'cdf_by_reciprocity_decile.svg', dpi=600)
@@ -574,6 +576,8 @@ ax.set_xticklabels(visual_pathway_order)
 ax.set_ylim(-1, 2)
 ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
+ax.yaxis.set_minor_locator(log10_minor_locator())
+ax.tick_params(axis='y', which='minor', length=2)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'violin_visual_pathway.svg', dpi=600)
@@ -637,6 +641,8 @@ ax.set_xticklabels(olfactory_pathway_order)
 ax.set_ylim(-1, 2)
 ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(log10_formatter))
+ax.yaxis.set_minor_locator(log10_minor_locator())
+ax.tick_params(axis='y', which='minor', length=2)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'violin_olfactory_pathway.svg', dpi=600)
@@ -674,7 +680,7 @@ for i, nt in enumerate(nt_order):
     ax.step(rob, cdf, where='post', lw=2, c=nt_colors[i])
 
 ax.set_xscale('log')
-ax.set_xlim(1e-1, 1e2)
+ax.set_xlim(0.3, 40)
 
 plt.subplots_adjust(**fig_margins)
 plt.savefig(fig_dir + 'nt_robustness_distribution.svg', dpi=600)
