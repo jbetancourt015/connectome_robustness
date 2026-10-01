@@ -6,7 +6,7 @@ created on:
     Tue 24 Mar 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 26 Jun 2026
+    Thu 1 Oct 2026
 -------------------------------------------------------------------------------
 notes:
     Run from the repo/ directory:
@@ -106,7 +106,7 @@ n_cols = len(display_names.keys())
 col_labels = display_names.values()
 
 lines = [
-    r'\begin{tabular}{l' + 'r' * n_cols + '}',
+    r'\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X ' + 'r' * n_cols + r'@{}}',
     r'\toprule',
     'Statistic & ' + ' & '.join(col_labels) + r' \\',
     r'\midrule',
@@ -118,7 +118,7 @@ for row_idx, label in enumerate(stat_labels):
 
 lines += [
     r'\bottomrule',
-    r'\end{tabular}',
+    r'\end{tabularx}',
 ]
 
 out_path = tables_dir + 'connectome_statistics.tex'
@@ -137,7 +137,7 @@ large_stat_labels = [
 ]
 
 large_lines = [
-    r'\begin{tabular}{l' + 'r' * n_cols + '}',
+    r'\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X ' + 'r' * n_cols + r'@{}}',
     r'\toprule',
     'Statistic & ' + ' & '.join(col_labels) + r' \\',
     r'\midrule',
@@ -149,7 +149,7 @@ for row_idx, label in enumerate(large_stat_labels):
 
 large_lines += [
     r'\bottomrule',
-    r'\end{tabular}',
+    r'\end{tabularx}',
 ]
 
 out_path = tables_dir + 'large_neuron_statistics.tex'
