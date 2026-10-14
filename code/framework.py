@@ -93,12 +93,10 @@ pg_width = 165  # mm
 mm_to_in = 25.4
 
 # Panel dimensions in inches (scaled from mm reference)
-width_sm = 0.17 * pg_width / mm_to_in
-height_sm = 0.17 * pg_width / mm_to_in
-width_md = 0.32 * pg_width / mm_to_in
-height_md = 0.32 * pg_width / mm_to_in
-width_lg = 0.35 * pg_width / mm_to_in
-height_lg = 0.35 * pg_width / mm_to_in
+# width_sm = height_sm = 0.17 * pg_width / mm_to_in
+width_sm = height_sm = 0.2 * pg_width / mm_to_in
+width_md = height_md = 0.32 * pg_width / mm_to_in
+width_lg = height_lg = 0.35 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
 fig_margins_sm = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
