@@ -7,7 +7,7 @@ created on:
     Mon 12 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Wed 2 Jul 2026
+    Wed 14 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -167,15 +167,99 @@ conn_df = pd.read_csv(data_dir + conn_file, compression='gzip')
 types_df = pd.read_csv(data_dir + types_file, compression='gzip')
 class_df = pd.read_csv(data_dir + class_file, compression='gzip')
 
-# Get neuropils based on incoming connections
+# Map of neuropil to coarse brain region
+region_map = {'AME_L': 'Optic Lobe',
+ 'LA_L': 'Optic Lobe',
+ 'LO_L': 'Optic Lobe',
+ 'LOP_L': 'Optic Lobe',
+ 'ME_L': 'Optic Lobe',
+ 'AME_R': 'Optic Lobe',
+ 'LA_R': 'Optic Lobe',
+ 'LO_R': 'Optic Lobe',
+ 'LOP_R': 'Optic Lobe',
+ 'ME_R': 'Optic Lobe',
+ 'BU_L': 'Lateral Complex',
+ 'LAL_L': 'Lateral Complex',
+ 'GA_L': 'Lateral Complex',
+ 'BU_R': 'Lateral Complex',
+ 'LAL_R': 'Lateral Complex',
+ 'GA_R': 'Lateral Complex',
+ 'LH_L': 'Lateral Horn',
+ 'LH_R': 'Lateral Horn',
+ 'CAN_L': 'Periesophageal NP',
+ 'AMMC_L': 'Periesophageal NP',
+ 'FLA_L': 'Periesophageal NP',
+ 'CAN_R': 'Periesophageal NP',
+ 'AMMC_R': 'Periesophageal NP',
+ 'FLA_R': 'Periesophageal NP',
+ 'SAD': 'Periesophageal NP',
+ 'PRW': 'Periesophageal NP',
+ 'ICL_L': 'Inferior NP',
+ 'IB_L': 'Inferior NP',
+ 'ATL_L': 'Inferior NP',
+ 'CRE_L': 'Inferior NP',
+ 'SCL_L': 'Inferior NP',
+ 'ICL_R': 'Inferior NP',
+ 'IB_R': 'Inferior NP',
+ 'ATL_R': 'Inferior NP',
+ 'CRE_R': 'Inferior NP',
+ 'SCL_R': 'Inferior NP',
+ 'VES_L': 'Ventromedial NP',
+ 'GOR_L': 'Ventromedial NP',
+ 'SPS_L': 'Ventromedial NP',
+ 'IPS_L': 'Ventromedial NP',
+ 'EPA_L': 'Ventromedial NP',
+ 'VES_R': 'Ventromedial NP',
+ 'GOR_R': 'Ventromedial NP',
+ 'SPS_R': 'Ventromedial NP',
+ 'IPS_R': 'Ventromedial NP',
+ 'EPA_R': 'Ventromedial NP',
+ 'MB_PED_L': 'Mushroom Body',
+ 'MB_VL_L': 'Mushroom Body',
+ 'MB_ML_L': 'Mushroom Body',
+ 'MB_CA_L': 'Mushroom Body',
+ 'MB_PED_R': 'Mushroom Body',
+ 'MB_VL_R': 'Mushroom Body',
+ 'MB_ML_R': 'Mushroom Body',
+ 'MB_CA_R': 'Mushroom Body',
+ 'AL_L': 'Antennal Lobe',
+ 'AL_R': 'Antennal Lobe',
+ 'SLP_L': 'Superior NP',
+ 'SIP_L': 'Superior NP',
+ 'SMP_L': 'Superior NP',
+ 'SLP_R': 'Superior NP',
+ 'SIP_R': 'Superior NP',
+ 'SMP_R': 'Superior NP',
+ 'AVLP_L': 'Ventrolateral NP',
+ 'PVLP_L': 'Ventrolateral NP',
+ 'WED_L': 'Ventrolateral NP',
+ 'PLP_L': 'Ventrolateral NP',
+ 'AOTU_L': 'Ventrolateral NP',
+ 'AVLP_R': 'Ventrolateral NP',
+ 'PVLP_R': 'Ventrolateral NP',
+ 'WED_R': 'Ventrolateral NP',
+ 'PLP_R': 'Ventrolateral NP',
+ 'AOTU_R': 'Ventrolateral NP',
+ 'NO': 'Central Complex',
+ 'PB': 'Central Complex',
+ 'EB': 'Central Complex',
+ 'FB': 'Central Complex',
+ 'GNG': 'Gnathal Ganglia',
+ 'OCG': 'Ocelli',
+ 'UNASGD': 'Other Regions'}
+
+# Classify every synapse record into a brain region directly
+conn_df['brain_region'] = conn_df['neuropil'].map(region_map)
+
+# Get brain regions based on incoming connections (plurality over classified synapses)
 neuron_df = (
     conn_df
-    .groupby(['post_root_id','neuropil'])['syn_count']
+    .groupby(['post_root_id','brain_region'])['syn_count']
     .sum()
     .reset_index()
     .sort_values(['post_root_id','syn_count'], ascending=[True, False])
     .drop_duplicates('post_root_id')
-    .loc[:, ['post_root_id','neuropil']]
+    .loc[:, ['post_root_id','brain_region']]
 )
 
 neuron_df = neuron_df.rename(columns={'post_root_id': 'root_id'})
@@ -258,89 +342,6 @@ node_stats = (
     .merge(out_stats, on='root_id', how='outer')
     .merge(recip,    on='root_id', how='outer')
 )
-
-# Append brain region
-region_map = {'AME_L': 'Optic Lobe',
- 'LA_L': 'Optic Lobe',
- 'LO_L': 'Optic Lobe',
- 'LOP_L': 'Optic Lobe',
- 'ME_L': 'Optic Lobe',
- 'AME_R': 'Optic Lobe',
- 'LA_R': 'Optic Lobe',
- 'LO_R': 'Optic Lobe',
- 'LOP_R': 'Optic Lobe',
- 'ME_R': 'Optic Lobe',
- 'BU_L': 'Lateral Complex',
- 'LAL_L': 'Lateral Complex',
- 'GA_L': 'Lateral Complex',
- 'BU_R': 'Lateral Complex',
- 'LAL_R': 'Lateral Complex',
- 'GA_R': 'Lateral Complex',
- 'LH_L': 'Lateral Horn',
- 'LH_R': 'Lateral Horn',
- 'CAN_L': 'Periesophageal NP',
- 'AMMC_L': 'Periesophageal NP',
- 'FLA_L': 'Periesophageal NP',
- 'CAN_R': 'Periesophageal NP',
- 'AMMC_R': 'Periesophageal NP',
- 'FLA_R': 'Periesophageal NP',
- 'SAD': 'Periesophageal NP',
- 'PRW': 'Periesophageal NP',
- 'ICL_L': 'Inferior NP',
- 'IB_L': 'Inferior NP',
- 'ATL_L': 'Inferior NP',
- 'CRE_L': 'Inferior NP',
- 'SCL_L': 'Inferior NP',
- 'ICL_R': 'Inferior NP',
- 'IB_R': 'Inferior NP',
- 'ATL_R': 'Inferior NP',
- 'CRE_R': 'Inferior NP',
- 'SCL_R': 'Inferior NP',
- 'VES_L': 'Ventromedial NP',
- 'GOR_L': 'Ventromedial NP',
- 'SPS_L': 'Ventromedial NP',
- 'IPS_L': 'Ventromedial NP',
- 'EPA_L': 'Ventromedial NP',
- 'VES_R': 'Ventromedial NP',
- 'GOR_R': 'Ventromedial NP',
- 'SPS_R': 'Ventromedial NP',
- 'IPS_R': 'Ventromedial NP',
- 'EPA_R': 'Ventromedial NP',
- 'MB_PED_L': 'Mushroom Body',
- 'MB_VL_L': 'Mushroom Body',
- 'MB_ML_L': 'Mushroom Body',
- 'MB_CA_L': 'Mushroom Body',
- 'MB_PED_R': 'Mushroom Body',
- 'MB_VL_R': 'Mushroom Body',
- 'MB_ML_R': 'Mushroom Body',
- 'MB_CA_R': 'Mushroom Body',
- 'AL_L': 'Antennal Lobe',
- 'AL_R': 'Antennal Lobe',
- 'SLP_L': 'Superior NP',
- 'SIP_L': 'Superior NP',
- 'SMP_L': 'Superior NP',
- 'SLP_R': 'Superior NP',
- 'SIP_R': 'Superior NP',
- 'SMP_R': 'Superior NP',
- 'AVLP_L': 'Ventrolateral NP',
- 'PVLP_L': 'Ventrolateral NP',
- 'WED_L': 'Ventrolateral NP',
- 'PLP_L': 'Ventrolateral NP',
- 'AOTU_L': 'Ventrolateral NP',
- 'AVLP_R': 'Ventrolateral NP',
- 'PVLP_R': 'Ventrolateral NP',
- 'WED_R': 'Ventrolateral NP',
- 'PLP_R': 'Ventrolateral NP',
- 'AOTU_R': 'Ventrolateral NP',
- 'NO': 'Central Complex',
- 'PB': 'Central Complex',
- 'EB': 'Central Complex',
- 'FB': 'Central Complex',
- 'GNG': 'Gnathal Ganglia',
- 'OCG': 'Ocelli',
- 'UNASGD': 'Other Regions'}
-
-neuron_df['brain_region'] = neuron_df['neuropil'].map(region_map)
 
 # Append neuron robustness and primary type
 neuron_df = neuron_df.merge(node_stats, on='root_id')
@@ -439,10 +440,7 @@ def classify_row(row):
 conn_class_df['nt_class'] = conn_class_df.apply(classify_row, axis=1)
 conn_class_df = conn_class_df[['pre_root_id', 'post_root_id', 'nt_class']]
 
-# Map neuropil to brain_region
-conn_df['brain_region'] = conn_df['neuropil'].map(region_map)
-
-# Aggregate by connection and brain_region
+# Aggregate by connection and brain_region (brain_region was classified per-synapse above)
 conn_by_region = (
     conn_df
     .groupby(['pre_root_id', 'post_root_id', 'brain_region'])['syn_count']
@@ -474,7 +472,7 @@ conn_df = total_syn.merge(plurality_region, on=['pre_root_id', 'post_root_id'])
 conn_df = conn_df.merge(conn_class_df, on=('pre_root_id', 'post_root_id'), how='outer')
 
 # Append neuron data
-neuron_vars = ['neuropil','brain_region','primary_type']
+neuron_vars = ['brain_region','primary_type']
 
 for var in neuron_vars:
     var_map = neuron_df.set_index('root_id')[var]
