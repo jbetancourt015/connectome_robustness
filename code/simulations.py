@@ -8,7 +8,7 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Tue 22 Sep 2026
+    Thu 15 Oct 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
@@ -71,10 +71,7 @@ os.makedirs(sim_dir, exist_ok=True)
 # CONNECTOME DATA
 # ==============================================================================
 connectomes = [
-    "drosophila_central_brain",
-    "drosophila_optic_medulla",
     "c_elegans",
-    "platynereis_sensory_motor",
     "mouse_retina",
     "drosophila_whole_brain",
     "drosophila_banc",
@@ -1361,10 +1358,10 @@ def run_network_shuffling():
 
     For each connectome, compute per-neuron robustness for the original and
     shuffled network. Each output has one row per neuron.
-    For FAFB (data_idx=5), include the FAFB brain_region metadata.
+    For FAFB (data_idx=2), include the FAFB brain_region metadata.
 
     Output files:
-        simulation_results/{connectome_name}_shuffled.parquet  (all 8 connectomes)
+        simulation_results/{connectome_name}_shuffled.parquet  (all 5 connectomes)
     """
     print("\n" + "=" * 60)
     print("SIMULATION 5: Network Shuffling")
@@ -1389,10 +1386,10 @@ def run_network_shuffling():
             print(f"Skipping: {output_file} already exists")
             continue
 
-        conn_type = "cont" if data_idx == 4 else "disc"
-        n_threshold = shuffle_n_threshold_banc if data_idx == 6 else shuffle_n_threshold_default
+        conn_type = "cont" if data_idx == 1 else "disc"
+        n_threshold = shuffle_n_threshold_banc if data_idx == 3 else shuffle_n_threshold_default
 
-        if data_idx == 5:
+        if data_idx == 2:
             print("Loading FAFB connections data...")
             conn_df = pd.read_parquet(processed_dir + "connections_data.parquet")
 
@@ -1429,7 +1426,7 @@ def run_network_shuffling():
 
         q = robustness_per_neuron(A)
 
-        save_fafb_weights = data_idx == 5
+        save_fafb_weights = data_idx == 2
         if save_fafb_weights:
             shuffled_data = A.data.copy().astype(float)
 
@@ -1484,7 +1481,7 @@ def run_network_shuffling():
             }
         )
 
-        if data_idx == 5:
+        if data_idx == 2:
             sim_df["brain_region"] = region_by_id.reindex(idx_to_id).to_numpy()
 
         sim_df.to_parquet(output_file)
@@ -1493,7 +1490,7 @@ def run_network_shuffling():
     # ── Multinomial shuffle ────────────────────────────────────────────────────
     for data_idx in range(len(connectomes)):
         # Skip mouse retina
-        if data_idx == 4:
+        if data_idx == 1:
             continue
 
         output_file = sim_dir + connectomes[data_idx] + "_shuffled_multinomial.parquet"
@@ -1502,10 +1499,10 @@ def run_network_shuffling():
             print(f"Skipping: {output_file} already exists")
             continue
 
-        conn_type = "cont" if data_idx == 4 else "disc"
-        n_threshold = shuffle_n_threshold_banc if data_idx == 6 else shuffle_n_threshold_default
+        conn_type = "cont" if data_idx == 1 else "disc"
+        n_threshold = shuffle_n_threshold_banc if data_idx == 3 else shuffle_n_threshold_default
 
-        if data_idx == 5:
+        if data_idx == 2:
             print("Loading FAFB connections data...")
             conn_df = pd.read_parquet(processed_dir + "connections_data.parquet")
 
@@ -1542,7 +1539,7 @@ def run_network_shuffling():
 
         q = robustness_per_neuron(A)
 
-        save_fafb_weights = data_idx == 5
+        save_fafb_weights = data_idx == 2
         if save_fafb_weights:
             shuffled_data_mn = A.data.copy().astype(float)
 
@@ -1605,7 +1602,7 @@ def run_network_shuffling():
             }
         )
 
-        if data_idx == 5:
+        if data_idx == 2:
             sim_df_mn["brain_region"] = region_by_id.reindex(idx_to_id).to_numpy()
             sim_df_mn["root_id"] = idx_to_id
             sim_df_mn["norm_robustness_shuffled"] = norm_rob_mn
@@ -1645,8 +1642,8 @@ if __name__ == "__main__":
     print(f"  - {sim_dir}lomax_sim_100.parquet")
     print(f"  - {sim_dir}gamma_sim_100.parquet")
     print(f"  - {sim_dir}gamma_sim_sparse_{parametric_n_inputs}.parquet")
-    print(f"  - {sim_dir}*_shuffled.parquet (8 connectomes)")
-    print(f"  - {sim_dir}*_shuffled_multinomial.parquet (8 connectomes)")
+    print(f"  - {sim_dir}*_shuffled.parquet (5 connectomes)")
+    print(f"  - {sim_dir}*_shuffled_multinomial.parquet (5 connectomes)")
     print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights.npz")
     print(f"  - {sim_dir}drosophila_whole_brain_global_shuffled_weights_multinomial.npz")
     print(f"  - {sim_dir}drosophila_whole_brain_shuffled_weights_multinomial.npz")

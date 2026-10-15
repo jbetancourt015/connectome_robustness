@@ -29,20 +29,21 @@ import params
 data_dir = '../../data/'
 processed_dir = '../processed_data/'
 
-connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
+connectomes = ['c_elegans', 'mouse_retina', 'drosophila_whole_brain',
                'drosophila_banc', 'drosophila_manc']
 
-file_names = ['Drosophila_central_brain.csv','Drosophila_optic_medulla.csv','Celegans.csv',
-              'Platynereis_sensory_motor.csv', 'mouse_retina.mat', 'flywire_connections.csv.gz',
+file_names = ['Celegans.csv', 'mouse_retina.mat', 'flywire_connections.csv.gz',
               'banc_connections.csv.gz', 'manc_connections.csv']
 
 #------------------------------------------------------------------------------
 # PROCESSING SMALL CONNECTOMES
 #------------------------------------------------------------------------------
-# Mouse retina (index 4) is handled separately below: it needs its own loader
-# (.mat, not .csv) and its own neuron-neuron filtering/symmetrization.
-for data_idx in range(4):
+# Mouse retina (index 1) is handled separately below: it needs its own loader
+# (.mat, not .csv) and its own neuron-neuron filtering/symmetrization. C. elegans
+# (index 0) is the only other small connectome -- drosophila_central_brain,
+# drosophila_optic_medulla, and platynereis_sensory_motor are not part of the
+# published pipeline (not used in the paper).
+for data_idx in [0]:
     # Load dataset into pandas DataFrame
     colnames = ['pre', 'post', 'strength']
     df = pd.read_csv(data_dir + file_names[data_idx], names=colnames, 
@@ -76,7 +77,7 @@ for data_idx in range(4):
 # et al. 2013, Supplementary Data 6, cross-checked against the published
 # cell2cell_mx pivot's type-ID sheet). Restrict to neuron-neuron contacts and
 # build a genuinely symmetric matrix.
-data_idx = 4
+data_idx = 1
 NEURON_MAX_ID = 840
 
 mat = loadmat(data_dir + file_names[data_idx])
@@ -111,7 +112,7 @@ save_npz(processed_dir + '%s.npz'%(connectomes[data_idx]), A_csc)
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE CONNECTOMES
 #------------------------------------------------------------------------------
-for data_idx in [5,6]:
+for data_idx in [2,3]:
     # Load dataset into pandas DataFrame
     file_name = file_names[data_idx]
     df = pd.read_csv(data_dir+file_name, compression='gzip')
@@ -144,7 +145,7 @@ for data_idx in [5,6]:
 #------------------------------------------------------------------------------
 # PROCESSING MANC CONNECTOME
 #------------------------------------------------------------------------------
-data_idx = 7
+data_idx = 4
 file_name = file_names[data_idx]
 
 # Load dataset into pandas DataFrame
@@ -170,7 +171,7 @@ save_npz(processed_dir + f"{connectomes[data_idx]}.npz", A_csc)
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE - THRESHOLDED
 #------------------------------------------------------------------------------
-data_idx = 5
+data_idx = 2
 file_name = 'flywire_connections_thresholded.csv.gz'
 
 # Load dataset into pandas DataFrame

@@ -5,7 +5,7 @@ created on:
     Mon 15 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Sun 29 Jun 2026
+    Thu 15 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -36,13 +36,8 @@ from figure_formatting import apply_style, log_format
 apply_style()
 
 
-con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
+con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0],
                    [120, 0, 150], [0, 168, 157], [203, 41, 123], [153, 153, 0]])/255
-
-# Connectomes list 
-connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
-               'drosophila_banc']
 
 # Figure size (in mm)
 mm_to_in = 25.4
@@ -279,15 +274,16 @@ plt.close()
 #------------------------------------------------------------------------------
 # OTHER SPECIES DISTRIBUTIONS (from processed connectome data)
 #------------------------------------------------------------------------------
-# Species to plot: c_elegans (idx 2), platynereis_sensory_motor (idx 3), mouse_retina (idx 4)
-species_indices = [2, 3, 4]
+# Species to plot: c_elegans (idx 0), mouse_retina (idx 1). drosophila_central_brain,
+# drosophila_optic_medulla, and platynereis_sensory_motor are not part of the
+# published pipeline (not used in the paper).
+species_indices = [0, 1]
 species_filenames = {
-    2: 'c_elegans_distribution.svg',
-    3: 'platynereis_distribution.svg',
-    4: 'mouse_retina_distribution.svg'
+    0: 'c_elegans_distribution.svg',
+    1: 'mouse_retina_distribution.svg'
 }
-# Map species data indices to color indices (c_elegans->3, platynereis->5, mouse_retina->4)
-species_color_idx = {2: 3, 3: 5, 4: 4}
+# Map species data indices to color indices (c_elegans->3, mouse_retina->4)
+species_color_idx = {0: 3, 1: 4}
 
 for data_idx in species_indices:
     # Load connectome and extract synapse counts

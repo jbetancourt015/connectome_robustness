@@ -6,7 +6,7 @@ created on:
     Tue 28 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Wed 3 Jun 2026
+    Thu 15 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -29,10 +29,7 @@ _code_dir = os.path.dirname(os.path.abspath(__file__))
 processed_dir = os.path.join(_code_dir, "../processed_data/")
 
 connectomes = [
-    "drosophila_central_brain",
-    "drosophila_optic_medulla",
     "c_elegans",
-    "platynereis_sensory_motor",
     "mouse_retina",
     "drosophila_whole_brain",
     "drosophila_banc",

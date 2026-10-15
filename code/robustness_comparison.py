@@ -76,24 +76,20 @@ fig_dir = "../../figures/robustness_comparison/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
 # Connectome list
-connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans',
-               'platynereis_sensory_motor', 'mouse_retina', 'drosophila_whole_brain',
+connectomes = ['c_elegans', 'mouse_retina', 'drosophila_whole_brain',
                'drosophila_banc', 'drosophila_manc']
 
 # Plotting colors
-con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0], 
+con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0],
                    [120, 0, 150], [0, 168, 157], [203, 41, 123], [153, 153, 0]])/255;
 
 # Map data_idx → con_colors index (matches connection_strength_distributions.py)
 data_to_color = {
-    0: 6,  # central brain
-    1: 7,  # optic medulla
-    2: 3,  # c_elegans
-    3: 5,  # platynereis
-    4: 4,  # mouse_retina
-    5: 0,  # FAFB whole brain
-    6: 1,  # BANC
-    7: 2,  # MANC
+    0: 3,  # c_elegans
+    1: 4,  # mouse_retina
+    2: 0,  # FAFB whole brain
+    3: 1,  # BANC
+    4: 2,  # MANC
 }
 
 def fade_to_color_cmap(rgb, alpha_min, name="fade_to_color"):
@@ -155,12 +151,12 @@ def plot_robustness(data_idx, Q1, Q2, null_net, log_axes=False):
     
     Q_min = 0.
     
-    # Set up figure - use large size for FAFB (data_idx=5), small for others
-    if data_idx == 5:
+    # Set up figure - use large size for FAFB (data_idx=2), small for others
+    if data_idx == 2:
         fig, ax_scatter = plt.subplots(figsize=(width_large, height_large))
     else:
         fig, ax_scatter = plt.subplots(figsize=(width, height))
-    
+
     # Plot sensitivities for random weight
     ax_scatter.scatter(Q1, Q2, color=con_colors[data_to_color[data_idx]], s=10, alpha=.2, rasterized=True)
     ax_scatter.plot([Q_min,Q_max], [Q_min,Q_max], c='k', ls='--', lw=1)
@@ -179,11 +175,11 @@ def plot_robustness(data_idx, Q1, Q2, null_net, log_axes=False):
     ax_scatter.xaxis.set_major_locator(locator)
     
     # Apply consistent margins
-    if data_idx == 5:
+    if data_idx == 2:
         plt.subplots_adjust(**fig_margins_large)
     else:
         plt.subplots_adjust(**fig_margins)
-    
+
     # Save plot without labels
     plt.savefig(fig_dir + f"{connectomes[data_idx]}_scatter.svg", dpi=600)
 
@@ -198,26 +194,26 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
     Q_min = min(min(Q1),min(Q2))
 
     # Compute percentile-based upper limit from connectome robustness
-    r_p = np.percentile(Q1, p if data_idx!= 4 else 99)
+    r_p = np.percentile(Q1, p if data_idx!= 1 else 99)
 
-    # Set up figure - use large size for FAFB (data_idx=5), small for others
-    if data_idx == 5:
+    # Set up figure - use large size for FAFB (data_idx=2), small for others
+    if data_idx == 2:
         fig, ax_scatter = plt.subplots(figsize=(width_large, height_large))
     else:
         fig, ax_scatter = plt.subplots(figsize=(width, height))
-    
+
     if log_axes:
         # Create histogram bins
-        xbins = np.logspace(np.log10(Q_min), np.log10(r_p), n_bins if data_idx!=4 else 20)
+        xbins = np.logspace(np.log10(Q_min), np.log10(r_p), n_bins if data_idx!=1 else 20)
         ybins = xbins.copy()
-        
+
         # Set axis scales
         ax_scatter.set_xscale('log')
         ax_scatter.set_yscale('log')
-        
+
     else:
         Q_min = 0.
-        xbins = np.linspace(Q_min, r_p, n_bins if data_idx!=4 else 20)
+        xbins = np.linspace(Q_min, r_p, n_bins if data_idx!=1 else 20)
         ybins = xbins.copy()
     
     # Compute histogram counts and normalize to probability
@@ -246,11 +242,11 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
     ax_scatter.xaxis.set_major_locator(locator)
     
     # Apply consistent margins
-    if data_idx == 5:
+    if data_idx == 2:
         plt.subplots_adjust(**fig_margins_large)
     else:
         plt.subplots_adjust(**fig_margins)
-    
+
     # Save plot without labels
     plt.savefig(fig_dir + f"{connectomes[data_idx]}_hist.svg", dpi=600)
 
@@ -275,18 +271,16 @@ norm = False
 log_axes = False
 
 # Connectomes included in the manuscript figure (Fig. 3): FAFB, BANC, MANC,
-# C. elegans, mouse retina. Central brain, optic medulla, and platynereis are
-# excluded, mirroring the filtering already applied in
-# connection_strength_distributions.py.
-plot_indices = [5, 6, 7, 2, 4]
+# C. elegans, mouse retina -- the only 5 connectomes in the published pipeline.
+plot_indices = [2, 3, 4, 0, 1]
 
 # Collect fraction of neurons with decreased robustness after shuffling
 frac_decreased_list = []
 processed_indices = []
 
 for data_idx in plot_indices:
-    # Use multinomial shuffle for all connectomes except mouse retina (data_idx=4)
-    suffix = '' if data_idx == 4 else '_multinomial'
+    # Use multinomial shuffle for all connectomes except mouse retina (data_idx=1)
+    suffix = '' if data_idx == 1 else '_multinomial'
     robustness_df = load_robustness_dataset(connectomes[data_idx], suffix=suffix).dropna()
     Q1 = robustness_df["robustness"].to_numpy()
     Q2 = robustness_df["shuffled_robustness"].to_numpy()
@@ -301,15 +295,7 @@ for data_idx in plot_indices:
 #------------------------------------------------------------------------------
 # BAR PLOT: FRACTION OF NEURONS WITH DECREASED ROBUSTNESS
 #------------------------------------------------------------------------------
-# Abbreviated labels for readability
-short_names = ['Central Brain', 'Optic Medulla', 'C. elegans', 'Platynereis', 
-               'Mouse retina', 'FAFB', 'BANC', 'MANC']
-# Indices of labels that should be italicized (species/genus names)
-italic_indices = [2, 3]
-
-# Get labels and colors for selected connectomes (see plot_indices above)
-bar_labels = [short_names[i] for i in plot_indices]
-
+# Get colors for selected connectomes (see plot_indices above)
 bar_colors = [con_colors[data_to_color[i]] for i in plot_indices]
 
 # Map processed indices to fractions, then filter for plot_indices
@@ -385,7 +371,7 @@ fig, ax = plt.subplots(figsize=(1.35*width_large, 1.5*height))
 
 # Create bar plot
 x_pos = np.arange(len(fafb_bar_labels))
-ax.axhline(frac_map[5], color='k', ls='--', lw=0.75, zorder=0)
+ax.axhline(frac_map[2], color='k', ls='--', lw=0.75, zorder=0)
 ax.bar(x_pos, fafb_bar_fractions, color=fafb_bar_colors, edgecolor='none', width=0.6)
 
 # Configure axes
@@ -431,7 +417,7 @@ fig, ax = plt.subplots(figsize=(width_small, height_small))
 im_mv = ax.pcolormesh(
     xedges_mv, yedges_mv, prob_mv_masked.T,
     norm=LogNorm(),
-    cmap=fade_to_color_cmap(con_colors[data_to_color[5]], alpha_min=alpha_min, name="fade_to_color"),
+    cmap=fade_to_color_cmap(con_colors[data_to_color[2]], alpha_min=alpha_min, name="fade_to_color"),
     rasterized=True,
 )
 ax.set_xscale('log')

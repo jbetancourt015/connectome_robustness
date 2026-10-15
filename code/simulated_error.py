@@ -5,7 +5,7 @@ created on:
     Fri 21 Nov 2024
 -------------------------------------------------------------------------------
 last change:
-    Fri 25 Sep 2026
+    Thu 15 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -58,17 +58,7 @@ alpha_min = 0.0
 fig_dir = "../../figures/simulated_error/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
-# Connectome list
-connectomes = [
-    "drosophila_central_brain",
-    "drosophila_optic_medulla",
-    "c_elegans",
-    "platynereis_sensory_motor",
-    "mouse_retina",
-    "drosophila_whole_brain",
-]
-
-data_idx = 5
+data_idx = 2  # drosophila_whole_brain (FAFB)
 thresholded = False
 scheme = "remove"
 

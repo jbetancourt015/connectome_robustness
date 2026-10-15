@@ -15,7 +15,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 14 Oct 2026
+    Thu 15 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -105,13 +105,13 @@ def blend_with_white(color, alpha):
 # ------------------------------------------------------------------------------
 # LOAD DATASETS
 # ------------------------------------------------------------------------------
-data_dir = "../../data/"
 processed_dir = "../processed_data/"
+sim_dir = "../simulation_results/"
 
 # Import neuron and connections data
 neuron_df = pd.read_parquet(processed_dir + "neuron_data.parquet")
 conn_df = pd.read_parquet(processed_dir + "connections_data.parquet")
-peri_df = pd.read_parquet(data_dir + "periphery_data.parquet")
+peri_df = pd.read_parquet(sim_dir + "periphery_data.parquet")
 
 # Add peripherality data to neuron dataframe
 neuron_df = neuron_df.merge(peri_df, on="root_id")
