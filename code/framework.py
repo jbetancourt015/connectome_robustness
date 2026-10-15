@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Fri 25 Sep 2026
+    Wed 14 Oct 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the main framework figures:
@@ -93,13 +93,14 @@ pg_width = 165  # mm
 mm_to_in = 25.4
 
 # Panel dimensions in inches (scaled from mm reference)
-# width_sm = height_sm = 0.17 * pg_width / mm_to_in
-width_sm = height_sm = 0.2 * pg_width / mm_to_in
+width_xs = height_xs = 0.12 * pg_width / mm_to_in
+width_sm = height_sm = 0.18 * pg_width / mm_to_in
 width_md = height_md = 0.32 * pg_width / mm_to_in
 width_lg = height_lg = 0.35 * pg_width / mm_to_in
 
 # Fixed margins for consistent axes size across all single-panel figures
-fig_margins_sm = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
+fig_margins_xs = dict(left=0.22, right=0.95, bottom=0.22, top=0.95)
+fig_margins_sm = dict(left=0.2, right=0.98, bottom=0.2, top=0.98)
 fig_margins_md = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
 fig_margins_lg = dict(left=0.18, right=0.95, bottom=0.18, top=0.95)
 
@@ -445,7 +446,9 @@ def load_and_normalize(df_all, distribution, mean, var=None, eps=None):
     return z_norm, ztilde_norm, computed_var
 
 
-def plot_local_field_hist(z, zhat, color, fname, xlim=300.0, ylim=600.0, min_vmax=None):
+def plot_local_field_hist(
+    z, zhat, color, fname, xlim=300.0, ylim=600.0, min_vmax=None, show_yticks=False
+):
     """
     Create a 2D heatmap histogram of (z, zhat) values.
 
@@ -464,6 +467,8 @@ def plot_local_field_hist(z, zhat, color, fname, xlim=300.0, ylim=600.0, min_vma
     min_vmax : float, optional
         Floor for the colorbar maximum. If the automatically-determined
         maximum density is lower than this, the colorbar max is raised to it.
+    show_yticks : bool
+        If True, show y ticks (-outer, 0, outer); otherwise hide them.
     """
     fig, ax_scatter = plt.subplots(figsize=(width_sm, height_sm))
 
@@ -498,7 +503,11 @@ def plot_local_field_hist(z, zhat, color, fname, xlim=300.0, ylim=600.0, min_vma
 
     ax_scatter.set_xlim(-xlim, xlim)
     ax_scatter.set_ylim(-ylim, ylim)
-    ax_scatter.set_yticks([])
+    if show_yticks:
+        _yt = outer_tick(ylim)
+        ax_scatter.set_yticks([-_yt, 0, _yt])
+    else:
+        ax_scatter.set_yticks([])
     _xt = outer_tick(xlim)
     ax_scatter.set_xticks([-_xt, 0, _xt])
 
@@ -577,8 +586,7 @@ def plot_gaussian_heatmap(
     ax.set_xlim(-xlim, xlim)
     ax.set_ylim(-ylim, ylim)
 
-    _yt = outer_tick(ylim)
-    ax.set_yticks([-_yt, 0, _yt])
+    ax.set_yticks([])
     _xt = outer_tick(xlim)
     ax.set_xticks([-_xt, 0, _xt])
 
@@ -817,7 +825,7 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
     y_range : tuple or None
         (y_min, y_max) for continuous distributions. If None, uses matplotlib default.
     """
-    fig, ax = plt.subplots(figsize=(0.6 * width_sm, 0.6 * height_sm))
+    fig, ax = plt.subplots(figsize=(width_xs, height_xs))
 
     x_min, x_max = x_range
 
@@ -872,7 +880,7 @@ def plot_distribution_pdf(distribution, mean, var, color, fname, x_range, y_rang
 
     ax.spines[["top", "right"]].set_visible(False)
 
-    plt.subplots_adjust(**fig_margins_sm)
+    plt.subplots_adjust(**fig_margins_xs)
     plt.savefig(fig_dir + f"pdf_{fname}.svg", dpi=600)
     plt.show()
 
@@ -1092,6 +1100,7 @@ for i, param_set in enumerate(param_sets):
         xlim=hist_xlim,
         ylim=hist_ylim,
         min_vmax=third_panel_min_vmax if i == 2 else None,
+        show_yticks=(distribution == "dirac"),  # zero-variance panel only
     )
 
     print("  Generated histogram")

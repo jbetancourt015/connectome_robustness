@@ -14,7 +14,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Mon 28 Sep 2026
+    Wed 14 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -59,10 +59,21 @@ con_colors = np.array([[0, 77, 128], [181, 23, 0], [1, 113, 0], [242, 112, 0],
 #------------------------------------------------------------------------------
 def compute_cdf(series):
     """Compute CDF from a pandas series."""
-    counts = series.value_counts().sort_index()
+    counts = series.round(9).value_counts().sort_index()
     cum_counts = counts.cumsum()
     cdf = cum_counts / cum_counts.iloc[-1]
     return cdf.index, cdf.values
+
+def blend_with_white(color, alpha):
+    """Pre-blend an RGB color with a white background at the given alpha.
+
+    Used instead of matplotlib's alpha kwarg for long, many-vertex paths:
+    Inkscape wraps alpha<1 strokes in a PDF transparency group, which
+    triggers a macOS Quartz/Preview rendering bug that darkens part of
+    the stroke. Baking the blend into an opaque color avoids the group.
+    """
+    color = np.asarray(color)
+    return alpha * color + (1 - alpha) * np.ones(3)
 
 #------------------------------------------------------------------------------
 # LOAD DATASETS
@@ -105,7 +116,7 @@ fig, ax = plt.subplots(figsize=(width, height))
 ax.plot([median_rob, median_rob], [0., 1.], lw=1, c='k')
 ax.plot([median_rob_shuffled, median_rob_shuffled], [0., 1.], lw=1, c='k', alpha=.5, ls='--')
 ax.step(rob_vals, rob_cdf, where='post', lw=2, color=con_colors[0], label='Connectome')
-ax.step(rob_vals_shuf, rob_cdf_shuf, where='post', lw=2, color=con_colors[0], alpha=0.5, label='Shuffled')
+ax.step(rob_vals_shuf, rob_cdf_shuf, where='post', lw=2, color=blend_with_white(con_colors[0], 0.5), label='Shuffled')
 
 
 ax.set_xscale('log')
