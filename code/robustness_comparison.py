@@ -7,7 +7,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Mon 28 Sep 2026
+    Thu 15 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -129,6 +129,17 @@ formatter.set_scientific(False)
 formatter.set_useOffset(False)
 formatter.set_powerlimits((0, 0))
 
+def format_frac_pct(frac):
+    """Format a fraction as a percentage string, using just enough decimal
+    places that a value below 1.0 never displays as '100%'."""
+    if frac >= 1.0:
+        return "100%"
+    for d in range(6):
+        pct = round(100 * frac, d)
+        if pct < 100:
+            return f"{pct:.{d}f}%"
+    return f"{100 * frac:.6f}%"
+
 def log_kde_to_original(q_vals, n_grid=512, bw=None):
     u = np.log10(q_vals[q_vals > 0])
     kde = gaussian_kde(u, bw_method=bw)  # bw=None => Scott’s rule
@@ -244,7 +255,7 @@ def plot_robustness_hist(data_idx, Q1, Q2, log_axes=False, labels=True):
     plt.savefig(fig_dir + f"{connectomes[data_idx]}_hist.svg", dpi=600)
 
     frac_below = np.mean(Q1 > Q2)
-    ax_scatter.text(0.05, 0.95, f'{100*frac_below:.0f}%', transform=ax_scatter.transAxes,
+    ax_scatter.text(0.05, 0.95, format_frac_pct(frac_below), transform=ax_scatter.transAxes,
                     fontsize=6, va='top', ha='left')
 
     # Add labels

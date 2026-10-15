@@ -97,7 +97,7 @@ Each script saves its figures to disk (see script headers for output paths).
 ### 4. Generate tables
 
 ```bash
-python code/statistics.py
+python code/connectome_statistics.py
 ```
 
 This generates a LaTeX table of summary statistics (neuron counts, connection counts, degree and strength averages, fraction of high-degree neurons) for all eight connectomes, saved to:
