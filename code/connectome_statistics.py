@@ -46,8 +46,8 @@ display_names = {
     "drosophila_whole_brain": r"\makecell[b]{\textit{Drosophila} \\ FAFB\cite{dorkenwald_neuronal_2024, schlegel_whole-brain_2024}}",
     "drosophila_banc": r"\makecell[b]{\textit{Drosophila} \\ BANC\cite{bates_distributed_2025}}",
     "drosophila_manc": r"\makecell[b]{\textit{Drosophila} \\ MANC\cite{takemura_connectome_2024}}",
-    "mouse_retina": r"\makecell[b]{Mouse retina\cite{helmstaedter_connectomic_2013}}",
     "c_elegans": r"\makecell[b]{\textit{C. elegans}\cite{varshney_structural_2011, white_structure_1986}}",
+    "mouse_retina": r"\makecell[b]{Mouse retina\cite{helmstaedter_connectomic_2013}}",
 }
 
 # ── Row labels ─────────────────────────────────────────────────────────────────
