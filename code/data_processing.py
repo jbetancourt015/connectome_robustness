@@ -7,7 +7,7 @@ created on:
     Mon 12 May 2024
 -------------------------------------------------------------------------------
 last change:
-    Wed 14 Oct 2026
+    Thu 15 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from scipy.sparse import coo_matrix, save_npz
+from scipy.io import loadmat
 import params
 #------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
@@ -33,13 +34,15 @@ connectomes = ['drosophila_central_brain','drosophila_optic_medulla','c_elegans'
                'drosophila_banc', 'drosophila_manc']
 
 file_names = ['Drosophila_central_brain.csv','Drosophila_optic_medulla.csv','Celegans.csv',
-              'Platynereis_sensory_motor.csv', 'Mouse_retina.csv', 'flywire_connections.csv.gz',
+              'Platynereis_sensory_motor.csv', 'mouse_retina.mat', 'flywire_connections.csv.gz',
               'banc_connections.csv.gz', 'manc_connections.csv']
 
 #------------------------------------------------------------------------------
 # PROCESSING SMALL CONNECTOMES
 #------------------------------------------------------------------------------
-for data_idx in range(5):
+# Mouse retina (index 4) is handled separately below: it needs its own loader
+# (.mat, not .csv) and its own neuron-neuron filtering/symmetrization.
+for data_idx in range(4):
     # Load dataset into pandas DataFrame
     colnames = ['pre', 'post', 'strength']
     df = pd.read_csv(data_dir + file_names[data_idx], names=colnames, 
@@ -61,6 +64,49 @@ for data_idx in range(5):
 
     # Save it to disk
     save_npz(processed_dir + '%s.npz'%(connectomes[data_idx]), A_csc)
+
+#------------------------------------------------------------------------------
+# PROCESSING MOUSE RETINA
+#------------------------------------------------------------------------------
+# Unlike the other small connectomes, mouse retina contacts are classified
+# purely by membrane contact area (Helmstaedter et al. 2013) -- inherently
+# undirected -- and come from the original per-interface connection list
+# (mouse_retina.mat), not a pre-aggregated directed CSV. Cell ID 1-840 are
+# classified neurons; 841-950 are orphans and 951-1123 are glia (Helmstaedter
+# et al. 2013, Supplementary Data 6, cross-checked against the published
+# cell2cell_mx pivot's type-ID sheet). Restrict to neuron-neuron contacts and
+# build a genuinely symmetric matrix.
+data_idx = 4
+NEURON_MAX_ID = 840
+
+mat = loadmat(data_dir + file_names[data_idx])
+arr = mat['kn_allContactData_Interfaces_duplCorr_output_IDconv']
+pre, post, area = arr[:, 0].astype(int), arr[:, 1].astype(int), arr[:, 2]
+
+# Restrict to neuron-neuron contacts (drops the 110 orphans + 173 glia and
+# every contact touching them)
+neuron_mask = (pre <= NEURON_MAX_ID) & (post <= NEURON_MAX_ID)
+pre, post, area = pre[neuron_mask], post[neuron_mask], area[neuron_mask]
+
+# Aggregate individual contact-interface segments by unordered cell pair
+rows_a = np.minimum(pre, post)
+rows_b = np.maximum(pre, post)
+agg = (
+    pd.DataFrame({'a': rows_a, 'b': rows_b, 'area': area})
+    .groupby(['a', 'b'])['area'].sum()
+    .reset_index()
+)
+
+# Build a symmetric matrix, indexed directly by cell ID (1..840 -> 0..839)
+rows = np.concatenate([agg['a'].values - 1, agg['b'].values - 1])
+cols = np.concatenate([agg['b'].values - 1, agg['a'].values - 1])
+data = np.concatenate([agg['area'].values, agg['area'].values])
+
+A_coo = coo_matrix((data, (rows, cols)), shape=(NEURON_MAX_ID, NEURON_MAX_ID))
+A_csc = A_coo.tocsc()
+
+# Save it to disk
+save_npz(processed_dir + '%s.npz'%(connectomes[data_idx]), A_csc)
 
 #------------------------------------------------------------------------------
 # PROCESSING FLYWIRE CONNECTOMES
