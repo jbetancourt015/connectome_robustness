@@ -33,7 +33,7 @@ import urllib.request
 # ------------------------------------------------------------------------------
 # CONFIGURATION
 # ------------------------------------------------------------------------------
-ZENODO_RECORD_ID = "XXXXXXX"  # TODO: fill in once the Zenodo deposit is published
+ZENODO_RECORD_ID = "23427196"  # concept DOI 10.5281/zenodo.23427196 (always resolves to latest version)
 
 data_dir = "../data/"
 

@@ -139,7 +139,7 @@ tables/connectome_statistics.tex
 
 ## Data Sources
 
-Raw connectome data is hosted on Zenodo: **[DOI placeholder — fill in once the deposit is published]**. Run `code/fetch_data.py` to download it into `data/` (see "0. Fetch data" above). `code/data_processing.py` processes these files into the five connectomes analyzed in the manuscript. Citations, included files, and access dates:
+Raw connectome data is hosted on Zenodo: **https://doi.org/10.5281/zenodo.23427196**. Run `code/fetch_data.py` to download it into `data/` (see "0. Fetch data" above). `code/data_processing.py` processes these files into the five connectomes analyzed in the manuscript. Citations, included files, and access dates:
 
 ### C. elegans
 
