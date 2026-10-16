@@ -15,7 +15,7 @@ created on:
     Tue 3 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 15 Oct 2026
+    Fri 16 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -58,7 +58,7 @@ fig_margins_wd = dict(left=0.09, right=0.975, bottom=0.18, top=0.95)
 fig_margins_wd_sm = dict(left=0.09, right=0.975, bottom=0.18, top=0.95)
 
 # Output directory
-fig_dir = "../../figures/drosophila_robustness/raw/"
+fig_dir = "../figures/drosophila_robustness/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
 # Plotting colors

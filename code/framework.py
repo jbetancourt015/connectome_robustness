@@ -5,7 +5,7 @@ created on:
     Sun 13 Apr 2026
 -------------------------------------------------------------------------------
 last change:
-    Wed 14 Oct 2026
+    Fri 16 Oct 2026
 -------------------------------------------------------------------------------
 notes:
     Generates the main framework figures:
@@ -81,7 +81,7 @@ con_colors = (
 # Directory paths
 sim_dir = "../simulation_results/"
 processed_dir = "../processed_data/"
-fig_dir = "../../figures/framework/raw/"
+fig_dir = "../figures/framework/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
 # Single consolidated simulation file for z/ztilde

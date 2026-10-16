@@ -18,6 +18,12 @@ processed_data/*
 !processed_data/.gitkeep
 simulation_results/*
 !simulation_results/.gitkeep
+data/*
+!data/.gitkeep
+figures/*
+!figures/.gitkeep
+tables/*
+!tables/.gitkeep
 supplement_code/
 supplement_simulation_results/
 report_code/

@@ -33,7 +33,7 @@ import params
 # ------------------------------------------------------------------------------
 # CONNECTOMES AND DIRECTORIES
 # ------------------------------------------------------------------------------
-data_dir = "../../data/"
+data_dir = "../data/"
 processed_dir = "../processed_data/"
 
 connectomes = [

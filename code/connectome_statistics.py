@@ -6,7 +6,7 @@ created on:
     Tue 24 Mar 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 15 Oct 2026
+    Fri 16 Oct 2026
 -------------------------------------------------------------------------------
 notes:
     Run from the repo/ directory:
@@ -36,7 +36,7 @@ except NameError:
 from network_processing import load_connectome, connectomes
 
 _here = os.path.dirname(os.path.abspath(__file__))
-tables_dir = os.path.join(_here, "../../tables/")
+tables_dir = os.path.join(_here, "../tables/")
 os.makedirs(tables_dir, exist_ok=True)
 
 # ── Human-readable column labels ──────────────────────────────────────────────

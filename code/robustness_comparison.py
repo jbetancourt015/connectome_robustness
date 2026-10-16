@@ -7,7 +7,7 @@ created on:
     Tue 18 Feb 2025
 -------------------------------------------------------------------------------
 last change:
-    Thu 15 Oct 2026
+    Fri 16 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ fig_margins_large = dict(left=0.12, right=0.95, bottom=0.12, top=0.95)
 alpha_min = .2
 
 # Output directory
-fig_dir = "../../figures/robustness_comparison/raw/"
+fig_dir = "../figures/robustness_comparison/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
 # Connectome list

@@ -55,7 +55,7 @@ fig_margins_lg = dict(left=0.15, right=0.95, bottom=0.15, top=0.95)
 alpha_min = 0.0
 
 # Output directory
-fig_dir = "../../figures/simulated_error/raw/"
+fig_dir = "../figures/simulated_error/raw/"
 os.makedirs(fig_dir, exist_ok=True)
 
 data_idx = 2  # drosophila_whole_brain (FAFB)
