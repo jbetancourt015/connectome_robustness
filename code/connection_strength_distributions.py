@@ -5,7 +5,7 @@ created on:
     Mon 15 Dec 2025
 -------------------------------------------------------------------------------
 last change:
-    Thu 15 Oct 2026
+    Fri 16 Oct 2026
 -------------------------------------------------------------------------------
 notes:
 -------------------------------------------------------------------------------
@@ -251,11 +251,17 @@ plt.savefig(output_dir + 'banc_distribution.svg', dpi=600)
 plt.show()
 plt.close()
 
-manc_file = 'manc_connections.csv'
-manc_conn_df = pd.read_csv(data_dir + manc_file)
+manc_file = 'manc_connections.csv.gz'
+manc_conn_df = pd.read_csv(data_dir + manc_file, compression='gzip')
+
+manc_conn_df = (
+    manc_conn_df.groupby(["pre_root_id", "post_root_id"])["syn_count"]
+      .sum()
+      .reset_index()
+)
 
 # Get distribution of weights
-s_manc, P_manc = empirical_hist_pd(manc_conn_df['weight'])
+s_manc, P_manc = empirical_hist_pd(manc_conn_df['syn_count'])
 
 # FIGURE: Distribution of all connections in the MANC dataset------------------
 # Set up figure

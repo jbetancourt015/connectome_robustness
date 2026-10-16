@@ -8,7 +8,7 @@ created on:
     Tue 4 Feb 2026
 -------------------------------------------------------------------------------
 last change:
-    Thu 15 Oct 2026
+    Fri 16 Oct 2026
 -------------------------------------------------------------------------------
 notes:
     Run this script once to generate all simulation data:
@@ -60,7 +60,6 @@ SKIP_EXISTING_SIMULATIONS = True
 # ------------------------------------------------------------------------------
 # DIRECTORIES
 # ------------------------------------------------------------------------------
-data_dir = "../../data/"
 processed_dir = "../processed_data/"
 sim_dir = "../simulation_results/"
 
