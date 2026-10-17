@@ -187,8 +187,7 @@ Dorkenwald, S. et al. Neuronal wiring diagram of an adult brain. *Nature* 634, 1
 (2024).
 Schlegel, P. et al. Whole-brain annotation and multi-connectome cell typing of *Drosophila*.
 *Nature* 634, 139–152 (2024).
-Accessed March 2025 (FlyWire/FAFB data was updated in July 2025; this snapshot predates
-that update and is kept as the version actually used in the analysis).
+Accessed March 2025.
 
 ### BANC (Drosophila brain-and-cord)
 
