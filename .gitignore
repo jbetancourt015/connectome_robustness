@@ -1,8 +1,3 @@
-# Claude Code
-CLAUDE.md
-.claude/
-code/hooks/
-
 # OS
 .DS_Store
 Thumbs.db
@@ -24,14 +19,6 @@ figures/*
 !figures/.gitkeep
 tables/*
 !tables/.gitkeep
-supplement_code/
-supplement_simulation_results/
-report_code/
-extra_figures/
-
-# R
-.Rhistory
-.Rproj.user/
 
 # LaTeX
 *.aux
@@ -39,10 +26,6 @@ extra_figures/
 *.out
 *.toc
 *.synctex.gz
-
-# Stata
-*.smcl
-*.log
 
 # Node
 node_modules/
