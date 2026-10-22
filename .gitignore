@@ -1,0 +1,62 @@
+# Claude Code
+CLAUDE.md
+.claude/
+code/hooks/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+.venv/
+.env.*
+.ipynb_checkpoints/
+processed_data/*
+!processed_data/.gitkeep
+simulation_results/*
+!simulation_results/.gitkeep
+data/*
+!data/.gitkeep
+figures/*
+!figures/.gitkeep
+tables/*
+!tables/.gitkeep
+supplement_code/
+supplement_simulation_results/
+report_code/
+extra_figures/
+
+# R
+.Rhistory
+.Rproj.user/
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+
+# Stata
+*.smcl
+*.log
+
+# Node
+node_modules/
+
+# Build & artifacts
+dist/
+build/
+*.egg-info/
+
+# Data & secrets (use with care)
+*.sqlite
+*.db
+*.key
+*.pem
+*.p12
+*.crt
+*.env
